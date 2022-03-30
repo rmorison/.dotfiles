@@ -1,15 +1,14 @@
-;; Mac Fira Code fonts:
-;;
-;; brew install svn
-;; brew tap homebrew/cask-fonts
-;; brew install --cask font-fira-code font-fira-mono
-;; brew install --cask font-cantarell
 
 ;; MacOS key bindings
 (when (eq system-type 'darwin) ;; mac specific settings
+  ;; brew install svn
+  ;; brew tap homebrew/cask-fonts
+  ;; brew install --cask font-fira-code font-fira-mono
+  ;; brew install --cask font-cantarell
+  ;; brew install coreutils
   (setq mac-option-modifier 'alt)
   (setq mac-command-modifier 'meta)
-  (global-set-key [kp-delete] 'delete-char) ;; sets fn-delete to be right-delete
+  (setq insert-directory-program "gls" dired-use-ls-dired t)
   )
  
 ;; You will most likely need to adjust this font size for your system!
@@ -430,3 +429,33 @@
 
 (use-package all-the-icons-dired
   :hook (dired-mode . all-the-icons-dired-mode))
+
+(when (string= (system-name) "C02G50XGML85-RMorison.local") ;; computer specific settings
+  (message "adding %s inits" (system-name))
+
+  ;; mysql v5.7
+  (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:" (getenv "PATH")))
+  (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") exec-path))
+
+  ;; Java
+  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home")
+
+  ;; Docker
+  ;; (setenv "DOCKER_TLS_VERIFY" "1")
+  ;; (setenv "DOCKER_HOST" "tcp://192.168.99.100:2376")
+  ;; (setenv "DOCKER_CERT_PATH" "/Users/rmorison/.docker/machine/machines/default")
+  ;; (setenv "DOCKER_MACHINE_NAME" "default")
+  ;; (setenv "DOCKER_HOST_IP" (url-host (url-generic-parse-url (getenv "DOCKER_HOST"))))
+
+  ;; pyenv
+  (setenv "PATH" (concat "/Users/rmorison/.local/bin:/Users/rmorison/.pyenv/shims:/Users/rmorison/.pyenv/bin:" (getenv "PATH")))
+  (setq exec-path (append '("/Users/rmorison/.local/bin") '("/Users/rmorison/.pyenv/shims:/Users/rmorison/.pyenv/bin") exec-path))
+
+  ;; nvm
+  (setenv "NVM_DIR" "/Users/rmorison/.nvm")
+  (setenv "NVM_CD_FLAGS" "-q")
+  (setenv "NVM_RC_VERSION" "")
+  (setenv "NVM_BIN" "/Users/rmorison/.nvm/versions/node/v16.14.0/bin")
+  (setenv "NVM_INC" "/Users/rmorison/.nvm/versions/node/v16.14.0/include/node")
+  (setenv "PATH" (concat "/Users/rmorison/.nvm/versions/node/v16.14.0/bin:" (getenv "PATH")))
+  (setq exec-path (append '("/Users/rmorison/.nvm/versions/node/v16.14.0/bin") exec-path)))
