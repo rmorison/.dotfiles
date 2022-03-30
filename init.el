@@ -197,7 +197,6 @@
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
 ;; org mode
-
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
   (font-lock-add-keywords 'org-mode
@@ -352,8 +351,11 @@
 	  ("mw" "Weight" table-line (file+headline "~/Documents/org/metrics.org" "Weight")
 	   "| %U | %^{Weight} | %^{Notes} |" :kill-buffer t)))
 
-  (define-key global-map (kbd "C-c j")
-    (lambda () (interactive) (org-capture nil "jj")))
+  (define-key global-map (kbd "C-c c")
+    (lambda () (interactive) (org-capture nil)))
+  ;;(global-set-key (kbd "\C-cc") 'org-capture)
+  (define-key global-map (kbd "C-c l") 'org-store-link)
+  (define-key global-map (kbd "C-c a") 'org-agenda)
 
   (efs/org-font-setup))
 
