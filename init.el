@@ -241,122 +241,122 @@
   (setq org-agenda-start-with-log-mode t)
   (setq org-log-done 'time)
   (setq org-log-into-drawer t)
-  
-  (setq org-agenda-files
-	'("~/Documents/org/tasks.org"
-	  "~/Documents/org/habits.org"
-	  "~/Documents/org/birthdays.org"))
+  (setq org-image-actual-width (list 640))
+
+  (setq org-directory "~/Projects/org")
+  (setq org-agenda-files '(org-directory))
+
+  (setq org-agenda-compact-blocks t)
+
+  (setq org-refile-use-outline-path 'file)
+  (setq org-outline-path-complete-in-steps nil)
+  (setq org-refile-allow-creating-parent-nodes 'confirm)
+  (setq org-refile-targets '(("reference.org" "people.org" "projects.org" :maxlevel . 9)))
+
+  ;; Save Org buffers after refiling!
+  (advice-add 'org-refile :after 'org-save-all-org-buffers)
 
   (require 'org-habit)
   (add-to-list 'org-modules 'org-habit)
   (setq org-habit-graph-column 60)
   
   (setq org-todo-keywords
-	'((sequence "TODO(t)" "NEXT(n)"  "|" "DONE(d!)")
-	  (sequence "BACKLOG(b)" "PLAN(p)" "READY(r)" "ACTIVE(a)" "REVIEW(v)" "WAIT(w@/!)" "HOLD(h)" "|" "COMPLETED(c)" "CANC(k@)")))
-
-  (setq org-refile-targets
-	'(("archive.org" :maxlevel . 1)
-	  ("tasks.org" :maxlevel . 1)))
-
-  ;; Save Org buffers after refiling!
-  (advice-add 'org-refile :after 'org-save-all-org-buffers)
+	'((sequence "TODO(t)" "ONDECK(o)" "ATBAT(@)" "BLOCKED(b)" "|" "DONE(d)" "ICEBOX(i)")
+	  (sequence "PLAN(p)" "READY(r)" "ACTIVE(a)" "HELD(h)" "|" "COMPLETE(c)" "MOTHBALLED(m)")))
   
   (setq org-tag-alist
 	'((:startgroup)
 					; Put mutually exclusive tags here
 	  (:endgroup)
-	  ("@errand" . ?E)
-	  ("@home" . ?H)
-	  ("@work" . ?W)
+	  ("project" . ?p)
 	  ("agenda" . ?a)
-	  ("planning" . ?p)
-	  ("publish" . ?P)
-	  ("batch" . ?b)
+	  ("meeting" . ?m)
+	  ("key-concept" . ?k)
 	  ("note" . ?n)
 	  ("idea" . ?i)))
-
+  (setq org-fast-tag-selection-single-key t)
+  
   ;; Configure custom agenda views
   (setq org-agenda-custom-commands
 	'(("d" "Dashboard"
 	   ((agenda "" ((org-deadline-warning-days 7)))
-	    (todo "NEXT"
-		  ((org-agenda-overriding-header "Next Tasks")))
-	    (tags-todo "agenda/ACTIVE" ((org-agenda-overriding-header "Active Projects")))))
+	    (todo "BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))
+	    (todo "ONDECK" ((org-agenda-overriding-header "Tasks on deck")))
+	    (todo "ATBAT" ((org-agenda-overriding-header "Tasks in play")))
+	    (todo "TODO" ((org-agenda-overriding-header "Task backlog")))
+	    (todo "HELD" ((org-agenda-overriding-header "Projects on hold")))
+	    (todo "READY" ((org-agenda-overriding-header "Ready to start projects")))
+	    (todo "ACTIVE" ((org-agenda-overriding-header "Active projects")))
+	    (todo "PLAN" ((org-agenda-overriding-header "Projects that need planning")))))
 
-	  ("n" "Next Tasks"
-	   ((todo "NEXT"
-		  ((org-agenda-overriding-header "Next Tasks")))))
+	  ("b" "Backlog triage"
+	   ((todo "TODO"
+		  ((org-agenda-overriding-header "Tasks to put on deck")))))
 
-	  ("W" "Work Tasks" tags-todo "+work-email")
+	  ("@" "On deck and at bat"
+	   ((todo "ONDECK"
+		  ((org-agenda-overriding-header "Now hitting or on deck")))))
 
-	  ;; Low-effort next actions
-	  ("e" tags-todo "+TODO=\"NEXT\"+Effort<15&+Effort>0"
-	   ((org-agenda-overriding-header "Low Effort Tasks")
-	    (org-agenda-max-todos 20)
-	    (org-agenda-files org-agenda-files)))
+	  ("c" "Completed tasks and projects"
+	   ((todo "DONE"
+		  ((org-agenda-overriding-header "Tasks done"))))
+	   ((todo "COMPLETE"
+		  ((org-agenda-overriding-header "Projects complete")))))
 
-	  ("w" "Workflow Status"
-	   ((todo "WAIT"
-		  ((org-agenda-overriding-header "Waiting on External")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "REVIEW"
-		  ((org-agenda-overriding-header "In Review")
-		   (org-agenda-files org-agenda-files)))
+	  ("i" "Iced tasks and projects"
+	   ((todo "ICEBOX"
+		  ((org-agenda-overriding-header "Tasks on ice"))))
+	   ((todo "MOTHBALLED"
+		  ((org-agenda-overriding-header "Mothballed projects")))))
+
+	  ("p" "Project Status"
 	    (todo "PLAN"
 		  ((org-agenda-overriding-header "In Planning")
 		   (org-agenda-todo-list-sublevels nil)
 		   (org-agenda-files org-agenda-files)))
-	    (todo "BACKLOG"
-		  ((org-agenda-overriding-header "Project Backlog")
-		   (org-agenda-todo-list-sublevels nil)
+	    (todo "ACTIVE"
+		  ((org-agenda-overriding-header "Active Projects")
+		   (org-agenda-files org-agenda-files)))
+	   ((todo "HOLD"
+		  ((org-agenda-overriding-header "Projects on hold")
+		   (org-agenda-files org-agenda-files)))
+	    (todo "REVIEW"
+		  ((org-agenda-overriding-header "In Review")
 		   (org-agenda-files org-agenda-files)))
 	    (todo "READY"
 		  ((org-agenda-overriding-header "Ready for Work")
 		   (org-agenda-files org-agenda-files)))
-	    (todo "ACTIVE"
-		  ((org-agenda-overriding-header "Active Projects")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "COMPLETED"
-		  ((org-agenda-overriding-header "Completed Projects")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "CANC"
+	    (todo "KILLED"
 		  ((org-agenda-overriding-header "Cancelled Projects")
 		   (org-agenda-files org-agenda-files)))))))
 
+  ;; Define capture templates
   (setq org-capture-templates
-	`(("t" "Tasks / Projects")
-	  ("tt" "Task" entry (file+olp "~/Documents/org/tasks.org" "Inbox")
-           "* TODO %?\n  %U\n  %a\n  %i" :empty-lines 1)
+	`(("t" "Task" entry (file+headline "inbox.org" "Tasks")
+           (file "templates/task.org"))
 
-	  ("j" "Journal Entries")
-	  ("jj" "Journal" entry
-           (file+olp+datetree "~/Documents/org/journal.org")
-           "\n* %<%I:%M %p> - Journal :journal:\n\n%?\n\n"
-           ;; ,(dw/read-file-as-string "~/Notes/Templates/Daily.org")
-           :clock-in :clock-resume
-           :empty-lines 1)
-	  ("jm" "Meeting" entry
-           (file+olp+datetree "~/Documents/org/journal.org")
-           "* %<%I:%M %p> - %a :meetings:\n\n%?\n\n"
-           :clock-in :clock-resume
-           :empty-lines 1)
-
-	  ("w" "Workflows")
-	  ("we" "Checking Email" entry (file+olp+datetree "~/Documents/org/journal.org")
-           "* Checking Email :email:\n\n%?" :clock-in :clock-resume :empty-lines 1)
-
-	  ("m" "Metrics Capture")
-	  ("mw" "Weight" table-line (file+headline "~/Documents/org/metrics.org" "Weight")
-	   "| %U | %^{Weight} | %^{Notes} |" :kill-buffer t)))
-
-  (define-key global-map (kbd "C-c c")
-    (lambda () (interactive) (org-capture nil)))
-  ;;(global-set-key (kbd "\C-cc") 'org-capture)
-  (define-key global-map (kbd "C-c l") 'org-store-link)
-  (define-key global-map (kbd "C-c a") 'org-agenda)
+	  ("p" "Project" entry (file+headline "inbox.org" "Projects")
+           (file "templates/project.org"))
+	  
+	  ("n" "Note" entry (file+headline "inbox.org" "Notes")
+           (file "templates/note.org"))
+	  
+	  ("j" "Journal" entry (file+olp+datetree "journal.org")
+	   (file "templates/journal.org")
+	   :tree-type week)
+	   
+	  ("m" "Meeting" entry (file+olp+datetree "meetings.org")
+	   (file "templates/meeting.org")
+	   :tree-type week)))
 
   (efs/org-font-setup))
+
+;; org mode key bindings
+(define-key global-map (kbd "C-c c")
+  (lambda () (interactive) (org-capture nil)))
+;;(global-set-key (kbd "\C-cc") 'org-capture)
+(define-key global-map (kbd "C-c l") 'org-store-link)
+(define-key global-map (kbd "C-c a") 'org-agenda)
 
 (use-package org-bullets
   :hook (org-mode . org-bullets-mode)
@@ -430,7 +430,7 @@
 (use-package all-the-icons-dired
   :hook (dired-mode . all-the-icons-dired-mode))
 
-(when (string= (system-name) "C02G50XGML85-RMorison.local") ;; computer specific settings
+(when (eq system-type 'darwin) ;; mac specific settings
   (message "adding %s inits" (system-name))
 
   ;; mysql v5.7
@@ -440,7 +440,7 @@
   ;; Java
   (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home")
 
-  ;; Docker
+  ;; Docket
   ;; (setenv "DOCKER_TLS_VERIFY" "1")
   ;; (setenv "DOCKER_HOST" "tcp://192.168.99.100:2376")
   ;; (setenv "DOCKER_CERT_PATH" "/Users/rmorison/.docker/machine/machines/default")
