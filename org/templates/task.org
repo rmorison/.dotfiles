@@ -1,0 +1,6 @@
+* TODO %^{What to do?}
+:PROPERTIES:
+:CREATED:  %U
+:END:
+%?
+%a

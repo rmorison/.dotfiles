@@ -1,0 +1,6 @@
+* %^{Note about what?}                                                 :note:
+:PROPERTIES:
+:CREATED:  %U
+:END:
+%?
+%a

@@ -243,15 +243,17 @@
   (setq org-log-into-drawer t)
   (setq org-image-actual-width (list 640))
 
-  (setq org-directory "~/Projects/org")
-  (setq org-agenda-files '(org-directory))
+  (setq org-directory "~/org")
+  (setq org-agenda-files '("~/org"))
 
   (setq org-agenda-compact-blocks t)
 
   (setq org-refile-use-outline-path 'file)
   (setq org-outline-path-complete-in-steps nil)
   (setq org-refile-allow-creating-parent-nodes 'confirm)
-  (setq org-refile-targets '(("reference.org" "people.org" "projects.org" :maxlevel . 9)))
+  (setq org-refile-targets '(("reference.org" :maxlevel . 3)
+			     ("people.org" :maxlevel . 1)
+			     ("projects.org" :maxlevel . 9)))
 
   ;; Save Org buffers after refiling!
   (advice-add 'org-refile :after 'org-save-all-org-buffers)
