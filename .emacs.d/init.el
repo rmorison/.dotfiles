@@ -275,7 +275,8 @@
 	  ("meeting" . ?m)
 	  ("key-concept" . ?k)
 	  ("note" . ?n)
-	  ("idea" . ?i)))
+	  ("idea" . ?i)
+	  ("goal" . ?g)))
   (setq org-fast-tag-selection-single-key t)
   
   ;; Configure custom agenda views
@@ -341,6 +342,9 @@
            (file "templates/project.org"))
 	  
 	  ("n" "Note" entry (file+headline "inbox.org" "Notes")
+           (file "templates/note.org"))
+	  
+	  ("N" "Private note" entry (file "private.org")
            (file "templates/note.org"))
 	  
 	  ("j" "Journal" entry (file+olp+datetree "journal.org")
