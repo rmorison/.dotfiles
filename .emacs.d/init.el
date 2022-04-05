@@ -265,6 +265,20 @@
   (setq org-todo-keywords
 	'((sequence "TODO(t)" "ONDECK(o)" "ATBAT(@)" "BLOCKED(b)" "|" "DONE(d)" "ICEBOX(i)")
 	  (sequence "PLAN(p)" "READY(r)" "ACTIVE(a)" "HELD(h)" "|" "COMPLETE(c)" "MOTHBALLED(m)")))
+
+  (setq org-todo-keyword-faces
+      (quote (("TODO" :foreground "orange" :weight bold)
+              ("ONDECK" :foreground "light blue" :weight bold)
+              ("ATBAT" :foreground "forest green" :weight bold)
+              ("BLOCKED" :foreground "red" :weight bold)
+              ("DONE" :foreground "white" :weight bold)
+              ("ICEBOX" :foreground "grey" :weight bold)
+              ("PLAN" :foreground "orange" :weight bold)
+              ("READY" :foreground "light blue" :weight bold)
+              ("ACTIVE" :foreground "forest green" :weight bold)
+              ("HELD" :foreground "red" :weight bold)
+              ("COMPLETE" :foreground "white" :weight bold)
+              ("MOTHBALLED" :foreground "grey" :weight bold))))
   
   (setq org-tag-alist
 	'((:startgroup)
@@ -367,7 +381,7 @@
 (use-package org-bullets
   :hook (org-mode . org-bullets-mode)
   :custom
-  (org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+  (org-bullets-bullet-list '("◉" "↪" "→" "○" "●" "○" "●")))
 
 (defun efs/org-mode-visual-fill ()
   (setq visual-fill-column-width 100
@@ -444,24 +458,17 @@
   (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") exec-path))
 
   ;; Java
-  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home")
+  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
 
-  ;; Docket
-  ;; (setenv "DOCKER_TLS_VERIFY" "1")
-  ;; (setenv "DOCKER_HOST" "tcp://192.168.99.100:2376")
-  ;; (setenv "DOCKER_CERT_PATH" "/Users/rmorison/.docker/machine/machines/default")
-  ;; (setenv "DOCKER_MACHINE_NAME" "default")
-  ;; (setenv "DOCKER_HOST_IP" (url-host (url-generic-parse-url (getenv "DOCKER_HOST"))))
+;; pyenv
+(setenv "PATH" (concat "~/.local/bin:/Users/rmorison/.pyenv/shims:~/.pyenv/bin:" (getenv "PATH")))
+(setq exec-path (append '("~/.local/bin") '("~/.pyenv/shims:~/.pyenv/bin") exec-path))
 
-  ;; pyenv
-  (setenv "PATH" (concat "/Users/rmorison/.local/bin:/Users/rmorison/.pyenv/shims:/Users/rmorison/.pyenv/bin:" (getenv "PATH")))
-  (setq exec-path (append '("/Users/rmorison/.local/bin") '("/Users/rmorison/.pyenv/shims:/Users/rmorison/.pyenv/bin") exec-path))
-
-  ;; nvm
-  (setenv "NVM_DIR" "/Users/rmorison/.nvm")
-  (setenv "NVM_CD_FLAGS" "-q")
-  (setenv "NVM_RC_VERSION" "")
-  (setenv "NVM_BIN" "/Users/rmorison/.nvm/versions/node/v16.14.0/bin")
-  (setenv "NVM_INC" "/Users/rmorison/.nvm/versions/node/v16.14.0/include/node")
-  (setenv "PATH" (concat "/Users/rmorison/.nvm/versions/node/v16.14.0/bin:" (getenv "PATH")))
-  (setq exec-path (append '("/Users/rmorison/.nvm/versions/node/v16.14.0/bin") exec-path)))
+;; nvm
+(setenv "NVM_DIR" "~/.nvm")
+(setenv "NVM_CD_FLAGS" "-q")
+(setenv "NVM_RC_VERSION" "")
+(setenv "NVM_BIN" "~/.nvm/versions/node/v16.14.0/bin")
+(setenv "NVM_INC" "~/.nvm/versions/node/v16.14.0/include/node")
+(setenv "PATH" (concat "~/.nvm/versions/node/v16.14.0/bin:" (getenv "PATH")))
+(setq exec-path (append '("~/.nvm/versions/node/v16.14.0/bin") exec-path))
