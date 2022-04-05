@@ -182,7 +182,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
+   '(lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -371,6 +371,15 @@
 
   (efs/org-font-setup))
 
+;; org mode code blocks
+(with-eval-after-load 'org
+  ;; This is needed as of Org 9.2
+  (require 'org-tempo)
+
+  (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+  (add-to-list 'org-structure-template-alist '("py" . "src python")))
+
 ;; org mode key bindings
 (define-key global-map (kbd "C-c c")
   (lambda () (interactive) (org-capture nil)))
@@ -450,7 +459,8 @@
 (use-package all-the-icons-dired
   :hook (dired-mode . all-the-icons-dired-mode))
 
-(when (eq system-type 'darwin) ;; mac specific settings
+;; shell and system specific settings
+(when (eq system-type 'darwin)
   (message "adding %s inits" (system-name))
 
   ;; mysql v5.7
@@ -461,14 +471,60 @@
   (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
 
 ;; pyenv
-(setenv "PATH" (concat "~/.local/bin:/Users/rmorison/.pyenv/shims:~/.pyenv/bin:" (getenv "PATH")))
-(setq exec-path (append '("~/.local/bin") '("~/.pyenv/shims:~/.pyenv/bin") exec-path))
+;; (setenv "PATH" (concat "~/.local/bin:/Users/rmorison/.pyenv/shims:~/.pyenv/bin:" (getenv "PATH")))
+;; (setq exec-path (append '("~/.local/bin") '("~/.pyenv/shims") '("~/.pyenv/bin") exec-path))
 
-;; nvm
-(setenv "NVM_DIR" "~/.nvm")
+;; nvm needs special help with PATH
+(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
+(setenv "NVM_DIR" nvm/dir)
 (setenv "NVM_CD_FLAGS" "-q")
 (setenv "NVM_RC_VERSION" "")
-(setenv "NVM_BIN" "~/.nvm/versions/node/v16.14.0/bin")
-(setenv "NVM_INC" "~/.nvm/versions/node/v16.14.0/include/node")
-(setenv "PATH" (concat "~/.nvm/versions/node/v16.14.0/bin:" (getenv "PATH")))
-(setq exec-path (append '("~/.nvm/versions/node/v16.14.0/bin") exec-path))
+(setenv "NVM_BIN" (concat nvm/dir "/bin"))
+(setenv "NVM_INC" (concat nvm/dir "/include/node"))
+(setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
+(exec-path-from-shell-initialize)
+
+;; language servers, language setups
+;; see https://emacs-lsp.github.io/lsp-mode/page/languages/ for lsp support
+(defun efs/lsp-mode-setup ()
+  (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
+  (lsp-headerline-breadcrumb-mode))
+
+;; lsp: npm install -g typescript-language-server; npm install -g typescript
+(use-package lsp-mode
+  :commands (lsp lsp-deferred)
+  :hook (lsp-mode . efs/lsp-mode-setup)
+  :init
+  (setq lsp-keymap-prefix "C-c l")  ;; Or 'C-l', 's-l'
+  (setq lsp-enable-snippet nil)
+  :config
+  (lsp-enable-which-key-integration t))
+
+(use-package lsp-ui
+  :hook (lsp-mode . lsp-ui-mode))
+
+(use-package lsp-treemacs
+  :after lsp)
+
+(use-package lsp-ivy
+  :after lsp)
+
+(use-package company
+  :after lsp-mode
+  :hook (lsp-mode . company-mode)
+  :bind (:map company-active-map
+         ("<tab>" . company-complete-selection))
+        (:map lsp-mode-map
+         ("<tab>" . company-indent-or-complete-common))
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0))
+
+(use-package company-box
+  :hook (company-mode . company-box-mode))
+
+(use-package typescript-mode
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . lsp-deferred)
+  :config
+  (setq typescript-indent-level 2))
