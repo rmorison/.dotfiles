@@ -182,7 +182,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
+   '(js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -263,8 +263,8 @@
   (setq org-habit-graph-column 60)
   
   (setq org-todo-keywords
-	'((sequence "TODO(t)" "ONDECK(o)" "ATBAT(@)" "BLOCKED(b)" "|" "DONE(d)" "ICEBOX(i)")
-	  (sequence "PLAN(p)" "READY(r)" "ACTIVE(a)" "HELD(h)" "|" "COMPLETE(c)" "MOTHBALLED(m)")))
+	'((sequence "TODO(t)" "ONDECK(o)" "ATBAT(a)" "BLOCKED(b)" "|" "DONE(d)" "ICEBOX(i)")
+	  (sequence "PLAN(p)" "READY(r)" "LIVE(l)" "HELD(h)" "|" "COMPLETE(c)" "MOTHBALLED(m)")))
 
   (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "orange" :weight bold)
@@ -367,7 +367,10 @@
 	   
 	  ("m" "Meeting" entry (file+olp+datetree "meetings.org")
 	   (file "templates/meeting.org")
-	   :tree-type week)))
+	   :tree-type week)
+
+	  ("1" "1-1 Meeting" entry (file+headline "inbox.org" "1-1 Meetings")
+	   (file "templates/meeting.org"))))
 
   (efs/org-font-setup))
 
@@ -422,7 +425,7 @@
 
   (with-eval-after-load 'esh-opt
     (setq eshell-destroy-buffer-when-process-dies t)
-    (setq eshell-visual-commands '("htop" "zsh" "vim")))
+    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
@@ -463,6 +466,10 @@
 (when (eq system-type 'darwin)
   (message "adding %s inits" (system-name))
 
+  ;; nice up the osx screen on 3440x1440 display 
+  (defvar efs/default-font-size 140)
+  (defvar efs/default-variable-font-size 140)
+
   ;; mysql v5.7
   (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:" (getenv "PATH")))
   (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") exec-path))
@@ -482,7 +489,8 @@
 (setenv "NVM_BIN" (concat nvm/dir "/bin"))
 (setenv "NVM_INC" (concat nvm/dir "/include/node"))
 (setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
-(exec-path-from-shell-initialize)
+(use-package exec-path-from-shell
+  :init (exec-path-from-shell-initialize))
 
 ;; language servers, language setups
 ;; see https://emacs-lsp.github.io/lsp-mode/page/languages/ for lsp support
@@ -528,3 +536,7 @@
   :hook (typescript-mode . lsp-deferred)
   :config
   (setq typescript-indent-level 2))
+
+(add-hook 'html-mode-hook 'lsp-deferred)
+(add-hook 'js-mode-hook 'lsp-deferred)
+(setq js-indent-level 2)
