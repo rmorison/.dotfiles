@@ -186,7 +186,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(python-black with-venv with-env pipenv pyvenv general no-littering dap-mode flycheck eterm-256color js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
+   '(flycheck-pycheckers python-black with-venv with-env pipenv pyvenv general no-littering dap-mode flycheck eterm-256color js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -564,7 +564,7 @@
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
-;; pip install --user pylint flake8 && npm install -g eslint
+;; npm install -g eslint
 (use-package flycheck
   :diminish flycheck-mode
   :init
@@ -604,6 +604,10 @@
 (use-package with-venv)
 (defun python-mode-setup()
   (lsp-deferred)
+  (flycheck-mode)
+  (python-black-on-save-mode)
+  (setq flycheck-python-flake8-executable (with-venv (executable-find "flake8")))
+  (setq flycheck-python-mypy-executable (with-venv (executable-find "mypy")))
   (defun dap-python--pyenv-executable-find (command)
     (with-venv
       (executable-find command))))
@@ -617,6 +621,7 @@
   ;; (python-shell-interpreter "python3")
   ;; (dap-python-executable "python3")
   (dap-python-debugger 'debugpy)
+  (lsp-pylsp-server-command (with-venv (executable-find "pylsp")))
   :config
   (require 'dap-python))
 
@@ -624,4 +629,12 @@
 (use-package python-black
   :demand t
   :after python
-  :hook (python-mode . (setq python-black-on-save-mode t)))
+  :custom
+  (python-black-command (with-venv (executable-find "black")))
+  (python-black-macchiato-command (with-venv (executable-find "black-macchiato")))
+  :hook (python-mode . python-black-on-save-mode-enable-dwim))
+
+;; pipenv install --dev pylsp-mypy
+(use-package flycheck-pycheckers
+  :hook (flycheck-mode . flycheck-pycheckers-setup)
+  :after flycheck)
