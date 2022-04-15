@@ -66,9 +66,6 @@
 ;; Set the variable pitch face
 (set-face-attribute 'variable-pitch nil :font efs/variable-font-family :height efs/default-variable-font-size :weight 'regular)
 
-;; Make ESC quit prompts
-(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
-
 ;; Initialize package sources
 (require 'package)
 
@@ -86,6 +83,13 @@
 
 (require 'use-package)
 (setq use-package-always-ensure t)
+
+(use-package no-littering)
+
+;; Make ESC quit prompts
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
+(use-package general)
 
 (use-package which-key
   :defer 0
@@ -182,7 +186,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
+   '(python-black with-venv with-env pipenv pyvenv general no-littering dap-mode flycheck eterm-256color js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -429,6 +433,20 @@
 
   (eshell-git-prompt-use-theme 'powerline))
 
+(use-package term
+  :commands term
+  :config
+  (setq explicit-shell-file-name "bash") ;; Change this to zsh, etc
+  ;;(setq explicit-zsh-args '())         ;; Use 'explicit-<shell>-args for shell-specific args
+
+  ;; Match the default Bash shell prompt.  Update this if you have a custom prompt
+  (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
+
+;; make sure ncurses package is installed
+;; test: echo "Hello world" | cowsay | lolcat -p 0.7
+(use-package eterm-256color
+  :hook (term-mode . eterm-256color-mode))
+
 ;; dired
 (defun my-dired-init ()
   "Bunch of stuff to run for dired, either immediately or when it's
@@ -477,10 +495,6 @@
   ;; Java
   (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
 
-;; pyenv
-;; (setenv "PATH" (concat "~/.local/bin:/Users/rmorison/.pyenv/shims:~/.pyenv/bin:" (getenv "PATH")))
-;; (setq exec-path (append '("~/.local/bin") '("~/.pyenv/shims") '("~/.pyenv/bin") exec-path))
-
 ;; nvm needs special help with PATH
 (setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
 (setenv "NVM_DIR" nvm/dir)
@@ -499,6 +513,7 @@
   (lsp-headerline-breadcrumb-mode))
 
 ;; lsp: npm install -g typescript-language-server; npm install -g typescript
+;; pip install --user 'python-lsp-server[all]'
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
   :hook (lsp-mode . efs/lsp-mode-setup)
@@ -517,6 +532,27 @@
 (use-package lsp-ivy
   :after lsp)
 
+(use-package dap-mode
+  ;; Uncomment the config below if you want all UI panes to be hidden by default!
+  ;; :custom
+  ;; (lsp-enable-dap-auto-configure nil)
+  :config
+  (dap-ui-mode 1)
+  (dap-tooltip-mode 1)
+  (tooltip-mode 1)
+  (dap-ui-controls-mode 1)
+  :commands dap-debug
+  :config
+  ;; Set up Node debugging
+  (require 'dap-node)
+  (dap-node-setup) ;; Automatically installs Node debug adapter if needed
+
+  ;; Bind `C-c l d` to `dap-hydra` for easy access
+  (general-define-key
+    :keymaps 'lsp-mode-map
+    :prefix lsp-keymap-prefix
+    "d" '(dap-hydra t :wk "debugger")))
+
 (use-package company
   :after lsp-mode
   :hook (lsp-mode . company-mode)
@@ -527,6 +563,19 @@
   :custom
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
+
+;; pip install --user pylint flake8 && npm install -g eslint
+(use-package flycheck
+  :diminish flycheck-mode
+  :init
+  (setq flycheck-check-syntax-automatically '(save new-line)
+        flycheck-idle-change-delay 5.0
+        flycheck-display-errors-delay 0.9
+        flycheck-highlighting-mode 'symbols
+        flycheck-indication-mode 'left-fringe
+        flycheck-standard-error-navigation t
+        flycheck-deferred-syntax-check nil)
+  )
 
 (use-package company-box
   :hook (company-mode . company-box-mode))
@@ -540,3 +589,35 @@
 (add-hook 'html-mode-hook 'lsp-deferred)
 (add-hook 'js-mode-hook 'lsp-deferred)
 (setq js-indent-level 2)
+
+(use-package pyvenv
+  :after python-mode
+  :config
+  (pyvenv-mode 1))
+
+(use-package pipenv
+  :hook (python-mode . pipenv-mode)
+  :init
+  (setq
+   pipenv-projectile-after-switch-function
+   #'pipenv-projectile-after-switch-extended))
+
+(use-package with-venv)
+
+;; pip install --user debugpy
+(use-package python-mode
+  :ensure t
+  :hook (python-mode . lsp-deferred)
+  :custom
+  ;; NOTE: Set these if Python 3 is called "python3" on your system!
+  ;; (python-shell-interpreter "python3")
+  ;; (dap-python-executable "python3")
+  (dap-python-debugger 'debugpy)
+  :config
+  (require 'dap-python))
+
+;; pip install --user black black-macchiato
+(use-package python-black
+  :demand t
+  :after python
+  :hook (python-mode . (setq python-black-on-save-mode t)))
