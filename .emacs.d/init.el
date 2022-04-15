@@ -590,24 +590,28 @@
 (add-hook 'js-mode-hook 'lsp-deferred)
 (setq js-indent-level 2)
 
+;; pyenv, pipenv, teach dap where to find virtualenv python
 (use-package pyvenv
   :after python-mode
   :config
   (pyvenv-mode 1))
-
 (use-package pipenv
   :hook (python-mode . pipenv-mode)
   :init
   (setq
    pipenv-projectile-after-switch-function
    #'pipenv-projectile-after-switch-extended))
-
 (use-package with-venv)
+(defun python-mode-setup()
+  (lsp-deferred)
+  (defun dap-python--pyenv-executable-find (command)
+    (with-venv
+      (executable-find command))))
 
 ;; pip install --user debugpy
 (use-package python-mode
   :ensure t
-  :hook (python-mode . lsp-deferred)
+  :hook (python-mode . python-mode-setup)
   :custom
   ;; NOTE: Set these if Python 3 is called "python3" on your system!
   ;; (python-shell-interpreter "python3")
