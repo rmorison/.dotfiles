@@ -86,6 +86,21 @@
 
 (use-package no-littering)
 
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+
+
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
 
@@ -180,19 +195,6 @@
 (use-package counsel-projectile
   :after projectile
   :config (counsel-projectile-mode))
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(flycheck-pycheckers python-black with-venv with-env pipenv pyvenv general no-littering dap-mode flycheck eterm-256color js-mode js-mod lsp-ivy lsp-treemacs lsp-ui company-box company exec-path-from-shell typescript-mode lsp-mode all-the-icons-dired dired-single eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key use-package)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
 
 (use-package magit
   :commands magit-status
@@ -425,6 +427,7 @@
 
 (use-package eshell
   :hook (eshell-first-time-mode . efs/configure-eshell)
+  :bind (("C-r" . 'counsel-esh-history))
   :config
 
   (with-eval-after-load 'esh-opt
@@ -508,15 +511,17 @@
 
 ;; language servers, language setups
 ;; see https://emacs-lsp.github.io/lsp-mode/page/languages/ for lsp support
-(defun efs/lsp-mode-setup ()
+(defun lsp-mode-setup ()
   (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
-  (lsp-headerline-breadcrumb-mode))
+  (lsp-headerline-breadcrumb-mode)
+  (setq lsp-log-io t))
 
 ;; lsp: npm install -g typescript-language-server; npm install -g typescript
 ;; pip install --user 'python-lsp-server[all]'
+;; useful tips: https://www.mattduck.com/lsp-python-getting-started.html
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
-  :hook (lsp-mode . efs/lsp-mode-setup)
+  :hook (lsp-mode . lsp-mode-setup)
   :init
   (setq lsp-keymap-prefix "C-c l")  ;; Or 'C-l', 's-l'
   (setq lsp-enable-snippet nil)
@@ -595,19 +600,22 @@
   :after python-mode
   :config
   (pyvenv-mode 1))
+
 (use-package pipenv
   :hook (python-mode . pipenv-mode)
   :init
   (setq
    pipenv-projectile-after-switch-function
    #'pipenv-projectile-after-switch-extended))
+
 (use-package with-venv)
+
 (defun python-mode-setup()
   (lsp-deferred)
   (flycheck-mode)
-  (python-black-on-save-mode)
-  (setq flycheck-python-flake8-executable (with-venv (executable-find "flake8")))
-  (setq flycheck-python-mypy-executable (with-venv (executable-find "mypy")))
+  (add-hook 'before-save-hook 'lsp-format-buffer)
+  ;; lsp-pylsp init
+  (setq lsp-pylsp-plugins-flake8-enabled 't)
   (defun dap-python--pyenv-executable-find (command)
     (with-venv
       (executable-find command))))
@@ -624,17 +632,3 @@
   (lsp-pylsp-server-command (with-venv (executable-find "pylsp")))
   :config
   (require 'dap-python))
-
-;; pip install --user black black-macchiato
-(use-package python-black
-  :demand t
-  :after python
-  :custom
-  (python-black-command (with-venv (executable-find "black")))
-  (python-black-macchiato-command (with-venv (executable-find "black-macchiato")))
-  :hook (python-mode . python-black-on-save-mode-enable-dwim))
-
-;; pipenv install --dev pylsp-mypy
-(use-package flycheck-pycheckers
-  :hook (flycheck-mode . flycheck-pycheckers-setup)
-  :after flycheck)
