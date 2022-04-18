@@ -516,9 +516,14 @@
   (lsp-headerline-breadcrumb-mode)
   (setq lsp-log-io t))
 
-;; lsp: npm install -g typescript-language-server; npm install -g typescript
-;; pip install --user 'python-lsp-server[all]'
-;; useful tips: https://www.mattduck.com/lsp-python-getting-started.html
+;; lsp, dap mode tips
+;; typescript: npm install -g typescript-language-server; npm install -g typescript
+;; python: pipenv install --dev black mypy debugpy pylint python-lsp-server \
+;;           python-lsp-black pyls-isort isort pylsp-mypy flake8
+;; notes:
+;; - pyls-flake8 breaks pylsp flake8 handling
+;; - helpful lsp debug notes at https://www.mattduck.com/lsp-python-getting-started.html
+
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
   :hook (lsp-mode . lsp-mode-setup)
@@ -620,7 +625,6 @@
     (with-venv
       (executable-find command))))
 
-;; pip install --user debugpy
 (use-package python-mode
   :ensure t
   :hook (python-mode . python-mode-setup)
