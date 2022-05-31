@@ -1,23 +1,43 @@
-
-;; MacOS key bindings
-(when (eq system-type 'darwin) ;; mac specific settings
-  ;; brew install svn
-  ;; brew tap homebrew/cask-fonts
-  ;; brew install --cask font-fira-code font-fira-mono
-  ;; brew install --cask font-cantarell
-  ;; brew install coreutils
-  (setq mac-option-modifier 'alt)
-  (setq mac-command-modifier 'meta)
-  (setq insert-directory-program "gls" dired-use-ls-dired t)
-  )
- 
-;; You will most likely need to adjust this font size for your system!
+ ;; You will most likely need to adjust this font size for your system!
 (defvar efs/default-font-size 120)
 (defvar efs/default-variable-font-size 120)
 (defvar efs/default-font-family "Fira Code")
 (defvar efs/fixed-font-family "Fira Code")
 (defvar efs/variable-font-family "Cantarell")
 
+;; MacOS key bindings
+(when (eq system-type 'darwin) ;; mac specific settings
+  (message "adding %s inits" (system-name))
+
+  ;; osx may require the following...
+  ;;
+  ;; brew install svn
+  ;; brew tap homebrew/cask-fonts
+  ;; brew install --cask font-fira-code font-fira-mono
+  ;; brew install --cask font-cantarell
+  ;; brew install coreutils
+
+  ;; these mac-* settings assumes System->Keyboard->Modifier Keys...
+  ;; Caps Lock Key: Control
+  ;; Control Key  : Option
+  ;; Option Key   : Command
+  ;; Command Key  : Command
+  (setq mac-control-modifier 'super)
+  (setq mac-command-modifier 'control)
+  (setq mac-option-modifier 'meta)
+  (setq insert-directory-program "gls" dired-use-ls-dired t)
+
+  ;; nice up the osx screen on 3440x1440 display 
+  (setq efs/default-font-size 160)
+  (setq efs/default-variable-font-size 160)
+
+  ;; mysql v5.7
+  (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:/usr/local/Cellar/libpq/14.2/bin:" (getenv "PATH")))
+  (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") '("/usr/local/Cellar/libpq/14.2/bin") exec-path))
+
+  ;; Java
+  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
+ 
 ;; Make frame transparency overridable
 (defvar efs/frame-transparency '(90 . 90))
 
@@ -92,7 +112,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+   '(ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -276,7 +296,7 @@
               ("ICEBOX" :foreground "grey" :weight bold)
               ("PLAN" :foreground "orange" :weight bold)
               ("READY" :foreground "light blue" :weight bold)
-              ("ACTIVE" :foreground "forest green" :weight bold)
+              ("LIVE" :foreground "forest green" :weight bold)
               ("HELD" :foreground "red" :weight bold)
               ("COMPLETE" :foreground "white" :weight bold)
               ("MOTHBALLED" :foreground "grey" :weight bold))))
@@ -304,7 +324,7 @@
 	    (todo "TODO" ((org-agenda-overriding-header "Task backlog")))
 	    (todo "HELD" ((org-agenda-overriding-header "Projects on hold")))
 	    (todo "READY" ((org-agenda-overriding-header "Ready to start projects")))
-	    (todo "ACTIVE" ((org-agenda-overriding-header "Active projects")))
+	    (todo "LIVE" ((org-agenda-overriding-header "Live projects")))
 	    (todo "PLAN" ((org-agenda-overriding-header "Projects that need planning")))))
 
 	  ("b" "Backlog triage"
@@ -332,8 +352,8 @@
 		  ((org-agenda-overriding-header "In Planning")
 		   (org-agenda-todo-list-sublevels nil)
 		   (org-agenda-files org-agenda-files)))
-	    (todo "ACTIVE"
-		  ((org-agenda-overriding-header "Active Projects")
+	    (todo "LIVE"
+		  ((org-agenda-overriding-header "Live Projects")
 		   (org-agenda-files org-agenda-files)))
 	   ((todo "HOLD"
 		  ((org-agenda-overriding-header "Projects on hold")
@@ -404,6 +424,8 @@
 (use-package visual-fill-column
   :hook (org-mode . efs/org-mode-visual-fill))
 
+(use-package ox-gfm)
+
 ;; eshell
 (defun efs/configure-eshell ()
   ;; Save command history when commands are entered
@@ -426,8 +448,9 @@
   :config
 
   (with-eval-after-load 'esh-opt
-    (setq eshell-destroy-buffer-when-process-dies t)
-    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify")))
+    (setq eshell-destroy-buffer-when-process-dies nil)
+    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql"))
+    (setq eshell-visual-subcommands '(("poetry" "add"))))
 
   (eshell-git-prompt-use-theme 'powerline))
 
@@ -477,21 +500,6 @@
 
 (use-package all-the-icons-dired
   :hook (dired-mode . all-the-icons-dired-mode))
-
-;; shell and system specific settings
-(when (eq system-type 'darwin)
-  (message "adding %s inits" (system-name))
-
-  ;; nice up the osx screen on 3440x1440 display 
-  (defvar efs/default-font-size 140)
-  (defvar efs/default-variable-font-size 140)
-
-  ;; mysql v5.7
-  (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:" (getenv "PATH")))
-  (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") exec-path))
-
-  ;; Java
-  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
 
 ;; nvm needs special help with PATH
 (setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
