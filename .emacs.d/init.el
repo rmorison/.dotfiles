@@ -112,7 +112,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+   '(dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -215,7 +215,8 @@
 (use-package magit
   :commands magit-status
   :custom
-  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+  (magit-branch-read-upstream-first 'fallback))
 
 ;; org mode
 (defun efs/org-font-setup ()
@@ -426,6 +427,12 @@
 
 (use-package ox-gfm)
 
+(use-package yaml-mode
+  :config
+  (add-to-list 'auto-mode-alist '("\\.yml\\'" . yaml-mode)))
+
+(use-package dockerfile-mode)
+
 ;; eshell
 (defun efs/configure-eshell ()
   ;; Save command history when commands are entered
@@ -449,8 +456,7 @@
 
   (with-eval-after-load 'esh-opt
     (setq eshell-destroy-buffer-when-process-dies nil)
-    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql"))
-    (setq eshell-visual-subcommands '(("poetry" "add"))))
+    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql" "mysql" "poetry" "docker")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
