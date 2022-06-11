@@ -456,7 +456,7 @@
 
   (with-eval-after-load 'esh-opt
     (setq eshell-destroy-buffer-when-process-dies nil)
-    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql" "mysql" "poetry" "docker")))
+    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql" "ssh" "mysql" "poetry" "docker")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
