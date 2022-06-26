@@ -35,6 +35,9 @@
   (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:/usr/local/Cellar/libpq/14.2/bin:" (getenv "PATH")))
   (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") '("/usr/local/Cellar/libpq/14.2/bin") exec-path))
 
+  ;; zsh
+  (setenv "PS1" "\\u@\\h:\\w\$ ")
+  
   ;; Java
   (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
  
@@ -437,6 +440,7 @@
   :config
   (load-theme 'dir-treeview-pleasant t))
 (global-set-key (kbd "<f9>") 'dir-treeview)
+(global-set-key (kbd "<f10>") 'dir-treeview-open)
 
 ;; eshell
 (defun efs/configure-eshell ()
