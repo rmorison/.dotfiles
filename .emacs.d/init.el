@@ -465,7 +465,19 @@
 
   (with-eval-after-load 'esh-opt
     (setq eshell-destroy-buffer-when-process-dies nil)
-    (setq eshell-visual-commands '("htop" "zsh" "vim" "ntl" "netlify" "ipython" "psql" "ssh" "mysql" "poetry" "docker")))
+    (setq eshell-visual-commands '("htop"
+				   "zsh"
+				   "vim"
+				   "ntl"
+				   "netlify"
+				   "python"
+				   "ipython"
+				   "psql"
+				   "ssh"
+				   "mysql"
+				   "poetry"
+				   "docker"
+				   "ansible-playbook")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
@@ -574,6 +586,8 @@
   ;; Set up Node debugging
   (require 'dap-node)
   (dap-node-setup) ;; Automatically installs Node debug adapter if needed
+  ;; Set up Pythno debugging
+  (require 'dap-python)
 
   ;; Bind `C-c l d` to `dap-hydra` for easy access
   (general-define-key
@@ -620,16 +634,8 @@
 
 ;; pyenv, pipenv, teach dap where to find virtualenv python
 (use-package pyvenv
-  :after python-mode
   :config
   (pyvenv-mode 1))
-
-(use-package pipenv
-  :hook (python-mode . pipenv-mode)
-  :init
-  (setq
-   pipenv-projectile-after-switch-function
-   #'pipenv-projectile-after-switch-extended))
 
 (use-package with-venv)
 
@@ -637,11 +643,7 @@
   (lsp-deferred)
   (flycheck-mode)
   (add-hook 'before-save-hook 'lsp-format-buffer)
-  ;; lsp-pylsp init
-  (setq lsp-pylsp-plugins-flake8-enabled 't)
-  (defun dap-python--pyenv-executable-find (command)
-    (with-venv
-      (executable-find command))))
+  (setq lsp-pylsp-plugins-flake8-enabled 't))
 
 (use-package python-mode
   :ensure t
@@ -649,8 +651,61 @@
   :custom
   ;; NOTE: Set these if Python 3 is called "python3" on your system!
   ;; (python-shell-interpreter "python3")
-  ;; (dap-python-executable "python3")
   (dap-python-debugger 'debugpy)
+  (dap-python-executable (with-venv (executable-find "python")))
   (lsp-pylsp-server-command (with-venv (executable-find "pylsp")))
+  (defun dap-python--pyenv-executable-find (command)
+    (with-venv (executable-find command)))
+
   :config
   (require 'dap-python))
+
+;; Custom commands
+
+(defun now ()
+  "Insert string for the current time formatted like '2:34 PM'."
+  (interactive)                 ; permit invocation in minibuffer
+  (insert (format-time-string "%D %-I:%M %p")))
+
+(defun today ()
+  "Insert string for today's date nicely formatted in American style,
+e.g. Sunday, September 17, 2000."
+  (interactive)                 ; permit invocation in minibuffer
+  (insert (format-time-string "%A, %B %e, %Y")))
+
+(put 'upcase-region 'disabled nil)
+
+(defun python-debug-setup()
+  (interactive)
+  (defun dap-python--pyenv-executable-find (command)
+    (with-venv
+      (executable-find command)))
+  (dap-register-debug-template
+   "python :: workspace"
+   (list :type "python"
+         :args ""
+         :cwd "${workspaceFolder}"
+         :env '(("PYTHONPATH" . "${workspaceFolder}"))
+         :request "launch"
+         :jinja "true"
+         :name "python :: workspace"))
+  (dap-register-debug-template
+   "pytest :: test_create_widget"
+   (list :type "python"
+         :args "-k test_create_widget"
+         :cwd "${workspaceFolder}"
+         :env '(("PYTHONPATH" . "${workspaceFolder}"))
+	 :program (with-venv (executable-find "pytest"))
+         :request "launch"
+         :jinja "true"
+         :name "pytest :: test_create_widget"))
+  (dap-register-debug-template
+   "pytest :: workspace"
+   (list :type "python"
+         :args ""
+         :cwd "${workspaceFolder}"
+         :env '(("PYTHONPATH" . "${workspaceFolder}"))
+	 :program (with-venv (executable-find "pytest"))
+         :request "launch"
+         :jinja "true"
+         :name "pytest :: workspace")))
