@@ -115,7 +115,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+   '(ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -288,22 +288,18 @@
   (setq org-habit-graph-column 60)
   
   (setq org-todo-keywords
-	'((sequence "TODO(t)" "ONDECK(o)" "ATBAT(a)" "BLOCKED(b)" "|" "DONE(d)" "ICEBOX(i)")
-	  (sequence "PLAN(p)" "READY(r)" "LIVE(l)" "HELD(h)" "|" "COMPLETE(c)" "MOTHBALLED(m)")))
+	'((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(d@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
+	  (sequence "BREAKDOWN-PLAN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
 
   (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "orange" :weight bold)
-              ("ONDECK" :foreground "light blue" :weight bold)
-              ("ATBAT" :foreground "forest green" :weight bold)
-              ("BLOCKED" :foreground "red" :weight bold)
+              ("BREAKDOWN-PLAN" :foreground "dark orange" :weight bold)
+              ("NEXT" :foreground "aqua" :weight bold)
+              ("IN-PROGRESS" :foreground "forest green" :weight bold)
+              ("HELD-BLOCKED" :foreground "red" :weight bold)
               ("DONE" :foreground "white" :weight bold)
-              ("ICEBOX" :foreground "grey" :weight bold)
-              ("PLAN" :foreground "orange" :weight bold)
-              ("READY" :foreground "light blue" :weight bold)
-              ("LIVE" :foreground "forest green" :weight bold)
-              ("HELD" :foreground "red" :weight bold)
-              ("COMPLETE" :foreground "white" :weight bold)
-              ("MOTHBALLED" :foreground "grey" :weight bold))))
+              ("PLANNED" :foreground "white" :weight bold)
+              ("WONT-DO" :foreground "grey" :weight bold))))
   
   (setq org-tag-alist
 	'((:startgroup)
@@ -312,8 +308,7 @@
 	  ("project" . ?p)
 	  ("agenda" . ?a)
 	  ("meeting" . ?m)
-	  ("key-concept" . ?k)
-	  ("note" . ?n)
+	  ("reference" . ?n)
 	  ("idea" . ?i)
 	  ("goal" . ?g)))
   (setq org-fast-tag-selection-single-key t)
@@ -322,65 +317,32 @@
   (setq org-agenda-custom-commands
 	'(("d" "Dashboard"
 	   ((agenda "" ((org-deadline-warning-days 7)))
-	    (todo "BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))
-	    (todo "ONDECK" ((org-agenda-overriding-header "Tasks on deck")))
-	    (todo "ATBAT" ((org-agenda-overriding-header "Tasks in play")))
-	    (todo "TODO" ((org-agenda-overriding-header "Task backlog")))
-	    (todo "HELD" ((org-agenda-overriding-header "Projects on hold")))
-	    (todo "READY" ((org-agenda-overriding-header "Ready to start projects")))
-	    (todo "LIVE" ((org-agenda-overriding-header "Live projects")))
-	    (todo "PLAN" ((org-agenda-overriding-header "Projects that need planning")))))
+	    (todo "IN-PROGRESS" ((org-agenda-overriding-header "Working on now")))
+	    (todo "NEXT" ((org-agenda-overriding-header "Next up to work on")))
+	    (todo "DELEGATED" ((org-agenda-overriding-header "Delgated tasks to track")))
+	    (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))))
 
-	  ("b" "Backlog triage"
-	   ((todo "TODO"
-		  ((org-agenda-overriding-header "Tasks to put on deck")))))
+	  ("b" "Task backlog & project planning triage"
+	   ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
+	    (todo "BREAKDOWN-PLAN" ((org-agenda-overriding-header "Projects that need planning")))))
 
-	  ("@" "On deck and at bat"
-	   ((todo "ONDECK"
-		  ((org-agenda-overriding-header "Now hitting or on deck")))))
-
-	  ("c" "Completed tasks and projects"
+	  ("c" "Completed, planned, and wont-do tasks and projects"
 	   ((todo "DONE"
 		  ((org-agenda-overriding-header "Tasks done"))))
-	   ((todo "COMPLETE"
-		  ((org-agenda-overriding-header "Projects complete")))))
-
-	  ("i" "Iced tasks and projects"
-	   ((todo "ICEBOX"
-		  ((org-agenda-overriding-header "Tasks on ice"))))
-	   ((todo "MOTHBALLED"
-		  ((org-agenda-overriding-header "Mothballed projects")))))
-
-	  ("p" "Project Status"
-	    (todo "PLAN"
-		  ((org-agenda-overriding-header "In Planning")
-		   (org-agenda-todo-list-sublevels nil)
-		   (org-agenda-files org-agenda-files)))
-	    (todo "LIVE"
-		  ((org-agenda-overriding-header "Live Projects")
-		   (org-agenda-files org-agenda-files)))
-	   ((todo "HOLD"
-		  ((org-agenda-overriding-header "Projects on hold")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "REVIEW"
-		  ((org-agenda-overriding-header "In Review")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "READY"
-		  ((org-agenda-overriding-header "Ready for Work")
-		   (org-agenda-files org-agenda-files)))
-	    (todo "KILLED"
-		  ((org-agenda-overriding-header "Cancelled Projects")
-		   (org-agenda-files org-agenda-files)))))))
+	   ((todo "PLANNED"
+		  ((org-agenda-overriding-header "Projects planned"))))
+	   ((todo "WONT-DO"
+		  ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
 
   ;; Define capture templates
   (setq org-capture-templates
 	`(("t" "Task" entry (file+headline "inbox.org" "Tasks")
            (file "templates/task.org"))
 
-	  ("p" "Project" entry (file+headline "inbox.org" "Projects")
+	  ("p" "Project" entry (file+headline "projects.org" "New Projects")
            (file "templates/project.org"))
 	  
-	  ("n" "Note" entry (file+headline "inbox.org" "Notes")
+	  ("n" "Note" entry (file+headline "reference.org" "Notes")
            (file "templates/note.org"))
 	  
 	  ("N" "Private note" entry (file "private.org")
@@ -394,8 +356,8 @@
 	   (file "templates/meeting.org")
 	   :tree-type week)
 
-	  ("1" "1-1 Meeting" entry (file+headline "inbox.org" "1-1 Meetings")
-	   (file "templates/meeting.org"))))
+	  ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
+	   (file "templates/1-1_meeting.org"))))
 
   (efs/org-font-setup))
 
@@ -675,6 +637,7 @@ e.g. Sunday, September 17, 2000."
 
 (put 'upcase-region 'disabled nil)
 
+;; See https://github.com/emacs-lsp/dap-mode/issues/642 for dap template issue with :program
 (defun python-debug-setup()
   (interactive)
   (defun dap-python--pyenv-executable-find (command)
@@ -690,15 +653,15 @@ e.g. Sunday, September 17, 2000."
          :jinja "true"
          :name "python :: workspace"))
   (dap-register-debug-template
-   "pytest :: test_create_widget"
+   "pytest :: test_add_sprockets"
    (list :type "python"
-         :args "-k test_create_widget"
+         :args "-k test_add_sprockets"
          :cwd "${workspaceFolder}"
          :env '(("PYTHONPATH" . "${workspaceFolder}"))
-	 :program (with-venv (executable-find "pytest"))
+	 :module "pytest"
          :request "launch"
          :jinja "true"
-         :name "pytest :: test_create_widget"))
+         :name "pytest :: test_add_sprockets"))
   (dap-register-debug-template
    "pytest :: workspace"
    (list :type "python"
@@ -709,3 +672,17 @@ e.g. Sunday, September 17, 2000."
          :request "launch"
          :jinja "true"
          :name "pytest :: workspace")))
+
+(defun mermaid-setup ()
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (mermaid . t)
+     (shell . t)
+     (python . t))))
+
+(use-package ob-mermaid
+  :hook (org-mode . mermaid-setup)
+  :config
+  (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
+

@@ -1,2 +1,2 @@
-* Meeting: %^{About?} on %u                                         :meeting:
+* Meeting with %^{Who} about %^{What} on %u                         :meeting:
 ** %?
