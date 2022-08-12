@@ -123,9 +123,16 @@
  ;; If there is more than one, they won't work right.
  )
 
-
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+
+;; from https://www.fettesps.com/emacs-disable-suspend-button/
+;; Unbind Pesky Sleep Button
+(global-unset-key [(control z)])
+(global-unset-key [(control x)(control z)])
+
+;; Windows Style Undo
+(global-set-key [(control z)] 'undo)
 
 (use-package general)
 
@@ -439,7 +446,8 @@
 				   "mysql"
 				   "poetry"
 				   "docker"
-				   "ansible-playbook")))
+				   "ansible-playbook"
+				   "hugo")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
