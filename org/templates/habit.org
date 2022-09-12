@@ -1,0 +1,6 @@
+* NEXT %^{What's the habit?}
+SCHEDULED: %t
+:PROPERTIES:
+:STYLE:    habit
+:END:
+%?
