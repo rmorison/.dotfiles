@@ -46,6 +46,7 @@
 
 ;; The default is 800 kilobytes.  Measured in bytes.
 (setq gc-cons-threshold (* 50 1000 1000))
+(setq read-process-output-max (* 1024 1024)) 
 
 (defun efs/display-startup-time ()
   (message "Emacs loaded in %s with %d garbage collections."
@@ -115,7 +116,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(ox-hugo ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+   '(golint go-lint go-rename go-mode ox-hugo ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -681,6 +682,52 @@ e.g. Sunday, September 17, 2000."
          :jinja "true"
          :name "pytest :: workspace")))
 
+
+;; go mode section
+
+;; go install golang.org/x/tools/gopls@latest
+;; go install golang.org/x/lint/golint@latest
+;; go install golang.org/x/tools/cmd/gorename@latest
+;; go install github.com/go-delve/delve/cmd/dlv@latest
+
+(use-package go-rename)
+(use-package golint)
+(require 'dap-dlv-go)
+(defun go-mode-setup ()
+  ;; (go-eldoc-setup)
+  (setq gofmt-command "goimports")
+  (add-hook 'before-save-hook 'gofmt-before-save)
+  (local-set-key (kbd "M-.") 'godef-jump)
+  (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
+  (setq compilation-read-command nil)
+  ;;  (define-key (current-local-map) "\C-c\C-c" 'compile)
+  (local-set-key (kbd "M-,") 'compile)
+  (setq tab-width 4))
+
+(use-package go-mode
+  :hook (go-mode . go-mode-setup)
+  :init (add-hook 'go-mode-hook #'lsp-deferred))
+
+;;Smaller compilation buffer
+(setq compilation-window-height 14)
+(defun my-compilation-hook ()
+  (when (not (get-buffer-window "*compilation*"))
+    (save-selected-window
+      (save-excursion
+        (let* ((w (split-window-vertically))
+               (h (window-height w)))
+          (select-window w)
+          (switch-to-buffer "*compilation*")
+          (shrink-window (- h compilation-window-height)))))))
+(add-hook 'compilation-mode-hook 'my-compilation-hook)
+
+;;Other Key bindings
+(global-set-key (kbd "C-c C-c") 'comment-or-uncomment-region)
+
+;;Compilation autoscroll
+(setq compilation-scroll-output t)
+
+;; Mermaid
 (defun mermaid-setup ()
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -694,6 +741,7 @@ e.g. Sunday, September 17, 2000."
   :config
   (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
 
+;; Hugo/blogging
 (use-package ox-hugo
   :ensure t   ;Auto-install the package from Melpa
   :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
