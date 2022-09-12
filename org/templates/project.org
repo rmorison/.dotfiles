@@ -1,4 +1,4 @@
-* PLAN %^{What's the project?}                                      :project:
+* BREAKDOWN %^{What's the project?}                             :project:
 :PROPERTIES:
 :CREATED:  %U
 :END:

@@ -63,7 +63,7 @@
 (tool-bar-mode -1)          ; Disable the toolbar
 (tooltip-mode -1)           ; Disable tooltips
 (set-fringe-mode 10)        ; Give some breathing room
-
+(display-time-mode 1)       ; Anyone know what time it is?
 (menu-bar-mode -1)            ; Disable the menu bar
 
 ;; Set up the visible bell
@@ -296,11 +296,11 @@
   
   (setq org-todo-keywords
 	'((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-	  (sequence "BREAKDOWN-PLAN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
+	  (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
 
   (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "orange" :weight bold)
-              ("BREAKDOWN-PLAN" :foreground "dark orange" :weight bold)
+              ("BREAKDOWN" :foreground "dark orange" :weight bold)
               ("NEXT" :foreground "aqua" :weight bold)
               ("IN-PROGRESS" :foreground "forest green" :weight bold)
               ("HELD-BLOCKED" :foreground "red" :weight bold)
@@ -317,6 +317,7 @@
 	  ("meeting" . ?m)
 	  ("reference" . ?n)
 	  ("idea" . ?i)
+	  ("research" . ?r)
 	  ("goal" . ?g)))
   (setq org-fast-tag-selection-single-key t)
   
@@ -331,7 +332,7 @@
 
 	  ("b" "Task backlog & project planning triage"
 	   ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
-	    (todo "BREAKDOWN-PLAN" ((org-agenda-overriding-header "Projects that need planning")))))
+	    (todo "BREAKDOWN" ((org-agenda-overriding-header "Projects that need planning")))))
 
 	  ("c" "Completed, planned, and wont-do tasks and projects"
 	   ((todo "DONE"
@@ -345,6 +346,9 @@
   (setq org-capture-templates
 	`(("t" "Task" entry (file+headline "inbox.org" "Tasks")
            (file "templates/task.org"))
+
+	  ("h" "Habit" entry (file "habits.org")
+           (file "templates/habit.org"))
 
 	  ("p" "Project" entry (file+headline "projects.org" "New Projects")
            (file "templates/project.org"))
