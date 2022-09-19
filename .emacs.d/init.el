@@ -704,10 +704,12 @@ e.g. Sunday, September 17, 2000."
   (add-hook 'before-save-hook 'gofmt-before-save)
   (local-set-key (kbd "M-.") 'godef-jump)
   (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
-  (setq compilation-read-command nil)
+  (setq compilation-read-command t)
   ;;  (define-key (current-local-map) "\C-c\C-c" 'compile)
   (local-set-key (kbd "M-,") 'compile)
   (setq tab-width 4))
+(setenv "GOPATH" (concat (getenv "HOME") "/go"))
+(setenv "GOROOT" (concat (getenv "HOME") "/.go"))
 
 (use-package go-mode
   :hook (go-mode . go-mode-setup)
