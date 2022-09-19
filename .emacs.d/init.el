@@ -369,7 +369,8 @@
 	   :tree-type week)
 
 	  ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
-	   (file "templates/1-1_meeting.org"))))
+	   (file "templates/1-1_meeting.org")
+	   :tree-type week)))
 
   (efs/org-font-setup))
 
