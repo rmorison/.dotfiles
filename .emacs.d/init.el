@@ -116,7 +116,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   '(golint go-lint go-rename go-mode ox-hugo ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
+   '(tsi quelpa-use-package quelpa tree-sitter-langs tree-sitter ob-go python-black golint go-lint go-rename go-mode ox-hugo ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
@@ -370,6 +370,10 @@
 
 	  ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
 	   (file "templates/1-1_meeting.org")
+	   :tree-type week)
+	  
+	  ("s" "Status" entry (file+olp+datetree "status.org")
+	   (file "templates/status.org")
 	   :tree-type week)))
 
   (efs/org-font-setup))
@@ -453,7 +457,9 @@
 				   "poetry"
 				   "docker"
 				   "ansible-playbook"
-				   "hugo")))
+				   "hugo"
+				   "npm"
+				   "yarn")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
@@ -615,6 +621,14 @@
 
 (use-package with-venv)
 
+(use-package python-black
+  :demand t
+  :after python
+  :hook (python-mode . python-black-on-save-mode-enable-dwim)
+  :custom
+  (python-black-command (with-venv (executable-find "black")))
+  (python-black-on-save-mode 't))
+
 (defun python-mode-setup()
   (lsp-deferred)
   (flycheck-mode)
@@ -741,15 +755,75 @@ e.g. Sunday, September 17, 2000."
    '((emacs-lisp . t)
      (mermaid . t)
      (shell . t)
-     (python . t))))
+     (python . t)
+     (js . t)
+     (go . t))))
 
 (use-package ob-mermaid
   :hook (org-mode . mermaid-setup)
   :config
   (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
 
+(use-package ob-go)
+
 ;; Hugo/blogging
 (use-package ox-hugo
   :ensure t   ;Auto-install the package from Melpa
   :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
   :after ox)
+
+;; typescript support?
+;; https://vxlabs.com/2022/06/12/typescript-development-with-emacs-tree-sitter-and-lsp-in-2022/
+(use-package tree-sitter
+  :ensure t
+  :config
+  ;; activate tree-sitter on any buffer containing code for which it has a parser available
+  (global-tree-sitter-mode)
+  ;; you can easily see the difference tree-sitter-hl-mode makes for python, ts or tsx
+  ;; by switching on and off
+  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+(use-package tree-sitter-langs
+  :ensure t
+  :after tree-sitter)
+
+(use-package typescript-mode
+  :after tree-sitter
+  :config
+  ;; we choose this instead of tsx-mode so that eglot can automatically figure out language for server
+  ;; see https://github.com/joaotavora/eglot/issues/624 and https://github.com/joaotavora/eglot#handling-quirky-servers
+  (define-derived-mode typescriptreact-mode typescript-mode
+    "TypeScript TSX")
+
+  ;; use our derived mode for tsx files
+  (add-to-list 'auto-mode-alist '("\\.tsx?\\'" . typescriptreact-mode))
+  ;; by default, typescript-mode is mapped to the treesitter typescript parser
+  ;; use our derived mode to map both .tsx AND .ts -> typescriptreact-mode -> treesitter tsx
+  (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx)))
+
+;; https://github.com/quelpa/quelpa
+(unless (package-installed-p 'quelpa)
+  (with-temp-buffer
+    (url-insert-file-contents "https://raw.githubusercontent.com/quelpa/quelpa/master/quelpa.el")
+    (eval-buffer)
+    (quelpa-self-upgrade)))
+
+;; https://github.com/quelpa/quelpa-use-package
+(quelpa
+ '(quelpa-use-package
+   :fetcher git
+   :url "https://github.com/quelpa/quelpa-use-package.git"))
+(require 'quelpa-use-package)
+
+;; https://github.com/orzechowskid/tsi.el/
+;; great tree-sitter-based indentation for typescript/tsx, css, json
+(use-package tsi
+  :after tree-sitter
+  :quelpa (tsi :fetcher github :repo "orzechowskid/tsi.el")
+  ;; define autoload definitions which when actually invoked will cause package to be loaded
+  :commands (tsi-typescript-mode tsi-json-mode tsi-css-mode)
+  :init
+  (add-hook 'typescript-mode-hook (lambda () (tsi-typescript-mode 1)))
+  (add-hook 'json-mode-hook (lambda () (tsi-json-mode 1)))
+  (add-hook 'css-mode-hook (lambda () (tsi-css-mode 1)))
+  (add-hook 'scss-mode-hook (lambda () (tsi-scss-mode 1))))
