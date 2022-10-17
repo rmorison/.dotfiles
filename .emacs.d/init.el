@@ -1,9 +1,32 @@
+;; Initialize package sources
+(require 'package)
+
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                         ("org" . "https://orgmode.org/elpa/")
+                         ("elpa" . "https://elpa.gnu.org/packages/")))
+
+(package-initialize)
+(unless package-archive-contents
+  (package-refresh-contents))
+
+;; Initialize use-package on non-Linux platforms
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+
+(require 'use-package)
+(setq use-package-always-ensure t)
+
+(use-package no-littering)
+
 ;; You will most likely need to adjust this font size for your system!
 (defvar efs/default-font-size 120)
 (defvar efs/default-variable-font-size 120)
 (defvar efs/default-font-family "Fira Code")
 (defvar efs/fixed-font-family "Fira Code")
 (defvar efs/variable-font-family "Cantarell")
+
+;; Make frame transparency overridable
+(defvar efs/frame-transparency '(90 . 90))
 
 ;; MacOS key bindings
 (when (eq system-type 'darwin) ;; mac specific settings
@@ -29,30 +52,17 @@
 
   ;; nice up the osx screen on 3440x1440 display 
   (setq efs/default-font-size 160)
-  (setq efs/default-variable-font-size 160)
-
-  ;; mysql v5.7
-  (setenv "PATH" (concat "/usr/local/opt/mysql-client@5.7/bin:/usr/local/MacGPG2/bin:/usr/local/bin:/usr/local/Cellar/libpq/14.2/bin:" (getenv "PATH")))
-  (setq exec-path (append '("/usr/local/opt/mysql-client@5.7/bin") '("/usr/local/MacGPG2/bin") '("/usr/local/bin") '("/usr/local/Cellar/libpq/14.2/bin") exec-path))
-
-  ;; zsh
-  (setenv "PS1" "\\u@\\h:\\w\$ ")
-  
-  ;; Java
-  (setenv "JAVA_HOME" "/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home"))
- 
-;; Make frame transparency overridable
-(defvar efs/frame-transparency '(90 . 90))
+  (setq efs/default-variable-font-size 160))
 
 ;; The default is 800 kilobytes.  Measured in bytes.
 (setq gc-cons-threshold (* 50 1000 1000))
-(setq read-process-output-max (* 1024 1024)) 
+(setq read-process-output-max (* 1024 1024))
 
 (defun efs/display-startup-time ()
   (message "Emacs loaded in %s with %d garbage collections."
            (format "%.2f seconds"
                    (float-time
-                     (time-subtract after-init-time before-init-time)))
+                    (time-subtract after-init-time before-init-time)))
            gcs-done))
 
 (add-hook 'emacs-startup-hook #'efs/display-startup-time)
@@ -70,6 +80,7 @@
 ;; Set up the visible bell
 (setq visible-bell t)
 
+;; line and column numbers
 (column-number-mode)
 (global-display-line-numbers-mode t)
 ;; Disable line numbers for some modes
@@ -78,51 +89,43 @@
                 shell-mode-hook
                 treemacs-mode-hook
                 eshell-mode-hook
-		dired-mode-hook
-		org-agenda-mode-hook))
+                dired-mode-hook
+                org-agenda-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
-(set-face-attribute 'default nil :font efs/default-font-family :height efs/default-font-size)
-
+;; default face
+(set-face-attribute 'default nil
+                    :font efs/default-font-family
+                    :height efs/default-font-size)
 ;; Set the fixed pitch face
-(set-face-attribute 'fixed-pitch nil :font efs/fixed-font-family :height efs/default-font-size)
-
+(set-face-attribute 'fixed-pitch nil
+                    :font efs/fixed-font-family
+                    :height efs/default-font-size)
 ;; Set the variable pitch face
-(set-face-attribute 'variable-pitch nil :font efs/variable-font-family :height efs/default-variable-font-size :weight 'regular)
+(set-face-attribute 'variable-pitch nil
+                    :font efs/variable-font-family
+                    :height efs/default-variable-font-size
+                    :weight 'regular)
 
-;; Initialize package sources
-(require 'package)
+(setq global-auto-revert-mode 't)
 
-(setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                         ("org" . "https://orgmode.org/elpa/")
-                         ("elpa" . "https://elpa.gnu.org/packages/")))
+;;(load-theme 'tango-dark)
+;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
+(use-package doom-themes
+  :init (load-theme 'doom-monokai-machine t))
 
-(package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
+;; NOTE: If icons are missing run following command:
+;;
+;; M-x all-the-icons-install-fonts
+(use-package all-the-icons
+  :if (display-graphic-p))
 
-;; Initialize use-package on non-Linux platforms
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
+(use-package doom-modeline
+  :init (doom-modeline-mode 1)
+  :custom ((doom-modeline-height 15)))
 
-(require 'use-package)
-(setq use-package-always-ensure t)
-
-(use-package no-littering)
-
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(tsi quelpa-use-package quelpa tree-sitter-langs tree-sitter ob-go python-black golint go-lint go-rename go-mode ox-hugo ob-mermaid dir-treeview dockerfile-mode yaml-mode ox-gfm python-mode with-venv pipenv pyvenv typescript-mode company-box flycheck company dap-mode lsp-ivy lsp-treemacs lsp-ui lsp-mode exec-path-from-shell all-the-icons-dired dired-single eterm-256color eshell-git-prompt visual-fill-column org-bullets magit counsel-projectile projectile helpful rainbow-delimiters doom-modeline all-the-icons doom-themes command-log-mode ivy-rich counsel ivy which-key general no-littering use-package)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
+(use-package rainbow-delimiters
+  :hook (prog-mode . rainbow-delimiters-mode))
 
 ;; Make ESC quit prompts
 (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
@@ -134,6 +137,9 @@
 
 ;; Windows Style Undo
 (global-set-key [(control z)] 'undo)
+
+;; Comment toggle
+(global-set-key (kbd "C-c C-.") 'comment-or-uncomment-region)
 
 (use-package general)
 
@@ -147,6 +153,7 @@
 (use-package ivy
   :diminish
   :bind (("C-s" . swiper)
+         ("C-c i" . imenu)
          :map ivy-minibuffer-map
          ("TAB" . ivy-alt-done)
          ("C-l" . ivy-partial-or-done)
@@ -175,27 +182,6 @@
   :init
   (ivy-rich-mode 1))
 
-(use-package command-log-mode
-  :commands command-log-mode)
-
-;;(load-theme 'tango-dark)
-
-(use-package doom-themes
-  :init (load-theme 'doom-palenight t))
-
-;; NOTE: If icons are missing run following command:
-;;
-;; M-x all-the-icons-install-fonts
-(use-package all-the-icons
-  :if (display-graphic-p))
-
-(use-package doom-modeline
-  :init (doom-modeline-mode 1)
-  :custom ((doom-modeline-height 15)))
-
-(use-package rainbow-delimiters
-  :hook (prog-mode . rainbow-delimiters-mode))
-
 (use-package helpful
   :commands (helpful-callable helpful-variable helpful-command helpful-key)
   :custom
@@ -207,27 +193,79 @@
   ([remap describe-variable] . counsel-describe-variable)
   ([remap describe-key] . helpful-key))
 
-(use-package projectile
-  :diminish projectile-mode
-  :config (projectile-mode)
-  :custom ((projectile-completion-system 'ivy))
-  :bind-keymap
-  ("C-c p" . projectile-command-map)
-  :init
-  ;; NOTE: Set this to the folder where you keep your Git repos!
-  (when (file-directory-p "~/Projects")
-    (setq projectile-project-search-path '("~/Projects")))
-  (setq projectile-switch-project-action #'projectile-dired))
+(use-package exec-path-from-shell
+  :init (exec-path-from-shell-initialize))
+;; eshell
+(defun efs/configure-eshell ()
+  ;; Save command history when commands are entered
+  (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
 
-(use-package counsel-projectile
-  :after projectile
-  :config (counsel-projectile-mode))
+  ;; Truncate buffer for performance
+  (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
 
-(use-package magit
-  :commands magit-status
-  :custom
-  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
-  (magit-branch-read-upstream-first 'fallback))
+  (setq eshell-history-size         10000
+        eshell-buffer-maximum-lines 10000
+        eshell-hist-ignoredups t
+        eshell-scroll-to-bottom-on-input t))
+
+(use-package eshell-git-prompt
+  :after eshell)
+
+(use-package eshell
+  :hook (eshell-first-time-mode . efs/configure-eshell)
+  :bind (("C-r" . 'counsel-esh-history))
+  :config
+
+  (with-eval-after-load 'esh-opt
+    (setq eshell-destroy-buffer-when-process-dies nil)
+    (setq eshell-visual-commands '("htop"
+                                   "zsh"
+                                   "vim"
+                                   "ntl"
+                                   "netlify"
+                                   "python"
+                                   "ipython"
+                                   "psql"
+                                   "ssh"
+                                   "mysql"
+                                   "poetry"
+                                   "docker"
+                                   "ansible-playbook"
+                                   "hugo")))
+
+  (eshell-git-prompt-use-theme 'powerline))
+
+(defun my-dired-init ()
+  "Bunch of stuff to run for dired, either immediately or when it's
+   loaded."
+  ;; <add other stuff here>
+  (define-key dired-mode-map [remap dired-find-file]
+    'dired-single-buffer)
+  (define-key dired-mode-map [remap dired-mouse-find-file-other-window]
+    'dired-single-buffer-mouse)
+  (define-key dired-mode-map [remap dired-up-directory]
+    'dired-single-up-directory))
+
+;; if dired's already loaded, then the keymap will be bound
+(if (boundp 'dired-mode-map)
+    ;; we're good to go; just add our bindings
+    (my-dired-init)
+  ;; it's not loaded yet, so add our bindings to the load-hook
+  (add-hook 'dired-load-hook 'my-dired-init))
+
+(use-package dired
+  :ensure nil
+  :commands (dired dired-jump)
+  :bind (("C-x C-j" . dired-jump))
+  :custom ((dired-listing-switches "-agho --group-directories-first")))
+
+(use-package dired-single)
+;; :commands (dired dired-jump)
+;; :custom
+;; (dired-single-use-magic-buffer t))
+
+(use-package all-the-icons-dired
+  :hook (dired-mode . all-the-icons-dired-mode))
 
 ;; org mode
 (defun efs/org-font-setup ()
@@ -278,7 +316,7 @@
   (setq org-image-actual-width (list 640))
 
   (setq org-directory "~/org")
-  (setq org-agenda-files '("~/org"))
+  (setq org-agenda-files '("~/org" "~/Blogs/rmorison.github.io/org"))
 
   (setq org-agenda-compact-blocks t)
 
@@ -294,10 +332,10 @@
   (require 'org-habit)
   (add-to-list 'org-modules 'org-habit)
   (setq org-habit-graph-column 60)
-  
+
   (setq org-todo-keywords
-	'((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-	  (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
+        '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
+          (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
 
   (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "orange" :weight bold)
@@ -308,73 +346,69 @@
               ("DONE" :foreground "white" :weight bold)
               ("PLANNED" :foreground "white" :weight bold)
               ("WONT-DO" :foreground "grey" :weight bold))))
-  
+
   (setq org-tag-alist
-	'((:startgroup)
-					; Put mutually exclusive tags here
-	  (:endgroup)
-	  ("project" . ?p)
-	  ("agenda" . ?a)
-	  ("meeting" . ?m)
-	  ("reference" . ?n)
-	  ("idea" . ?i)
-	  ("research" . ?r)
-	  ("goal" . ?g)))
+        '((:startgroup)
+                                        ; Put mutually exclusive tags here
+          (:endgroup)
+          ("project" . ?p)
+          ("agenda" . ?a)
+          ("meeting" . ?m)
+          ("reference" . ?n)
+          ("idea" . ?i)
+          ("research" . ?r)
+          ("goal" . ?g)))
   (setq org-fast-tag-selection-single-key t)
-  
+
   ;; Configure custom agenda views
   (setq org-agenda-custom-commands
-	'(("d" "Dashboard"
-	   ((agenda "" ((org-deadline-warning-days 7)))
-	    (todo "IN-PROGRESS" ((org-agenda-overriding-header "Working on now")))
-	    (todo "NEXT" ((org-agenda-overriding-header "Next up to work on")))
-	    (todo "DELEGATED" ((org-agenda-overriding-header "Delgated tasks to track")))
-	    (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))))
+        '(("d" "Dashboard"
+           ((agenda "" ((org-deadline-warning-days 7)))
+            (todo "IN-PROGRESS" ((org-agenda-overriding-header "Working on now")))
+            (todo "NEXT" ((org-agenda-overriding-header "Next up to work on")))
+            (todo "DELEGATED" ((org-agenda-overriding-header "Delgated tasks to track")))
+            (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))))
 
-	  ("b" "Task backlog & project planning triage"
-	   ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
-	    (todo "BREAKDOWN" ((org-agenda-overriding-header "Projects that need planning")))))
+          ("b" "Task backlog & project planning triage"
+           ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
+            (todo "BREAKDOWN" ((org-agenda-overriding-header "Projects that need planning")))))
 
-	  ("c" "Completed, planned, and wont-do tasks and projects"
-	   ((todo "DONE"
-		  ((org-agenda-overriding-header "Tasks done"))))
-	   ((todo "PLANNED"
-		  ((org-agenda-overriding-header "Projects planned"))))
-	   ((todo "WONT-DO"
-		  ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
+          ("c" "Completed, planned, and wont-do tasks and projects"
+           ((todo "DONE"
+                  ((org-agenda-overriding-header "Tasks done"))))
+           ((todo "PLANNED"
+                  ((org-agenda-overriding-header "Projects planned"))))
+           ((todo "WONT-DO"
+                  ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
 
   ;; Define capture templates
   (setq org-capture-templates
-	`(("t" "Task" entry (file+headline "inbox.org" "Tasks")
+        `(("t" "Task" entry (file+headline "inbox.org" "Tasks")
            (file "templates/task.org"))
 
-	  ("h" "Habit" entry (file "habits.org")
+          ("h" "Habit" entry (file "habits.org")
            (file "templates/habit.org"))
 
-	  ("p" "Project" entry (file+headline "projects.org" "New Projects")
+          ("p" "Project" entry (file+headline "projects.org" "New Projects")
            (file "templates/project.org"))
-	  
-	  ("n" "Note" entry (file+headline "reference.org" "Notes")
-           (file "templates/note.org"))
-	  
-	  ("N" "Private note" entry (file "private.org")
-           (file "templates/note.org"))
-	  
-	  ("j" "Journal" entry (file+olp+datetree "journal.org")
-	   (file "templates/journal.org")
-	   :tree-type week)
-	   
-	  ("m" "Meeting" entry (file+olp+datetree "meetings.org")
-	   (file "templates/meeting.org")
-	   :tree-type week)
 
-	  ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
-	   (file "templates/1-1_meeting.org")
-	   :tree-type week)
-	  
-	  ("s" "Status" entry (file+olp+datetree "status.org")
-	   (file "templates/status.org")
-	   :tree-type week)))
+          ("n" "Note" entry (file+headline "reference.org" "Notes")
+           (file "templates/note.org"))
+
+          ("N" "Private note" entry (file "private.org")
+           (file "templates/note.org"))
+
+          ("j" "Journal" entry (file+olp+datetree "journal.org")
+           (file "templates/journal.org")
+           :tree-type week)
+
+          ("m" "Meeting" entry (file+olp+datetree "meetings.org")
+           (file "templates/meeting.org")
+           :tree-type week)
+
+          ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
+           (file "templates/1-1_meeting.org")
+           :tree-type week)))
 
   (efs/org-font-setup))
 
@@ -385,7 +419,11 @@
 
   (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
   (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-  (add-to-list 'org-structure-template-alist '("py" . "src python")))
+  (add-to-list 'org-structure-template-alist '("py" . "src python"))
+  (add-to-list 'org-structure-template-alist '("go" . "src go"))
+
+  ;; don't ask on eval block C-c C-c
+  (setq org-confirm-babel-evaluate nil))
 
 ;; org mode key bindings
 (define-key global-map (kbd "C-c c")
@@ -407,119 +445,83 @@
 (use-package visual-fill-column
   :hook (org-mode . efs/org-mode-visual-fill))
 
-(use-package ox-gfm)
+(use-package ob-go)
 
-(use-package yaml-mode
+(use-package ob-mermaid
   :config
-  (add-to-list 'auto-mode-alist '("\\.yml\\'" . yaml-mode)))
+  (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
 
-(use-package dockerfile-mode)
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)
+   (mermaid . t)
+   (shell . t)
+   (python . t)
+   (go . t)))
 
-(use-package dir-treeview
-  :config
-  (load-theme 'dir-treeview-pleasant t))
-(global-set-key (kbd "<f9>") 'dir-treeview)
-(global-set-key (kbd "<f10>") 'dir-treeview-open)
+;; Automatically tangle our Emacs.org config file when we save it
+(defun efs/org-babel-tangle-config ()
+  (when (string-equal (buffer-file-name)
+                      (expand-file-name "~/Projects/github.com/rmorison/dotfiles/.emacs.d/Emacs.org"))
+    ;; Dyname scoping to the rescue
+    (let ((org-confirm-babel-evaluate nil))
+      (org-babel-tangle))))
 
-;; eshell
-(defun efs/configure-eshell ()
-  ;; Save command history when commands are entered
-  (add-hook 'eshell-pre-command-hook 'eshell-save-some-history)
+(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'efs/org-babel-tangle-config)))
 
-  ;; Truncate buffer for performance
-  (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
+(use-package ox-hugo
+  :ensure t   ;Auto-install the package from Melpa
+  :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
+  :after ox)
 
-  (setq eshell-history-size         10000
-        eshell-buffer-maximum-lines 10000
-        eshell-hist-ignoredups t
-        eshell-scroll-to-bottom-on-input t))
+(defun now ()
+  "Insert string for the current time formatted like '2:34 PM'."
+  (interactive)                 ; permit invocation in minibuffer
+  (insert (format-time-string "%D %-I:%M %p")))
 
-(use-package eshell-git-prompt
-  :after eshell)
+(defun today ()
+  "Insert string for today's date nicely formatted in American style,
+e.g. Sunday, September 17, 2000."
+  (interactive)                 ; permit invocation in minibuffer
+  (insert (format-time-string "%A, %B %e, %Y")))
 
-(use-package eshell
-  :hook (eshell-first-time-mode . efs/configure-eshell)
-  :bind (("C-r" . 'counsel-esh-history))
-  :config
+(put 'upcase-region 'disabled nil)
 
-  (with-eval-after-load 'esh-opt
-    (setq eshell-destroy-buffer-when-process-dies nil)
-    (setq eshell-visual-commands '("htop"
-				   "zsh"
-				   "vim"
-				   "ntl"
-				   "netlify"
-				   "python"
-				   "ipython"
-				   "psql"
-				   "ssh"
-				   "mysql"
-				   "poetry"
-				   "docker"
-				   "ansible-playbook"
-				   "hugo"
-				   "npm"
-				   "yarn")))
+(use-package projectile
+  :diminish projectile-mode
+  :config (projectile-mode)
+  :custom ((projectile-completion-system 'ivy))
+  :bind-keymap
+  ("C-c p" . projectile-command-map)
+  :init
+  ;; NOTE: Set this to the folder where you keep your Git repos!
+  (when (file-directory-p "~/Projects")
+    (setq projectile-project-search-path '("~/Projects")))
+  (setq projectile-switch-project-action #'projectile-dired))
 
-  (eshell-git-prompt-use-theme 'powerline))
+(use-package counsel-projectile
+  :after projectile
+  :config (counsel-projectile-mode))
 
-(use-package term
-  :commands term
-  :config
-  (setq explicit-shell-file-name "bash") ;; Change this to zsh, etc
-  ;;(setq explicit-zsh-args '())         ;; Use 'explicit-<shell>-args for shell-specific args
+(use-package magit
+  :commands magit-status
+  :custom
+  (magit-display-buffer-function
+   #'magit-display-buffer-same-window-except-diff-v1)
+  (magit-branch-read-upstream-first 'fallback))
 
-  ;; Match the default Bash shell prompt.  Update this if you have a custom prompt
-  (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
-
-;; make sure ncurses package is installed
-;; test: echo "Hello world" | cowsay | lolcat -p 0.7
-(use-package eterm-256color
-  :hook (term-mode . eterm-256color-mode))
-
-;; dired
-(defun my-dired-init ()
-  "Bunch of stuff to run for dired, either immediately or when it's
-   loaded."
-  ;; <add other stuff here>
-  (define-key dired-mode-map [remap dired-find-file]
-    'dired-single-buffer)
-  (define-key dired-mode-map [remap dired-mouse-find-file-other-window]
-    'dired-single-buffer-mouse)
-  (define-key dired-mode-map [remap dired-up-directory]
-    'dired-single-up-directory))
-
-;; if dired's already loaded, then the keymap will be bound
-(if (boundp 'dired-mode-map)
-    ;; we're good to go; just add our bindings
-    (my-dired-init)
-  ;; it's not loaded yet, so add our bindings to the load-hook
-  (add-hook 'dired-load-hook 'my-dired-init))
-
-(use-package dired
-  :ensure nil
-  :commands (dired dired-jump)
-  :bind (("C-x C-j" . dired-jump))
-  :custom ((dired-listing-switches "-agho --group-directories-first")))
-
-(use-package dired-single)
-  ;; :commands (dired dired-jump)
-  ;; :custom
-  ;; (dired-single-use-magic-buffer t))
-
-(use-package all-the-icons-dired
-  :hook (dired-mode . all-the-icons-dired-mode))
-
-;; nvm needs special help with PATH
-(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
-(setenv "NVM_DIR" nvm/dir)
-(setenv "NVM_CD_FLAGS" "-q")
-(setenv "NVM_RC_VERSION" "")
-(setenv "NVM_BIN" (concat nvm/dir "/bin"))
-(setenv "NVM_INC" (concat nvm/dir "/include/node"))
-(setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
-(use-package exec-path-from-shell
-  :init (exec-path-from-shell-initialize))
+;; flycheck syntax checker
+(use-package flycheck
+  :diminish flycheck-mode
+  :init
+  (global-flycheck-mode)
+  (setq flycheck-check-syntax-automatically '(save new-line)
+        flycheck-idle-change-delay 5.0
+        flycheck-display-errors-delay 0.9
+        flycheck-highlighting-mode 'symbols
+        flycheck-indication-mode 'left-fringe
+        flycheck-standard-error-navigation t
+        flycheck-deferred-syntax-check nil))
 
 ;; language servers, language setups
 ;; see https://emacs-lsp.github.io/lsp-mode/page/languages/ for lsp support
@@ -536,83 +538,114 @@
 ;; - pyls-flake8 breaks pylsp flake8 handling
 ;; - helpful lsp debug notes at https://www.mattduck.com/lsp-python-getting-started.html
 
+;; LSP
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
-  :hook (lsp-mode . lsp-mode-setup)
+  :hook ((lsp-mode . lsp-mode-setup)
+         ;;(typescript-mode . lsp-deferred)
+         (python-mode . lsp-deferred)
+         (go-mode . lsp-deferred))
   :init
-  (setq lsp-keymap-prefix "C-c l")  ;; Or 'C-l', 's-l'
+  (setq lsp-keymap-prefix "C-c l")
   (setq lsp-enable-snippet nil)
   :config
   (lsp-enable-which-key-integration t))
 
 (use-package lsp-ui
-  :hook (lsp-mode . lsp-ui-mode))
-
-(use-package lsp-treemacs
-  :after lsp)
+  :hook (lsp-mode . lsp-ui-mode)
+  :init (setq lsp-ui-doc-enable t
+              lsp-ui-peek-enable t
+              lsp-ui-sideline-enable t
+              lsp-ui-imenu-enable t
+              lsp-ui-flycheck-enable t)
+  :custom (lsp-ui-doc-position 'bottom))
 
 (use-package lsp-ivy
-  :after lsp)
+  :after lsp
+  :commands lsp-ivy-workspace-symbol)
 
-(use-package dap-mode
-  ;; Uncomment the config below if you want all UI panes to be hidden by default!
-  ;; :custom
-  ;; (lsp-enable-dap-auto-configure nil)
-  :config
-  (dap-ui-mode 1)
-  (dap-tooltip-mode 1)
-  (tooltip-mode 1)
-  (dap-ui-controls-mode 1)
-  :commands dap-debug
-  :config
-  ;; Set up Node debugging
-  (require 'dap-node)
-  (dap-node-setup) ;; Automatically installs Node debug adapter if needed
-  ;; Set up Pythno debugging
-  (require 'dap-python)
-
-  ;; Bind `C-c l d` to `dap-hydra` for easy access
-  (general-define-key
-    :keymaps 'lsp-mode-map
-    :prefix lsp-keymap-prefix
-    "d" '(dap-hydra t :wk "debugger")))
+(use-package lsp-treemacs
+  :after lsp
+  :commands lsp-treemacs-errors-list)
 
 (use-package company
   :after lsp-mode
   :hook (lsp-mode . company-mode)
   :bind (:map company-active-map
-         ("<tab>" . company-complete-selection))
-        (:map lsp-mode-map
-         ("<tab>" . company-indent-or-complete-common))
+              ("<tab>" . company-complete-selection))
+  (:map lsp-mode-map
+        ("<tab>" . company-indent-or-complete-common))
   :custom
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
-;; npm install -g eslint
-(use-package flycheck
-  :diminish flycheck-mode
-  :init
-  (setq flycheck-check-syntax-automatically '(save new-line)
-        flycheck-idle-change-delay 5.0
-        flycheck-display-errors-delay 0.9
-        flycheck-highlighting-mode 'symbols
-        flycheck-indication-mode 'left-fringe
-        flycheck-standard-error-navigation t
-        flycheck-deferred-syntax-check nil)
-  )
-
 (use-package company-box
   :hook (company-mode . company-box-mode))
 
-(use-package typescript-mode
-  :mode "\\.ts\\'"
-  :hook (typescript-mode . lsp-deferred)
-  :config
-  (setq typescript-indent-level 2))
+(use-package yasnippet
+  :commands yas-minor-mode
+  :hook ((go-mode . yas-minor-mode)
+         (python-mode . yas-minor-mode)))
 
-(add-hook 'html-mode-hook 'lsp-deferred)
-(add-hook 'js-mode-hook 'lsp-deferred)
-(setq js-indent-level 2)
+;; nvm needs special help with PATH
+(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
+(setenv "NVM_DIR" nvm/dir)
+(setenv "NVM_CD_FLAGS" "-q")
+(setenv "NVM_RC_VERSION" "")
+(setenv "NVM_BIN" (concat nvm/dir "/bin"))
+(setenv "NVM_INC" (concat nvm/dir "/include/node"))
+(setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
+
+;; DAP
+(use-package dap-mode
+  :commands dap-debug
+  :init (setq dap-print-io t)
+  :config
+  (dap-ui-mode 1)
+  ;; Set up Node debugging
+  (require 'dap-node)
+  (dap-node-setup) ;; Automatically installs Node debug adapter if needed
+  ;; Bind `C-c l d` to `dap-hydra` for easy access
+
+  (general-define-key
+   :keymaps 'lsp-mode-map
+   :prefix lsp-keymap-prefix
+   "d" '(dap-hydra t :wk "debugger")))
+
+;; Golang
+
+;; env & path for https://github.com/stefanmaric/g
+(setenv "GOPATH" (concat (getenv "HOME") "/go"))
+(setenv "GOROOT" (concat (getenv "HOME") "/.go"))
+
+(use-package go-rename)
+(use-package golint)
+
+(defun go-mode-setup ()
+  ;; (go-eldoc-setup)
+  (setq gofmt-command "goimports")
+  (add-hook 'before-save-hook 'gofmt-before-save)
+  (local-set-key (kbd "M-.") 'godef-jump)
+  ;; (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
+  ;; (setq compilation-read-command t)
+  (define-key (current-local-map) (kbd "C-c C-c") 'compile)
+  (setq tab-width 4)
+  (dap-register-debug-template
+   "Launch Go Test File"
+   (list :type "go"
+         :request "launch"
+         :name "Launch Go Test File"
+         :mode "test"
+         :program nil
+         :buildFlags nil
+         :args nil
+         :env nil)))
+
+(use-package go-mode
+  :hook (go-mode . go-mode-setup)
+  :config
+  (require 'dap-hydra)
+  (require 'dap-dlv-go))
 
 ;; pyenv, pipenv, teach dap where to find virtualenv python
 (use-package pyvenv
@@ -629,11 +662,37 @@
   (python-black-command (with-venv (executable-find "black")))
   (python-black-on-save-mode 't))
 
+(defun dap-python-setup()
+  (require 'dap-python)
+  (setq dap-python-debugger 'debugpy)
+  (defun dap-python--pyenv-executable-find (command)
+    (with-venv (executable-find "python"))))
+
+(add-hook 'dap-mode-hook 'dap-python-setup)
+
 (defun python-mode-setup()
-  (lsp-deferred)
   (flycheck-mode)
   (add-hook 'before-save-hook 'lsp-format-buffer)
-  (setq lsp-pylsp-plugins-flake8-enabled 't))
+  (setq lsp-pylsp-plugins-flake8-enabled 't)
+  (dap-register-debug-template
+   "python :: workspace"
+   (list :name "python :: workspace"
+         :type "python"
+         :args ""
+         :cwd "${workspaceFolder}"
+         :env '(("PYTHONPATH" . "${workspaceFolder}"))
+         :request "launch"
+         :jinja "true"))
+  (dap-register-debug-template
+   "pytest :: workspace"
+   (list :name "pytest :: workspace"
+         :type "python"
+         :args ""
+         :cwd "${workspaceFolder}"
+         :env '(("PYTHONPATH" . "${workspaceFolder}"))
+         :program (with-venv (executable-find "pytest"))
+         :request "launch"
+         :jinja "true")))
 
 (use-package python-mode
   :ensure t
@@ -641,189 +700,14 @@
   :custom
   ;; NOTE: Set these if Python 3 is called "python3" on your system!
   ;; (python-shell-interpreter "python3")
-  (dap-python-debugger 'debugpy)
-  (dap-python-executable (with-venv (executable-find "python")))
-  (lsp-pylsp-server-command (with-venv (executable-find "pylsp")))
-  (defun dap-python--pyenv-executable-find (command)
-    (with-venv (executable-find command)))
-
-  :config
-  (require 'dap-python))
-
-;; Custom commands
-
-(defun now ()
-  "Insert string for the current time formatted like '2:34 PM'."
-  (interactive)                 ; permit invocation in minibuffer
-  (insert (format-time-string "%D %-I:%M %p")))
-
-(defun today ()
-  "Insert string for today's date nicely formatted in American style,
-e.g. Sunday, September 17, 2000."
-  (interactive)                 ; permit invocation in minibuffer
-  (insert (format-time-string "%A, %B %e, %Y")))
-
-(put 'upcase-region 'disabled nil)
-
-;; See https://github.com/emacs-lsp/dap-mode/issues/642 for dap template issue with :program
-(defun python-debug-setup()
-  (interactive)
-  (defun dap-python--pyenv-executable-find (command)
-    (with-venv
-      (executable-find command)))
-  (dap-register-debug-template
-   "python :: workspace"
-   (list :type "python"
-         :args ""
-         :cwd "${workspaceFolder}"
-         :env '(("PYTHONPATH" . "${workspaceFolder}"))
-         :request "launch"
-         :jinja "true"
-         :name "python :: workspace"))
-  (dap-register-debug-template
-   "pytest :: test_add_sprockets"
-   (list :type "python"
-         :args "-k test_add_sprockets"
-         :cwd "${workspaceFolder}"
-         :env '(("PYTHONPATH" . "${workspaceFolder}"))
-	 :module "pytest"
-         :request "launch"
-         :jinja "true"
-         :name "pytest :: test_add_sprockets"))
-  (dap-register-debug-template
-   "pytest :: workspace"
-   (list :type "python"
-         :args ""
-         :cwd "${workspaceFolder}"
-         :env '(("PYTHONPATH" . "${workspaceFolder}"))
-	 :program (with-venv (executable-find "pytest"))
-         :request "launch"
-         :jinja "true"
-         :name "pytest :: workspace")))
-
-
-;; go mode section
-
-;; go install golang.org/x/tools/gopls@latest
-;; go install golang.org/x/lint/golint@latest
-;; go install golang.org/x/tools/cmd/gorename@latest
-;; go install github.com/go-delve/delve/cmd/dlv@latest
-
-(use-package go-rename)
-(use-package golint)
-(require 'dap-dlv-go)
-(defun go-mode-setup ()
-  ;; (go-eldoc-setup)
-  (setq gofmt-command "goimports")
-  (add-hook 'before-save-hook 'gofmt-before-save)
-  (local-set-key (kbd "M-.") 'godef-jump)
-  (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
-  (setq compilation-read-command t)
-  ;;  (define-key (current-local-map) "\C-c\C-c" 'compile)
-  (local-set-key (kbd "M-,") 'compile)
-  (setq tab-width 4))
-(setenv "GOPATH" (concat (getenv "HOME") "/go"))
-(setenv "GOROOT" (concat (getenv "HOME") "/.go"))
-
-(use-package go-mode
-  :hook (go-mode . go-mode-setup)
-  :init (add-hook 'go-mode-hook #'lsp-deferred))
-
-;;Smaller compilation buffer
-(setq compilation-window-height 14)
-(defun my-compilation-hook ()
-  (when (not (get-buffer-window "*compilation*"))
-    (save-selected-window
-      (save-excursion
-        (let* ((w (split-window-vertically))
-               (h (window-height w)))
-          (select-window w)
-          (switch-to-buffer "*compilation*")
-          (shrink-window (- h compilation-window-height)))))))
-(add-hook 'compilation-mode-hook 'my-compilation-hook)
-
-;;Other Key bindings
-(global-set-key (kbd "C-c C-c") 'comment-or-uncomment-region)
-
-;;Compilation autoscroll
-(setq compilation-scroll-output t)
-
-;; Mermaid
-(defun mermaid-setup ()
-  (org-babel-do-load-languages
-   'org-babel-load-languages
-   '((emacs-lisp . t)
-     (mermaid . t)
-     (shell . t)
-     (python . t)
-     (js . t)
-     (go . t))))
-
-(use-package ob-mermaid
-  :hook (org-mode . mermaid-setup)
-  :config
-  (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
-
-(use-package ob-go)
-
-;; Hugo/blogging
-(use-package ox-hugo
-  :ensure t   ;Auto-install the package from Melpa
-  :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
-  :after ox)
-
-;; typescript support?
-;; https://vxlabs.com/2022/06/12/typescript-development-with-emacs-tree-sitter-and-lsp-in-2022/
-(use-package tree-sitter
-  :ensure t
-  :config
-  ;; activate tree-sitter on any buffer containing code for which it has a parser available
-  (global-tree-sitter-mode)
-  ;; you can easily see the difference tree-sitter-hl-mode makes for python, ts or tsx
-  ;; by switching on and off
-  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
-
-(use-package tree-sitter-langs
-  :ensure t
-  :after tree-sitter)
+  (lsp-pylsp-server-command (with-venv (executable-find "pylsp"))))
 
 (use-package typescript-mode
-  :after tree-sitter
+  :mode "\\.ts\\'"
+  :hook (typescript-mode . lsp-deferred)
   :config
-  ;; we choose this instead of tsx-mode so that eglot can automatically figure out language for server
-  ;; see https://github.com/joaotavora/eglot/issues/624 and https://github.com/joaotavora/eglot#handling-quirky-servers
-  (define-derived-mode typescriptreact-mode typescript-mode
-    "TypeScript TSX")
+  (setq typescript-indent-level 2))
 
-  ;; use our derived mode for tsx files
-  (add-to-list 'auto-mode-alist '("\\.tsx?\\'" . typescriptreact-mode))
-  ;; by default, typescript-mode is mapped to the treesitter typescript parser
-  ;; use our derived mode to map both .tsx AND .ts -> typescriptreact-mode -> treesitter tsx
-  (add-to-list 'tree-sitter-major-mode-language-alist '(typescriptreact-mode . tsx)))
-
-;; https://github.com/quelpa/quelpa
-(unless (package-installed-p 'quelpa)
-  (with-temp-buffer
-    (url-insert-file-contents "https://raw.githubusercontent.com/quelpa/quelpa/master/quelpa.el")
-    (eval-buffer)
-    (quelpa-self-upgrade)))
-
-;; https://github.com/quelpa/quelpa-use-package
-(quelpa
- '(quelpa-use-package
-   :fetcher git
-   :url "https://github.com/quelpa/quelpa-use-package.git"))
-(require 'quelpa-use-package)
-
-;; https://github.com/orzechowskid/tsi.el/
-;; great tree-sitter-based indentation for typescript/tsx, css, json
-(use-package tsi
-  :after tree-sitter
-  :quelpa (tsi :fetcher github :repo "orzechowskid/tsi.el")
-  ;; define autoload definitions which when actually invoked will cause package to be loaded
-  :commands (tsi-typescript-mode tsi-json-mode tsi-css-mode)
-  :init
-  (add-hook 'typescript-mode-hook (lambda () (tsi-typescript-mode 1)))
-  (add-hook 'json-mode-hook (lambda () (tsi-json-mode 1)))
-  (add-hook 'css-mode-hook (lambda () (tsi-css-mode 1)))
-  (add-hook 'scss-mode-hook (lambda () (tsi-scss-mode 1))))
+(add-hook 'html-mode-hook 'lsp-deferred)
+(add-hook 'js-mode-hook 'lsp-deferred)
+(setq js-indent-level 2)
