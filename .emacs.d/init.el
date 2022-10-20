@@ -112,7 +112,7 @@
 ;;(load-theme 'tango-dark)
 ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
 (use-package doom-themes
-  :init (load-theme 'doom-monokai-machine t))
+  :init (load-theme 'doom-one t))
 
 ;; NOTE: If icons are missing run following command:
 ;;
@@ -156,9 +156,9 @@
          ("C-c i" . imenu)
          :map ivy-minibuffer-map
          ("TAB" . ivy-alt-done)
-         ("C-l" . ivy-partial-or-done)
+         ("C-l" . ivy-partial)
          :map ivy-switch-buffer-map
-         ("C-l" . ivy-done)
+         ("C-l" . ivy-partial)
          ("C-d" . ivy-switch-buffer-kill)
          :map ivy-reverse-i-search-map
          ("C-d" . ivy-reverse-i-search-kill))
@@ -711,3 +711,5 @@ e.g. Sunday, September 17, 2000."
 (add-hook 'html-mode-hook 'lsp-deferred)
 (add-hook 'js-mode-hook 'lsp-deferred)
 (setq js-indent-level 2)
+
+(use-package protobuf-mode)
