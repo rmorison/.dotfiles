@@ -39,7 +39,7 @@
 
   ;; Make frame transparency overridable
   (defvar efs/frame-transparency '(90 . 90))
-#+end_src
+  #+end_src
 
 ** MacOS Overrides
 #+begin_src emacs-lisp
@@ -138,7 +138,7 @@
 
 ** Global Auto Revert
 #+begin_src emacs-lisp
-(setq global-auto-revert-mode 't)
+  (setq global-auto-revert-mode 't)
 #+end_src
 
 * Themes, Icons, Modeline, Delimiter Matching
@@ -179,7 +179,7 @@
 
   ;; Comment toggle
   (global-set-key (kbd "C-c C-.") 'comment-or-uncomment-region)
-  #+end_src
+#+end_src
 
 ** General, Ivy, Counsel
 #+begin_src emacs-lisp
@@ -279,7 +279,8 @@
                                      "poetry"
                                      "docker"
                                      "ansible-playbook"
-                                     "hugo")))
+                                     "hugo"
+                                     "aws")))
 
     (eshell-git-prompt-use-theme 'powerline))
 #+end_src
@@ -389,7 +390,7 @@
   
     (setq org-todo-keywords
           '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-            (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
+            (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "IN-PROGRESS(i!)" "WONT-DO(w@)")))
 
     (setq org-todo-keyword-faces
         (quote (("TODO" :foreground "orange" :weight bold)
@@ -555,6 +556,11 @@
 #+end_src
 
 * Software Development
+
+** Compile
+#+begin_src emacs-lisp
+  (setq compilation-scroll-output 'first-error)
+#+end_src
 
 ** Projectile
 #+begin_src emacs-lisp
@@ -817,3 +823,10 @@
 #+begin_src emacs-lisp
 (use-package protobuf-mode)
 #+end_src
+
+** [[https://github.com/hashicorp/hcl][Hashicorp Configuration Language]]
+#+begin_src emacs-lisp
+(use-package hcl-mode)
+#+end_src
+
+#+RESULTS:
