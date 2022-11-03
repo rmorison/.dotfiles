@@ -231,7 +231,8 @@
                                    "poetry"
                                    "docker"
                                    "ansible-playbook"
-                                   "hugo")))
+                                   "hugo"
+                                   "aws")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
@@ -490,6 +491,8 @@ e.g. Sunday, September 17, 2000."
 
 (put 'upcase-region 'disabled nil)
 
+(setq compilation-scroll-output 'first-error)
+
 (use-package projectile
   :diminish projectile-mode
   :config (projectile-mode)
@@ -717,3 +720,5 @@ e.g. Sunday, September 17, 2000."
 (setq js-indent-level 2)
 
 (use-package protobuf-mode)
+
+(use-package hcl-mode)
