@@ -335,16 +335,19 @@
 
   (setq org-todo-keywords
         '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-          (sequence "BREAKDOWN(b)" "|" "PLANNED(p!)" "WONT-DO(w@)")))
+          (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")))
 
   (setq org-todo-keyword-faces
       (quote (("TODO" :foreground "orange" :weight bold)
               ("BREAKDOWN" :foreground "dark orange" :weight bold)
               ("NEXT" :foreground "aqua" :weight bold)
+              ("READY" :foreground "aqua" :weight bold)
               ("IN-PROGRESS" :foreground "forest green" :weight bold)
+              ("ACTIVE" :foreground "green" :weight bold)
               ("HELD-BLOCKED" :foreground "red" :weight bold)
+              ("DELEGATED" :foreground "purple" :weight bold)
+              ("WATCHING" :foreground "purple" :weight bold)
               ("DONE" :foreground "white" :weight bold)
-              ("PLANNED" :foreground "white" :weight bold)
               ("WONT-DO" :foreground "grey" :weight bold))))
 
   (setq org-tag-alist
@@ -364,10 +367,12 @@
   (setq org-agenda-custom-commands
         '(("d" "Dashboard"
            ((agenda "" ((org-deadline-warning-days 7)))
-            (todo "IN-PROGRESS" ((org-agenda-overriding-header "Working on now")))
-            (todo "NEXT" ((org-agenda-overriding-header "Next up to work on")))
-            (todo "DELEGATED" ((org-agenda-overriding-header "Delgated tasks to track")))
-            (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Stuck tasks")))))
+            (todo "IN-PROGRESS" ((org-agenda-overriding-header "Tasks working on now")))
+            (todo "ACTIVE" ((org-agenda-overriding-header "Projects that are active")))
+            (todo "NEXT" ((org-agenda-overriding-header "Tasks next up")))
+            (todo "DELEGATED" ((org-agenda-overriding-header "Tasks that are delegated")))
+            (todo "WATCHING" ((org-agenda-overriding-header "Projects that I'm watching")))
+            (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Blocked projects and tasks")))))
 
           ("b" "Task backlog & project planning triage"
            ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
@@ -376,8 +381,6 @@
           ("c" "Completed, planned, and wont-do tasks and projects"
            ((todo "DONE"
                   ((org-agenda-overriding-header "Tasks done"))))
-           ((todo "PLANNED"
-                  ((org-agenda-overriding-header "Projects planned"))))
            ((todo "WONT-DO"
                   ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
 
@@ -435,7 +438,7 @@
 (use-package org-bullets
   :hook (org-mode . org-bullets-mode)
   :custom
-  (org-bullets-bullet-list '("◉" "↪" "→" "○" "●" "○" "●")))
+  (org-bullets-bullet-list '("◉" "↪" "→" "○" "●" "✸" "✿" "•" "★" "•" "★" "•" "★")))
 
 (defun efs/org-mode-visual-fill ()
   (setq visual-fill-column-width 100
