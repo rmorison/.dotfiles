@@ -318,8 +318,8 @@
   (use-package all-the-icons-dired
     :hook (dired-mode . all-the-icons-dired-mode))
 #+end_src
-* Org Mode
 
+* Org Mode
 #+begin_src emacs-lisp
   ;; org mode
   (defun efs/org-font-setup ()
@@ -518,7 +518,6 @@
 #+end_src
 
 ** Auto-tangle Configuration Files
-
 #+begin_src emacs-lisp
   ;; Automatically tangle our Emacs.org config file when we save it
   (defun efs/org-babel-tangle-config ()
@@ -538,6 +537,7 @@
   :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
   :after ox)
 #+end_src
+
 * Custom Commands
 #+begin_src emacs-lisp
   (defun now ()
@@ -555,7 +555,6 @@
 #+end_src
 
 * Software Development
-
 ** Projectile
 #+begin_src emacs-lisp
   (use-package projectile
@@ -608,7 +607,8 @@
   (defun lsp-mode-setup ()
     (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
     (lsp-headerline-breadcrumb-mode)
-    (setq lsp-log-io t))
+    (setq lsp-log-io t)
+    (electric-pair-mode 1))
 
   ;; lsp, dap mode tips
   ;; typescript: npm install -g typescript-language-server; npm install -g typescript
@@ -685,6 +685,7 @@
 (setenv "NVM_INC" (concat nvm/dir "/include/node"))
 (setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
 #+end_src
+
 ** Dap
 #+begin_src emacs-lisp
   ;; DAP

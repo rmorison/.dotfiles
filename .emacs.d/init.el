@@ -528,7 +528,8 @@ e.g. Sunday, September 17, 2000."
 (defun lsp-mode-setup ()
   (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
   (lsp-headerline-breadcrumb-mode)
-  (setq lsp-log-io t))
+  (setq lsp-log-io t)
+  (electric-pair-mode 1))
 
 ;; lsp, dap mode tips
 ;; typescript: npm install -g typescript-language-server; npm install -g typescript
