@@ -371,7 +371,9 @@
     (setq org-image-actual-width (list 640))
 
     (setq org-directory "~/org")
-    (setq org-agenda-files '("~/org" "~/Blogs/rmorison.github.io/org"))
+    (setq org-agenda-files '("~/org"))
+    (when (file-exists-p "~/Blogs/rmorison.github.io/org")
+      (add-to-list 'org-agenda-files "~/Blogs/rmorison.github.io/org"))
 
     (setq org-agenda-compact-blocks t)
 
