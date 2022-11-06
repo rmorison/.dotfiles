@@ -28,7 +28,6 @@
 * Basic UI Configuration
 
 ** Fonts and Default Sizes
-
 #+begin_src emacs-lisp
   ;; You will most likely need to adjust this font size for your system!
   (defvar efs/default-font-size 120)
@@ -39,7 +38,7 @@
 
   ;; Make frame transparency overridable
   (defvar efs/frame-transparency '(90 . 90))
-  #+end_src
+#+end_src
 
 ** MacOS Overrides
 #+begin_src emacs-lisp
@@ -395,17 +394,17 @@
             (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")))
 
     (setq org-todo-keyword-faces
-        (quote (("TODO" :foreground "orange" :weight bold)
-                ("BREAKDOWN" :foreground "dark orange" :weight bold)
-                ("NEXT" :foreground "aqua" :weight bold)
-                ("READY" :foreground "aqua" :weight bold)
-                ("IN-PROGRESS" :foreground "forest green" :weight bold)
-                ("ACTIVE" :foreground "green" :weight bold)
-                ("HELD-BLOCKED" :foreground "red" :weight bold)
-                ("DELEGATED" :foreground "purple" :weight bold)
-                ("WATCHING" :foreground "purple" :weight bold)
-                ("DONE" :foreground "white" :weight bold)
-                ("WONT-DO" :foreground "grey" :weight bold))))
+          (quote (("TODO" :foreground "orange" :weight bold)
+                  ("BREAKDOWN" :foreground "dark orange" :weight bold)
+                  ("NEXT" :foreground "aqua" :weight bold)
+                  ("READY" :foreground "aqua" :weight bold)
+                  ("IN-PROGRESS" :foreground "forest green" :weight bold)
+                  ("ACTIVE" :foreground "green" :weight bold)
+                  ("HELD-BLOCKED" :foreground "red" :weight bold)
+                  ("DELEGATED" :foreground "purple" :weight bold)
+                  ("WATCHING" :foreground "purple" :weight bold)
+                  ("DONE" :foreground "white" :weight bold)
+                  ("WONT-DO" :foreground "grey" :weight bold))))
 
     (setq org-tag-alist
           '((:startgroup)
@@ -440,6 +439,13 @@
                     ((org-agenda-overriding-header "Tasks done"))))
              ((todo "WONT-DO"
                     ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
+
+    ;; Agenda sort
+    (setq org-agenda-sorting-strategy
+          '((agenda habit-down todo-state-down time-up priority-down category-keep)
+            (todo priority-down category-keep)
+            (tags priority-down category-keep)
+            (search category-keep)))
 
     ;; Define capture templates
     (setq org-capture-templates
@@ -538,10 +544,10 @@
 
 * Hugo
 #+begin_src emacs-lisp
-(use-package ox-hugo
-  :ensure t   ;Auto-install the package from Melpa
-  :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
-  :after ox)
+  (use-package ox-hugo
+    :ensure t   ;Auto-install the package from Melpa
+    :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
+    :after ox)
 #+end_src
 
 * Custom Commands
@@ -688,14 +694,14 @@
 
 ** Nvm, Nodejs
 #+begin_src emacs-lisp
-;; nvm needs special help with PATH
-(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
-(setenv "NVM_DIR" nvm/dir)
-(setenv "NVM_CD_FLAGS" "-q")
-(setenv "NVM_RC_VERSION" "")
-(setenv "NVM_BIN" (concat nvm/dir "/bin"))
-(setenv "NVM_INC" (concat nvm/dir "/include/node"))
-(setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
+  ;; nvm needs special help with PATH
+  (setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
+  (setenv "NVM_DIR" nvm/dir)
+  (setenv "NVM_CD_FLAGS" "-q")
+  (setenv "NVM_RC_VERSION" "")
+  (setenv "NVM_BIN" (concat nvm/dir "/bin"))
+  (setenv "NVM_INC" (concat nvm/dir "/include/node"))
+  (setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
 #+end_src
 
 ** Dap
