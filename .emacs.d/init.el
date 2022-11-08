@@ -387,6 +387,13 @@
            ((todo "WONT-DO"
                   ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
 
+  ;; Agenda sort
+  (setq org-agenda-sorting-strategy
+        '((agenda habit-down todo-state-down time-up priority-down category-keep)
+          (todo priority-down category-keep)
+          (tags priority-down category-keep)
+          (search category-keep)))
+
   ;; Define capture templates
   (setq org-capture-templates
         `(("t" "Task" entry (file+headline "inbox.org" "Tasks")
@@ -720,6 +727,23 @@ e.g. Sunday, September 17, 2000."
 (add-hook 'html-mode-hook 'lsp-deferred)
 (add-hook 'js-mode-hook 'lsp-deferred)
 (setq js-indent-level 2)
+
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 6))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+
+(straight-use-package '(tsi :type git :host github :repo "orzechowskid/tsi.el"))
+(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))
+(add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-mode))
 
 (use-package protobuf-mode)
 
