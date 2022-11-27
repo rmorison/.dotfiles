@@ -487,6 +487,7 @@
     (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
     (add-to-list 'org-structure-template-alist '("py" . "src python"))
     (add-to-list 'org-structure-template-alist '("go" . "src go"))
+    (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
 
     ;; don't ask on eval block C-c C-c
     (setq org-confirm-babel-evaluate nil))
@@ -690,6 +691,11 @@
     :commands yas-minor-mode
     :hook ((go-mode . yas-minor-mode)
            (python-mode . yas-minor-mode)))
+#+end_src
+
+** Yaml mode
+#+begin_src emacs-lisp
+  (use-package yaml-mode)
 #+end_src
 
 ** Nvm, Nodejs
