@@ -341,17 +341,17 @@
           (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")))
 
   (setq org-todo-keyword-faces
-      (quote (("TODO" :foreground "orange" :weight bold)
-              ("BREAKDOWN" :foreground "dark orange" :weight bold)
-              ("NEXT" :foreground "aqua" :weight bold)
-              ("READY" :foreground "aqua" :weight bold)
-              ("IN-PROGRESS" :foreground "forest green" :weight bold)
-              ("ACTIVE" :foreground "green" :weight bold)
-              ("HELD-BLOCKED" :foreground "red" :weight bold)
-              ("DELEGATED" :foreground "purple" :weight bold)
-              ("WATCHING" :foreground "purple" :weight bold)
-              ("DONE" :foreground "white" :weight bold)
-              ("WONT-DO" :foreground "grey" :weight bold))))
+        (quote (("TODO" :foreground "orange" :weight bold)
+                ("BREAKDOWN" :foreground "dark orange" :weight bold)
+                ("NEXT" :foreground "aqua" :weight bold)
+                ("READY" :foreground "aqua" :weight bold)
+                ("IN-PROGRESS" :foreground "forest green" :weight bold)
+                ("ACTIVE" :foreground "green" :weight bold)
+                ("HELD-BLOCKED" :foreground "red" :weight bold)
+                ("DELEGATED" :foreground "purple" :weight bold)
+                ("WATCHING" :foreground "purple" :weight bold)
+                ("DONE" :foreground "white" :weight bold)
+                ("WONT-DO" :foreground "grey" :weight bold))))
 
   (setq org-tag-alist
         '((:startgroup)
@@ -434,6 +434,7 @@
   (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
   (add-to-list 'org-structure-template-alist '("py" . "src python"))
   (add-to-list 'org-structure-template-alist '("go" . "src go"))
+  (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
 
   ;; don't ask on eval block C-c C-c
   (setq org-confirm-babel-evaluate nil))
@@ -748,3 +749,16 @@ e.g. Sunday, September 17, 2000."
 (use-package protobuf-mode)
 
 (use-package hcl-mode)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(yaml-mode yasnippet with-venv which-key visual-fill-column use-package typescript-mode rainbow-delimiters pyvenv python-mode python-black protobuf-mode ox-hugo ox-gfm org-bullets ob-mermaid ob-go no-littering magit lsp-ui lsp-ivy ivy-rich imenu-list helpful hcl-mode golint go-rename general flycheck exec-path-from-shell eshell-git-prompt doom-themes doom-modeline dired-single dap-mode counsel-projectile company-box all-the-icons-dired)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
