@@ -90,10 +90,13 @@
   ;; top level look/feel
   (setq inhibit-startup-message t)
 
-  (scroll-bar-mode -1)        ; Disable visible scrollbar
+  (if window-system
+      (progn
+        (set-fringe-mode 10)        ; Give some breathing room
+        (scroll-bar-mode -1)))        ; Disable visible scrollbar
+
   (tool-bar-mode -1)          ; Disable the toolbar
   (tooltip-mode -1)           ; Disable tooltips
-  (set-fringe-mode 10)        ; Give some breathing room
   (display-time-mode 1)       ; Anyone know what time it is?
   (menu-bar-mode -1)            ; Disable the menu bar
 

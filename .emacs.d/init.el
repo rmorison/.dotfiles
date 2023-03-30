@@ -70,10 +70,13 @@
 ;; top level look/feel
 (setq inhibit-startup-message t)
 
-(scroll-bar-mode -1)        ; Disable visible scrollbar
+(if window-system
+    (progn
+      (set-fringe-mode 10)        ; Give some breathing room
+      (scroll-bar-mode -1)))        ; Disable visible scrollbar
+
 (tool-bar-mode -1)          ; Disable the toolbar
 (tooltip-mode -1)           ; Disable tooltips
-(set-fringe-mode 10)        ; Give some breathing room
 (display-time-mode 1)       ; Anyone know what time it is?
 (menu-bar-mode -1)            ; Disable the menu bar
 
@@ -604,6 +607,8 @@ e.g. Sunday, September 17, 2000."
   :hook ((go-mode . yas-minor-mode)
          (python-mode . yas-minor-mode)))
 
+(use-package yaml-mode)
+
 ;; nvm needs special help with PATH
 (setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
 (setenv "NVM_DIR" nvm/dir)
@@ -749,16 +754,3 @@ e.g. Sunday, September 17, 2000."
 (use-package protobuf-mode)
 
 (use-package hcl-mode)
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(yaml-mode yasnippet with-venv which-key visual-fill-column use-package typescript-mode rainbow-delimiters pyvenv python-mode python-black protobuf-mode ox-hugo ox-gfm org-bullets ob-mermaid ob-go no-littering magit lsp-ui lsp-ivy ivy-rich imenu-list helpful hcl-mode golint go-rename general flycheck exec-path-from-shell eshell-git-prompt doom-themes doom-modeline dired-single dap-mode counsel-projectile company-box all-the-icons-dired)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
