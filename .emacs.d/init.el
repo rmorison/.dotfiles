@@ -661,7 +661,16 @@ e.g. Sunday, September 17, 2000."
          :program nil
          :buildFlags nil
          :args nil
-         :env nil)))
+         :env nil))
+  (dap-register-debug-template
+  "Golang: Debug Main"
+  (list :type "go"
+        :request "launch"
+        :name "Golang: Debug Main"
+        :mode "auto"
+        :program "${workspaceFolder}/main.go"
+        :env nil
+        :args nil)))
 
 (use-package go-mode
   :hook (go-mode . go-mode-setup)
