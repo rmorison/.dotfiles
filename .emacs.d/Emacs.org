@@ -393,8 +393,8 @@
     (setq org-habit-graph-column 60)
 
     (setq org-todo-keywords
-          '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-            (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")))
+          '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "|" "DONE(d!)" "WONT-DO(w@)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" )
+            (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "|" "DONE(d!)" "WONT-DO(w@)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)")))
 
     (setq org-todo-keyword-faces
           (quote (("TODO" :foreground "orange" :weight bold)
@@ -868,11 +868,17 @@
   (straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))
   (add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-mode))
 #+end_src
+** Format code on save
+#+begin_src emacs-lisp
+;; format code on save: https://github.com/radian-software/apheleia
+(use-package apheleia)
+(apheleia-global-mode +1)
+#+end_src
+
 ** Protobuf
 #+begin_src emacs-lisp
 (use-package protobuf-mode)
 #+end_src
-
 ** [[https://github.com/hashicorp/hcl][Hashicorp Configuration Language]]
 #+begin_src emacs-lisp
 (use-package hcl-mode)

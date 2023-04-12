@@ -340,8 +340,8 @@
   (setq org-habit-graph-column 60)
 
   (setq org-todo-keywords
-        '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")
-          (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)" "|" "DONE(d!)" "WONT-DO(w@)")))
+        '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "|" "DONE(d!)" "WONT-DO(w@)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" )
+          (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "|" "DONE(d!)" "WONT-DO(w@)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)")))
 
   (setq org-todo-keyword-faces
         (quote (("TODO" :foreground "orange" :weight bold)
@@ -759,6 +759,10 @@ e.g. Sunday, September 17, 2000."
 (straight-use-package '(tsi :type git :host github :repo "orzechowskid/tsi.el"))
 (straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))
 (add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-mode))
+
+;; format code on save: https://github.com/radian-software/apheleia
+(use-package apheleia)
+(apheleia-global-mode +1)
 
 (use-package protobuf-mode)
 
