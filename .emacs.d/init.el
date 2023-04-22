@@ -610,7 +610,7 @@ e.g. Sunday, September 17, 2000."
 (use-package yaml-mode)
 
 ;; nvm needs special help with PATH
-(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v16.14.0"))
+(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v18.12.1"))
 (setenv "NVM_DIR" nvm/dir)
 (setenv "NVM_CD_FLAGS" "-q")
 (setenv "NVM_RC_VERSION" "")
