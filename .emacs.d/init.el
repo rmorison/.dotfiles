@@ -19,6 +19,8 @@
 (use-package no-littering)
 
 ;; You will most likely need to adjust this font size for your system!
+;; If fonts are missing
+;; sudo apt install fonts-firacode fonts-cantarell
 (defvar efs/default-font-size 120)
 (defvar efs/default-variable-font-size 120)
 (defvar efs/default-font-family "Fira Code")
@@ -142,7 +144,7 @@
 (global-set-key [(control z)] 'undo)
 
 ;; Comment toggle
-(global-set-key (kbd "C-c C-.") 'comment-or-uncomment-region)
+(global-set-key (kbd "C-c C-/") 'comment-or-uncomment-region)
 
 (use-package general)
 
@@ -610,13 +612,20 @@ e.g. Sunday, September 17, 2000."
 (use-package yaml-mode)
 
 ;; nvm needs special help with PATH
-(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v18.12.1"))
+(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v18.16.0"))
 (setenv "NVM_DIR" nvm/dir)
 (setenv "NVM_CD_FLAGS" "-q")
 (setenv "NVM_RC_VERSION" "")
 (setenv "NVM_BIN" (concat nvm/dir "/bin"))
 (setenv "NVM_INC" (concat nvm/dir "/include/node"))
 (setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
+
+(dap-register-debug-template
+ "Node::Attach"
+ (list :type "node"
+       :request "attach"
+       :port 9229
+       :name "Node::Attach"))
 
 ;; DAP
 (use-package dap-mode
