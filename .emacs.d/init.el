@@ -1,20 +1,27 @@
-;; Initialize package sources
-(require 'package)
+;; Automatically tangle our Emacs.org config file when we save it
+(defun efs/org-babel-tangle-config ()
+  (when (string-equal (buffer-file-name)
+                      (expand-file-name "~/.dotfiles/.emacs.d/Emacs.org"))
+    ;; Dyname scoping to the rescue
+    (let ((org-confirm-babel-evaluate nil))
+      (org-babel-tangle))))
 
-(setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                         ("org" . "https://orgmode.org/elpa/")
-                         ("elpa" . "https://elpa.gnu.org/packages/")))
+(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'efs/org-babel-tangle-config)))
 
-(package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 6))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+	(url-retrieve-synchronously
+	 "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+	 'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
+(setq straight-use-package-by-default t) ;; Automatically use `straight.el` with `use-package`
 
-;; Initialize use-package on non-Linux platforms
-(unless (package-installed-p 'use-package)
-  (package-install 'use-package))
-
-(require 'use-package)
-(setq use-package-always-ensure t)
 
 (use-package no-littering)
 
@@ -26,6 +33,7 @@
 (defvar efs/default-font-family "Fira Code")
 (defvar efs/fixed-font-family "Fira Code")
 (defvar efs/variable-font-family "Cantarell")
+(defvar efs/default-fill-column 112)
 
 ;; Make frame transparency overridable
 (defvar efs/frame-transparency '(90 . 90))
@@ -57,8 +65,8 @@
   (setq efs/default-variable-font-size 160))
 
 ;; The default is 800 kilobytes.  Measured in bytes.
-(setq gc-cons-threshold (* 50 1000 1000))
-(setq read-process-output-max (* 1024 1024))
+(setq gc-cons-threshold (* 500 1000 1000))
+(setq read-process-output-max (* 2 1024 1024))
 
 (defun efs/display-startup-time ()
   (message "Emacs loaded in %s with %d garbage collections."
@@ -112,24 +120,38 @@
                     :height efs/default-variable-font-size
                     :weight 'regular)
 
-(setq global-auto-revert-mode 't)
+(global-auto-revert-mode 1)
 
 ;;(load-theme 'tango-dark)
 ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
 (use-package doom-themes
-  :init (load-theme 'doom-one t))
+  :init (load-theme 'doom-acario-dark t))
 
-;; NOTE: If icons are missing run following command:
+;; Replace the all-the-icons package with nerd-icons
+;; all-the-icons is broken in doomemacs, see
+;; https://github.com/doomemacs/doomemacs/issues/7379
 ;;
-;; M-x all-the-icons-install-fonts
-(use-package all-the-icons
-  :if (display-graphic-p))
+;; You may need to
+;; M-x nerd-icons-install-fonts
+;; and
+;; fc-cache -f -v # from shell
+(use-package nerd-icons
+  :if (display-graphic-p)
+  :commands nerd-icons-install-fonts
+  :init
+  (unless (find-font (font-spec :name "Symbols Nerd Font Mono"))
+    (nerd-icons-install-fonts t)))
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
-  :custom ((doom-modeline-height 15)))
+  :custom 
+  ((doom-modeline-height 15)
+   (doom-modeline-icon t)
+   (doom-modeline-major-mode-icon t)
+   (doom-modeline-major-mode-color-icon t)))
 
 (use-package rainbow-delimiters
+  :defer t
   :hook (prog-mode . rainbow-delimiters-mode))
 
 ;; Make ESC quit prompts
@@ -149,24 +171,24 @@
 (use-package general)
 
 (use-package which-key
-  :defer 0
-  :diminish which-key-mode
-  :config
+  :defer t
+  :init
   (which-key-mode)
+  :config
   (setq which-key-idle-delay 1))
 
 (use-package ivy
   :diminish
   :bind (("C-s" . swiper)
-         ("C-c i" . imenu)
-         :map ivy-minibuffer-map
-         ("TAB" . ivy-alt-done)
-         ("C-l" . ivy-partial)
-         :map ivy-switch-buffer-map
-         ("C-l" . ivy-partial)
-         ("C-d" . ivy-switch-buffer-kill)
-         :map ivy-reverse-i-search-map
-         ("C-d" . ivy-reverse-i-search-kill))
+	 ("C-c i" . imenu)
+	 :map ivy-minibuffer-map
+	 ("TAB" . ivy-alt-done)
+	 ("C-l" . ivy-partial)
+	 :map ivy-switch-buffer-map
+	 ("C-l" . ivy-partial)
+	 ("C-d" . ivy-switch-buffer-kill)
+	 :map ivy-reverse-i-search-map
+	 ("C-d" . ivy-reverse-i-search-kill))
   :config
   (ivy-mode 1))
 
@@ -175,8 +197,8 @@
 
 (use-package counsel
   :bind (("C-M-j" . 'counsel-switch-buffer)
-         :map minibuffer-local-map
-         ("C-r" . 'counsel-minibuffer-history))
+	 :map minibuffer-local-map
+	 ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
   :config
@@ -188,6 +210,7 @@
   (ivy-rich-mode 1))
 
 (use-package helpful
+  :defer t
   :commands (helpful-callable helpful-variable helpful-command helpful-key)
   :custom
   (counsel-describe-function-function #'helpful-callable)
@@ -208,8 +231,8 @@
   ;; Truncate buffer for performance
   (add-to-list 'eshell-output-filter-functions 'eshell-truncate-buffer)
 
-  (setq eshell-history-size         10000
-        eshell-buffer-maximum-lines 10000
+  (setq eshell-history-size         100000
+        eshell-buffer-maximum-lines 100000
         eshell-hist-ignoredups t
         eshell-scroll-to-bottom-on-input t))
 
@@ -237,41 +260,30 @@
                                    "docker"
                                    "ansible-playbook"
                                    "hugo"
-                                   "aws")))
+                                   "aws"
+                                   "copilot")))
 
   (eshell-git-prompt-use-theme 'powerline))
 
-(defun my-dired-init ()
-  "Bunch of stuff to run for dired, either immediately or when it's
-   loaded."
-  ;; <add other stuff here>
-  (define-key dired-mode-map [remap dired-find-file]
-    'dired-single-buffer)
-  (define-key dired-mode-map [remap dired-mouse-find-file-other-window]
-    'dired-single-buffer-mouse)
-  (define-key dired-mode-map [remap dired-up-directory]
-    'dired-single-up-directory))
-
-;; if dired's already loaded, then the keymap will be bound
-(if (boundp 'dired-mode-map)
-    ;; we're good to go; just add our bindings
-    (my-dired-init)
-  ;; it's not loaded yet, so add our bindings to the load-hook
-  (add-hook 'dired-load-hook 'my-dired-init))
-
 (use-package dired
-  :ensure nil
+  :straight (:type built-in)  ;; Tell straight.el this is a built-in package
   :commands (dired dired-jump)
   :bind (("C-x C-j" . dired-jump))
-  :custom ((dired-listing-switches "-agho --group-directories-first")))
+  :custom
+  (dired-listing-switches "-agho --group-directories-first"))
 
-(use-package dired-single)
-;; :commands (dired dired-jump)
-;; :custom
-;; (dired-single-use-magic-buffer t))
+(use-package dirvish
+  :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
+  :config
+  (dirvish-override-dired-mode)
 
-(use-package all-the-icons-dired
-  :hook (dired-mode . all-the-icons-dired-mode))
+  ;; Optional settings
+  (setq dirvish-cache-dir "~/.cache/dirvish/"
+        dirvish-attributes '(nerd-icons file-size file-time))  ; Changed from all-the-icons to nerd-icons
+
+  ;; Keybindings for Dirvish
+  (define-key dirvish-mode-map (kbd "h") 'dired-up-directory)
+  (define-key dirvish-mode-map (kbd "l") 'dired-find-file))
 
 ;; org mode
 (defun efs/org-font-setup ()
@@ -310,10 +322,11 @@
   (visual-line-mode 1))
 
 (use-package org
-  :pin org
+  :straight (:type built-in)
   :commands (org-capture org-agenda)
   :hook (org-mode . efs/org-mode-setup)
   :config
+  (setq-default fill-column efs/default-fill-column)
   (setq org-ellipsis " ▾")
 
   (setq org-agenda-start-with-log-mode t)
@@ -440,6 +453,8 @@
   (add-to-list 'org-structure-template-alist '("py" . "src python"))
   (add-to-list 'org-structure-template-alist '("go" . "src go"))
   (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
+  (add-to-list 'org-structure-template-alist '("ty" . "src typescript"))
+  (add-to-list 'org-structure-template-alist '("mm" . "src mermaid"))
 
   ;; don't ask on eval block C-c C-c
   (setq org-confirm-babel-evaluate nil))
@@ -452,23 +467,29 @@
 (define-key global-map (kbd "C-c a") 'org-agenda)
 
 (use-package org-bullets
+  :defer t
   :hook (org-mode . org-bullets-mode)
   :custom
   (org-bullets-bullet-list '("◉" "↪" "→" "○" "●" "✸" "✿" "•" "★" "•" "★" "•" "★")))
 
 (defun efs/org-mode-visual-fill ()
-  (setq visual-fill-column-width 100
+  (setq visual-fill-column-width efs/default-fill-column
         visual-fill-column-center-text t)
   (visual-fill-column-mode 1))
 
 (use-package visual-fill-column
+  :defer t
   :hook (org-mode . efs/org-mode-visual-fill))
 
-(use-package ob-go)
+(use-package ob-go
+  :defer t
+  :after org)
 
 (use-package ob-mermaid
+  :defer t
+  :after org
   :config
-  (setq ob-mermaid-cli-path "/home/rod/.npm/_npx/668c188756b835f3/node_modules/.bin/mmdc"))
+  (setq ob-mermaid-cli-path (expand-file-name "~/.nvm/versions/node/v18.16.0/bin/mmdc")))
 
 (org-babel-do-load-languages
  'org-babel-load-languages
@@ -478,301 +499,192 @@
    (python . t)
    (go . t)))
 
-;; Automatically tangle our Emacs.org config file when we save it
-(defun efs/org-babel-tangle-config ()
-  (when (string-equal (buffer-file-name)
-                      (expand-file-name "~/Projects/github.com/rmorison/dotfiles/.emacs.d/Emacs.org"))
-    ;; Dyname scoping to the rescue
-    (let ((org-confirm-babel-evaluate nil))
-      (org-babel-tangle))))
+;; YAML Mode Configuration
+(use-package yaml-mode
+  :mode ("\\.ya?ml\\'" . yaml-mode)
+  :hook (yaml-mode . (lambda ()
+                      (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 
-(add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'efs/org-babel-tangle-config)))
-
-(use-package ox-hugo
-  :ensure t   ;Auto-install the package from Melpa
-  :pin melpa  ;`package-archives' should already have ("melpa" . "https://melpa.org/packages/")
-  :after ox)
-
-(defun now ()
-  "Insert string for the current time formatted like '2:34 PM'."
-  (interactive)                 ; permit invocation in minibuffer
-  (insert (format-time-string "%D %-I:%M %p")))
-
-(defun today ()
-  "Insert string for today's date nicely formatted in American style,
-e.g. Sunday, September 17, 2000."
-  (interactive)                 ; permit invocation in minibuffer
-  (insert (format-time-string "%A, %B %e, %Y")))
-
-(put 'upcase-region 'disabled nil)
-
-(setq compilation-scroll-output 'first-error)
-
-(use-package projectile
-  :diminish projectile-mode
-  :config (projectile-mode)
-  :custom ((projectile-completion-system 'ivy))
-  :bind-keymap
-  ("C-c p" . projectile-command-map)
-  :init
-  ;; NOTE: Set this to the folder where you keep your Git repos!
-  (when (file-directory-p "~/Projects")
-    (setq projectile-project-search-path '("~/Projects")))
-  (setq projectile-switch-project-action #'projectile-dired))
-
-(use-package counsel-projectile
-  :after projectile
-  :config (counsel-projectile-mode))
-
+;; Magit configuration
 (use-package magit
   :commands magit-status
   :custom
-  (magit-display-buffer-function
-   #'magit-display-buffer-same-window-except-diff-v1)
-  (magit-branch-read-upstream-first 'fallback))
+  (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+  :bind
+  ("C-x g" . magit-status)
+  ("C-x M-g" . magit-dispatch))
 
-;; flycheck syntax checker
-(use-package flycheck
-  :diminish flycheck-mode
+;; Optional but recommended: git commit message editing support
+(use-package git-commit
+  :after magit
+  :custom
+  (git-commit-summary-max-length 88)
+  (git-commit-fill-column 88))
+
+;; Optional: show git changes in the gutter/fringe
+;; Configure native-comp warnings before git-gutter
+(setq native-comp-async-report-warnings-errors 'silent) ; Silence all native-comp warnings
+
+;; Optional: if you want to only silence specific warnings
+(add-to-list 'native-comp-eln-load-path (expand-file-name "eln-cache/" user-emacs-directory))
+(setq native-comp-async-query-on-exit nil)
+
+;; Git Gutter configuration
+(use-package git-gutter
+  :hook (prog-mode . git-gutter-mode)
+  :config
+  (setq git-gutter:update-interval 0.02))
+
+;; Ensure tree-sitter grammars are installed
+(use-package treesit
+  :straight (:type built-in)
+  :config
+  (setq treesit-language-source-alist
+        '((python "https://github.com/tree-sitter/tree-sitter-python")
+          (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+          (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+          (javascript "https://github.com/tree-sitter/tree-sitter-javascript")
+          (go "https://github.com/tree-sitter/tree-sitter-go")
+          (sql "https://github.com/m-novikov/tree-sitter-sql")))
+
+  ;; Auto-install grammars if they're missing
+  (dolist (grammar treesit-language-source-alist)
+    (unless (treesit-language-available-p (car grammar))
+      (treesit-install-language-grammar (car grammar))))
+
+  ;; Use tree-sitter modes when available
+  (setq major-mode-remap-alist
+        '((python-mode . python-ts-mode)
+          (typescript-mode . typescript-ts-mode)
+          (js-mode . js-ts-mode)
+          (js2-mode . js-ts-mode)
+          (go-mode . go-ts-mode)
+          (sql-mode . sql-ts-mode)))
+
+  ;; Ensure font-lock works well
+  (setq treesit-font-lock-level 4))
+
+;; Python Development Configuration
+(defun efs/python-mode-setup ()
+  "Setup for Python development environment."
+  (setq-local indent-tabs-mode nil)
+  (when (fboundp 'python-ts-mode)
+    (python-ts-mode))
+  (setq eldoc-mode t))
+
+;; Virtual environment management
+(use-package pyvenv
+  :after python
   :init
-  (global-flycheck-mode)
-  (setq flycheck-check-syntax-automatically '(save new-line)
-        flycheck-idle-change-delay 5.0
-        flycheck-display-errors-delay 0.9
-        flycheck-highlighting-mode 'symbols
-        flycheck-indication-mode 'left-fringe
-        flycheck-standard-error-navigation t
-        flycheck-deferred-syntax-check nil))
+  (setenv "WORKON_HOME" (expand-file-name "~/.pyenv/versions"))
+  :config
+  ;; Display virtual env in mode line
+  (setq pyvenv-mode-line-indicator '(pyvenv-virtual-env-name ("[venv:%s]" pyvenv-virtual-env-name)))
 
-;; language servers, language setups
-;; see https://emacs-lsp.github.io/lsp-mode/page/languages/ for lsp support
-(defun lsp-mode-setup ()
-  (setq lsp-headerline-breadcrumb-segments '(path-up-to-project file symbols))
-  (lsp-headerline-breadcrumb-mode)
-  (setq lsp-log-io t)
-  (electric-pair-mode 1))
+  ;; Helper function to find and activate virtualenv
+  (defun efs/auto-activate-virtualenv ()
+    "Automatically activate virtualenv in the current project."
+    (interactive)
+    (let* ((project-dir (locate-dominating-file default-directory ".venv"))
+           (venv-path (when project-dir (expand-file-name ".venv" project-dir))))
+      (when (and venv-path (file-directory-p venv-path))
+        (pyvenv-activate venv-path)
+        ;; Explicitly set the pylsp path from virtualenv
+        (let ((pylsp-path (expand-file-name "bin/pylsp" venv-path)))
+          (when (file-exists-p pylsp-path)
+            (setq-local lsp-pylsp-server-command pylsp-path))))))
 
-;; lsp, dap mode tips
-;; typescript: npm install -g typescript-language-server; npm install -g typescript
-;; python: pipenv install --dev black mypy debugpy pylint python-lsp-server \
-;;           python-lsp-black pyls-isort isort pylsp-mypy flake8
-;; notes:
-;; - pyls-flake8 breaks pylsp flake8 handling
-;; - helpful lsp debug notes at https://www.mattduck.com/lsp-python-getting-started.html
+  ;; Auto-activate for Python modes
+  (add-hook 'python-mode-hook #'efs/auto-activate-virtualenv)
+  (add-hook 'python-ts-mode-hook #'efs/auto-activate-virtualenv)
 
-;; LSP
+  ;; Restart LSP when virtualenv changes
+  (add-hook 'pyvenv-post-activate-hooks
+            (lambda ()
+              (when (bound-and-true-p lsp-mode)
+                (lsp-workspace-restart))))
+  (add-hook 'pyvenv-post-deactivate-hooks
+            (lambda ()
+              (when (bound-and-true-p lsp-mode)
+                (lsp-workspace-restart)))))
+
+;; LSP Mode setup
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
-  :hook ((lsp-mode . lsp-mode-setup)
-         ;;(typescript-mode . lsp-deferred)
-         (python-mode . lsp-deferred)
-         (go-mode . lsp-deferred))
+  :hook ((python-mode . lsp-deferred)
+         (python-ts-mode . lsp-deferred))
   :init
   (setq lsp-keymap-prefix "C-c l")
-  (setq lsp-enable-snippet nil)
-  :config
-  (lsp-enable-which-key-integration t))
-
-(use-package lsp-ui
-  :hook (lsp-mode . lsp-ui-mode)
-  :init (setq lsp-ui-doc-enable t
-              lsp-ui-peek-enable t
-              lsp-ui-sideline-enable t
-              lsp-ui-imenu-enable t
-              lsp-ui-flycheck-enable t)
-  :custom (lsp-ui-doc-position 'bottom))
-
-(use-package lsp-ivy
-  :after lsp
-  :commands lsp-ivy-workspace-symbol)
-
-(use-package lsp-treemacs
-  :after lsp
-  :commands lsp-treemacs-errors-list)
-
-(use-package company
-  :after lsp-mode
-  :hook (lsp-mode . company-mode)
-  :bind (:map company-active-map
-              ("<tab>" . company-complete-selection))
-  (:map lsp-mode-map
-        ("<tab>" . company-indent-or-complete-common))
   :custom
-  (company-minimum-prefix-length 1)
-  (company-idle-delay 0.0))
-
-(use-package company-box
-  :hook (company-mode . company-box-mode))
-
-(use-package yasnippet
-  :commands yas-minor-mode
-  :hook ((go-mode . yas-minor-mode)
-         (python-mode . yas-minor-mode)))
-
-(use-package yaml-mode)
-
-;; nvm needs special help with PATH
-(setq nvm/dir (concat (getenv "HOME") "/.nvm/versions/node/v18.16.0"))
-(setenv "NVM_DIR" nvm/dir)
-(setenv "NVM_CD_FLAGS" "-q")
-(setenv "NVM_RC_VERSION" "")
-(setenv "NVM_BIN" (concat nvm/dir "/bin"))
-(setenv "NVM_INC" (concat nvm/dir "/include/node"))
-(setenv "PATH" (concat (getenv "NVM_BIN") ":" (getenv "PATH")))
-
-(dap-register-debug-template
- "Node::Attach"
- (list :type "node"
-       :request "attach"
-       :port 9229
-       :name "Node::Attach"))
-
-;; DAP
-(use-package dap-mode
-  :commands dap-debug
-  :init (setq dap-print-io t)
+  (lsp-enable-which-key-integration t)
+  (lsp-idle-delay 0.5)
+  (lsp-log-io nil)
+  (read-process-output-max (* 1024 1024))
+  ;; Enable debug logging temporarily to diagnose issues
+  (lsp-log-max t)
+  ;; Configure Python LSP settings
+  (lsp-disabled-clients '(semgrep-ls pyls ruff))
+  (lsp-enabled-clients '(pylsp))
+  (lsp-pylsp-plugins-ruff-enabled t)
   :config
-  (dap-ui-mode 1)
-  ;; Set up Node debugging
-  (require 'dap-node)
-  (dap-node-setup) ;; Automatically installs Node debug adapter if needed
-  ;; Bind `C-c l d` to `dap-hydra` for easy access
+  ;; Add explicit server path detection
+  (defun efs/detect-pylsp-path ()
+    "Detect pylsp executable path in current virtualenv or globally."
+    (let* ((venv-path (when pyvenv-virtual-env
+                       (expand-file-name "bin/pylsp" pyvenv-virtual-env)))
+           (global-path (executable-find "pylsp")))
+      (or venv-path global-path)))
 
-  (general-define-key
-   :keymaps 'lsp-mode-map
-   :prefix lsp-keymap-prefix
-   "d" '(dap-hydra t :wk "debugger")))
+  (setq lsp-pylsp-server-command (efs/detect-pylsp-path))
 
-;; Golang
+  ;; Register mypy and other plugin settings
+  (lsp-register-custom-settings
+   '(("pylsp.plugins.pylsp_mypy.enabled" t t)
+     ("pylsp.plugins.pylsp_mypy.live_mode" t t)
+     ("pylsp.plugins.pylsp_mypy.dmypy" t t)
+     ("pylsp.plugins.pylsp_mypy.strict" t t)
+     ("pylsp.plugins.black.enabled" nil t)
+     ("pylsp.configurationSources" ["pyproject-toml"] t)))
 
-;; env & path for https://github.com/stefanmaric/g
-(setenv "GOPATH" (concat (getenv "HOME") "/go"))
-(setenv "GOROOT" (concat (getenv "HOME") "/.go"))
+  ;; Force pylsp to use settings from pyproject.toml
+  (setq lsp-pylsp-configuration-sources ["pyproject-toml"]))
 
-(use-package go-rename)
-(use-package golint)
+(defun efs/debug-pylsp-config ()
+  "Debug python-lsp-server configuration and project settings."
+  (interactive)
+  (let* ((project-root (lsp-workspace-root))
+         (pyproject-path (expand-file-name "pyproject.toml" project-root))
+         (venv-path (when pyvenv-virtual-env
+                     (expand-file-name "bin/pylsp" pyvenv-virtual-env)))
+         (global-pylsp (executable-find "pylsp"))
+         (actual-pylsp (or venv-path global-pylsp)))
 
-(defun go-mode-setup ()
-  ;; (go-eldoc-setup)
-  (setq gofmt-command "goimports")
-  (add-hook 'before-save-hook 'gofmt-before-save)
-  (local-set-key (kbd "M-.") 'godef-jump)
-  ;; (setq compile-command "echo Building... && go build -v && echo Testing... && go test -v && echo Linter... && golint")
-  ;; (setq compilation-read-command t)
-  (define-key (current-local-map) (kbd "C-c C-c") 'compile)
-  (setq tab-width 4)
-  (dap-register-debug-template
-   "Launch Go Test File"
-   (list :type "go"
-         :request "launch"
-         :name "Launch Go Test File"
-         :mode "test"
-         :program nil
-         :buildFlags nil
-         :args nil
-         :env nil))
-  (dap-register-debug-template
-  "Golang: Debug Main"
-  (list :type "go"
-        :request "launch"
-        :name "Golang: Debug Main"
-        :mode "auto"
-        :program "${workspaceFolder}/main.go"
-        :env nil
-        :args nil)))
+    ;; Print debug information
+    (with-current-buffer (get-buffer-create "*pylsp-debug*")
+      (erase-buffer)
+      (insert "Python LSP Configuration Debug Info:\n\n")
+      (insert (format "Project Root: %s\n" project-root))
+      (insert (format "pyproject.toml exists: %s\n" (file-exists-p pyproject-path)))
+      (insert (format "pyproject.toml path: %s\n" pyproject-path))
+      (insert (format "Virtual Env: %s\n" pyvenv-virtual-env))
+      (insert (format "pylsp path: %s\n" actual-pylsp))
+      (insert (format "LSP Server Command: %s\n" lsp-pylsp-server-command))
+      (insert "\nConfiguration Sources:\n")
+      (insert (format "%s\n" lsp-pylsp-configuration-sources))
 
-(use-package go-mode
-  :hook (go-mode . go-mode-setup)
-  :config
-  (require 'dap-hydra)
-  (require 'dap-dlv-go))
+      ;; Try to read pyproject.toml content if it exists
+      (when (file-exists-p pyproject-path)
+        (insert "\npyproject.toml content:\n")
+        (insert-file-contents pyproject-path)
+        (goto-char (point-max))))
 
-;; pyenv, pipenv, teach dap where to find virtualenv python
-(use-package pyvenv
-  :config
-  (pyvenv-mode 1))
+    ;; (switch-to-buffer "*pylsp-debug*")
+    ))
 
-(use-package with-venv)
+;; Add to LSP hooks for auto-debugging on startup
+(defun efs/pylsp-debug-hook ()
+  "Hook to run pylsp debug info when LSP starts."
+  (when (derived-mode-p 'python-mode 'python-ts-mode)
+    (efs/debug-pylsp-config)))
 
-(use-package python-black
-  :demand t
-  :after python
-  :hook (python-mode . python-black-on-save-mode-enable-dwim)
-  :custom
-  (python-black-command (with-venv (executable-find "black")))
-  (python-black-on-save-mode 't))
-
-(defun dap-python-setup()
-  (require 'dap-python)
-  (setq dap-python-debugger 'debugpy)
-  (defun dap-python--pyenv-executable-find (command)
-    (with-venv (executable-find "python"))))
-
-(add-hook 'dap-mode-hook 'dap-python-setup)
-
-(defun python-mode-setup()
-  (flycheck-mode)
-  (add-hook 'before-save-hook 'lsp-format-buffer)
-  (setq lsp-pylsp-plugins-flake8-enabled 't)
-  (dap-register-debug-template
-   "python :: workspace"
-   (list :name "python :: workspace"
-         :type "python"
-         :args ""
-         :cwd "${workspaceFolder}"
-         :env '(("PYTHONPATH" . "${workspaceFolder}"))
-         :request "launch"
-         :jinja "true"))
-  (dap-register-debug-template
-   "pytest :: workspace"
-   (list :name "pytest :: workspace"
-         :type "python"
-         :args ""
-         :cwd "${workspaceFolder}"
-         :env '(("PYTHONPATH" . "${workspaceFolder}"))
-         :program (with-venv (executable-find "pytest"))
-         :request "launch"
-         :jinja "true")))
-
-(use-package python-mode
-  :ensure t
-  :hook (python-mode . python-mode-setup)
-  :custom
-  ;; NOTE: Set these if Python 3 is called "python3" on your system!
-  ;; (python-shell-interpreter "python3")
-  (lsp-pylsp-server-command (with-venv (executable-find "pylsp"))))
-
-(use-package typescript-mode
-  :mode "\\.ts\\'"
-  :hook (typescript-mode . lsp-deferred)
-  :config
-  (setq typescript-indent-level 2))
-
-(add-hook 'html-mode-hook 'lsp-deferred)
-(add-hook 'js-mode-hook 'lsp-deferred)
-(setq js-indent-level 2)
-
-(defvar bootstrap-version)
-(let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 6))
-  (unless (file-exists-p bootstrap-file)
-    (with-current-buffer
-        (url-retrieve-synchronously
-         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-         'silent 'inhibit-cookies)
-      (goto-char (point-max))
-      (eval-print-last-sexp)))
-  (load bootstrap-file nil 'nomessage))
-
-(straight-use-package '(tsi :type git :host github :repo "orzechowskid/tsi.el"))
-(straight-use-package '(tsx-mode :type git :host github :repo "orzechowskid/tsx-mode.el"))
-(add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-mode))
-
-;; format code on save: https://github.com/radian-software/apheleia
-(use-package apheleia)
-(apheleia-global-mode +1)
-
-(use-package protobuf-mode)
-
-(use-package hcl-mode)
+(add-hook 'lsp-after-initialize-hook #'efs/pylsp-debug-hook)

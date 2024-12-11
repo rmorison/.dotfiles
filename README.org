@@ -1,0 +1,114 @@
+#+title: Personal Emacs Configuration
+
+A modern, literate Emacs configuration using =org-mode= and =straight.el= for package management. This configuration emphasizes Python development, org-mode productivity, and a clean, efficient interface.
+
+Inspired by the excellent [[https://systemcrafters.net/emacs-from-scratch/basics-of-emacs-configuration/][The Basics of Emacs Configuration]] from System Crafters.
+
+* Features
+
+- *Literate Configuration*: Written in org-mode, the configuration self-documents and tangles to =init.el=
+- *Modern Package Management*: Uses =straight.el= with =use-package= for reproducible package installation
+- *Development Tools*:
+  - Python development environment with LSP support via =pylsp=
+  - Tree-sitter integration for better syntax handling
+  - Git integration with Magit and git-gutter
+  - YAML mode for configuration files
+- *Enhanced Interface*:
+  - Doom themes and modeline for a modern look
+  - Ivy/Counsel for completion
+  - Which-key for command discovery
+  - Helpful for better help buffers
+- *Org-mode Configuration*:
+  - Custom capture templates for various content types
+  - Structured task management with custom TODO states
+  - Calendar integration with org-agenda
+  - Beautiful typography with mixed-pitch mode
+- *MacOS Support*:
+  - Custom key bindings for MacOS compatibility
+  - High DPI display optimizations
+  - MacOS-specific font configuration
+
+* Installation
+
+1. Back up your existing =.emacs.d= if you have one:
+   #+begin_src bash
+   mv ~/.emacs.d ~/.emacs.d.backup
+   #+end_src
+
+2. Clone this repository:
+   #+begin_src bash
+   git clone https://github.com/rmorison/.dotfiles.git ~/.dotfiles
+   #+end_src
+
+3. Create symbolic links:
+   #+begin_src bash
+   mkdir -p ~/.emacs.d
+   ln -s ~/.dotfiles/.emacs.d/Emacs.org ~/.emacs.d/
+   ln -s ~/.dotfiles/.emacs.d/init.el ~/.emacs.d/
+   ln -s ~/.dotfiles/org ~/org
+   #+end_src
+
+4. Start Emacs - =straight.el= will automatically install all packages. The configuration will automatically tangle =Emacs.org= to =init.el= whenever you save changes to =Emacs.org=.
+
+** MacOS-Specific Setup
+
+1. Install required packages via Homebrew:
+   #+begin_src bash
+   brew install svn
+   brew tap homebrew/cask-fonts
+   brew install --cask font-fira-code font-fira-mono
+   brew install --cask font-cantarell
+   brew install coreutils
+   #+end_src
+
+2. Configure keyboard modifiers in System Settings:
+   - Caps Lock Key → Control
+   - Control Key → Option
+   - Option Key → Command
+   - Command Key → Command
+
+The configuration includes MacOS-specific overrides that:
+- Adjust font sizes for Retina/high DPI displays
+- Map modifier keys for a more ergonomic experience
+- Use GNU ls (gls) for dired mode compatibility
+
+* Structure
+
+#+begin_src
+.
+├── .emacs.d/
+│   ├── Emacs.org    # Main configuration file (auto-tangles to init.el)
+│   └── init.el      # Generated configuration
+└── org/
+    ├── templates/   # Org capture templates
+    └── *.org        # Org files for tasks, notes, etc.
+#+end_src
+
+* Dependencies
+
+- Emacs 29+ (for native tree-sitter support)
+- Python 3.12+ (for Python development features)
+- Git
+- [[https://github.com/tonsky/FiraCode][Fira Code]] and [[https://fonts.google.com/specimen/Cantarell][Cantarell]] fonts
+- Node.js (for Mermaid diagrams)
+
+** Optional Dependencies
+
+- pyenv or similar for Python virtual environment management
+- [[https://www.nerdfonts.com/][nerd-fonts]] for icons
+
+* Customization
+
+The configuration is primarily controlled through =Emacs.org=. This file is organized into logical sections with detailed comments explaining each configuration choice. When you save changes to =~/.dotfiles/.emacs.d/Emacs.org=, it will automatically tangle to =init.el=. You'll need to restart Emacs or evaluate the changed sections to apply the updates.
+
+* Contributing
+
+Feel free to submit issues and pull requests. This configuration is primarily personal, but improvements and bug fixes are welcome.
+
+* License
+
+MIT - See LICENSE file for details
+
+* Acknowledgments
+
+This configuration was greatly influenced by the [[https://systemcrafters.net/emacs-from-scratch/basics-of-emacs-configuration/][Emacs From Scratch series]] by David Wilson (System Crafters), which provides an excellent foundation for modern Emacs configuration.
