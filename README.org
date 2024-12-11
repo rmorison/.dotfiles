@@ -2,8 +2,6 @@
 
 A modern, literate Emacs configuration using =org-mode= and =straight.el= for package management. This configuration emphasizes Python development, org-mode productivity, and a clean, efficient interface.
 
-Inspired by the excellent [[https://systemcrafters.net/emacs-from-scratch/basics-of-emacs-configuration/][The Basics of Emacs Configuration]] from System Crafters.
-
 * Features
 
 - *Literate Configuration*: Written in org-mode, the configuration self-documents and tangles to =init.el=
@@ -111,4 +109,4 @@ MIT - See LICENSE file for details
 
 * Acknowledgments
 
-This configuration was greatly influenced by the [[https://systemcrafters.net/emacs-from-scratch/basics-of-emacs-configuration/][Emacs From Scratch series]] by David Wilson (System Crafters), which provides an excellent foundation for modern Emacs configuration.
+This configuration was greatly influenced by the [[https://systemcrafters.net/emacs-from-scratch][Emacs From Scratch series]] by David Wilson (System Crafters), which provides an excellent foundation for modern Emacs configuration.
