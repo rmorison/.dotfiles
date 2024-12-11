@@ -523,10 +523,13 @@
 
 ;; Optional: show git changes in the gutter/fringe
 ;; Configure native-comp warnings before git-gutter
-(setq native-comp-async-report-warnings-errors 'silent) ; Silence all native-comp warnings
+(when (and (fboundp 'native-comp-available-p)
+           (native-comp-available-p))
+  (setq native-comp-async-report-warnings-errors 'silent) ; Silence all native-comp warnings
+  ;; Optional: if you want to only silence specific warnings
+  (add-to-list 'native-comp-eln-load-path (expand-file-name "eln-cache/" user-emacs-directory)))
 
-;; Optional: if you want to only silence specific warnings
-(add-to-list 'native-comp-eln-load-path (expand-file-name "eln-cache/" user-emacs-directory))
+;; This setting is safe regardless of native-comp support
 (setq native-comp-async-query-on-exit nil)
 
 ;; Git Gutter configuration
