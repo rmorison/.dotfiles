@@ -611,7 +611,23 @@
               (when (bound-and-true-p lsp-mode)
                 (lsp-workspace-restart)))))
 
-;; LSP Mode setup
+;; Python Development Configuration
+(use-package yasnippet
+  :hook (prog-mode . yas-minor-mode)
+  :config
+  (yas-reload-all))
+
+(use-package yasnippet-snippets
+  :after yasnippet)
+
+(use-package company
+  :after lsp-mode
+  :hook (prog-mode . company-mode)
+  :custom
+  (company-minimum-prefix-length 1)
+  (company-idle-delay 0.0))
+
+;; Add company to lsp completion setup
 (use-package lsp-mode
   :commands (lsp lsp-deferred)
   :hook ((python-mode . lsp-deferred)
@@ -623,8 +639,10 @@
   (lsp-idle-delay 0.5)
   (lsp-log-io nil)
   (read-process-output-max (* 1024 1024))
-  ;; Enable debug logging temporarily to diagnose issues
-  (lsp-log-max t)
+  ;; Configure completion with company
+  (lsp-completion-provider :capf)
+  ;; Configure snippet support
+  (lsp-enable-snippet t)
   ;; Configure Python LSP settings
   (lsp-disabled-clients '(semgrep-ls pyls ruff))
   (lsp-enabled-clients '(pylsp))
@@ -647,10 +665,18 @@
      ("pylsp.plugins.pylsp_mypy.dmypy" t t)
      ("pylsp.plugins.pylsp_mypy.strict" t t)
      ("pylsp.plugins.black.enabled" nil t)
+     ("pylsp.plugins.pylsp_black.enabled" nil t)
      ("pylsp.configurationSources" ["pyproject-toml"] t)))
 
   ;; Force pylsp to use settings from pyproject.toml
   (setq lsp-pylsp-configuration-sources ["pyproject-toml"]))
+
+;; Optional but recommended: Add LSP UI enhancements
+(use-package lsp-ui
+  :hook (lsp-mode . lsp-ui-mode)
+  :custom
+  (lsp-ui-doc-enable t)
+  (lsp-ui-doc-position 'bottom))
 
 (defun efs/debug-pylsp-config ()
   "Debug python-lsp-server configuration and project settings."
@@ -681,7 +707,7 @@
         (insert-file-contents pyproject-path)
         (goto-char (point-max))))
 
-    ;; (switch-to-buffer "*pylsp-debug*")
+    (switch-to-buffer "*pylsp-debug*")
     ))
 
 ;; Add to LSP hooks for auto-debugging on startup
