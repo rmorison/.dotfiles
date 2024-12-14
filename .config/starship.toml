@@ -1,0 +1,22 @@
+# Single line prompt
+add_newline = false
+
+# Customize prompt format
+format = """$directory$git_branch$git_status$aws$character"""
+
+# Configure AWS module to be more compact - profile only
+[aws]
+format = 'on [$symbol$profile]($style)'
+symbol = "☁️ "
+style = "bold yellow"
+
+# Show only current directory name
+[directory]
+style = "blue bold"
+truncation_length = 1
+truncate_to_repo = false
+
+# Configure prompt character
+[character]
+success_symbol = "[❯](green bold)"
+error_symbol = "[❯](red bold)"

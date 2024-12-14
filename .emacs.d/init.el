@@ -285,6 +285,46 @@
   (define-key dirvish-mode-map (kbd "h") 'dired-up-directory)
   (define-key dirvish-mode-map (kbd "l") 'dired-find-file))
 
+;; Install and configure eat
+(straight-use-package
+ '(eat :type git
+       :host codeberg
+       :repo "akib/emacs-eat"
+       :files ("*.el" ("term" "term/*.el") "*.texi"
+               "*.ti" ("terminfo/e" "terminfo/e/*")
+               ("terminfo/65" "terminfo/65/*")
+               ("integration" "integration/*")
+               (:exclude ".dir-locals.el" "*-tests.el"))))
+
+;; Compile terminfo
+(with-eval-after-load 'eat
+  (eat-compile-terminfo))
+
+;; Basic configuration
+(add-hook 'eshell-load-hook #'eat-eshell-mode)
+(add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
+
+;; Enable directory tracking
+(setq eat-enable-directory-tracking t)
+
+;; Terminal settings
+(setq eat-default-shell (getenv "SHELL"))
+(setq eat-enable-mouse t)
+(setq eat-kill-buffer-on-exit t)
+
+;; Keybindings
+(global-set-key (kbd "C-c t") #'eat)
+
+;; Project-specific eat launcher
+(defun efs/eat-project ()
+  "Open eat terminal in the current project root directory."
+  (interactive)
+  (let ((default-directory (or (project-root (project-current))
+                              default-directory)))
+    (eat)))
+
+(global-set-key (kbd "C-c T") #'efs/eat-project)
+
 ;; org mode
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
