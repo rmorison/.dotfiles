@@ -612,16 +612,11 @@
     :commands magit-status
     :custom
     (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1)
+    (git-commit-summary-max-length 88)
+    (git-commit-fill-column 88)
     :bind
     ("C-x g" . magit-status)
     ("C-x M-g" . magit-dispatch))
-
-  ;; Optional but recommended: git commit message editing support
-  (use-package git-commit
-    :after magit
-    :custom
-    (git-commit-summary-max-length 88)
-    (git-commit-fill-column 88))
 
   ;; Optional: show git changes in the gutter/fringe
   ;; Configure native-comp warnings before git-gutter
@@ -673,6 +668,33 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
     ;; Ensure font-lock works well
     (setq treesit-font-lock-level 4))
 #+end_src
+* Project, Company, Yasnippet
+** Project
+#+begin_src emacs-lisp
+  ;; Ensure we use built-in project package
+  (use-package project
+    :straight (:type built-in)  ;; Tell straight.el this is a built-in package
+    :demand t)  ;; Load immediately to avoid conflicts
+#+end_src
+** Yasnippet
+#+begin_src emacs-lisp
+  (use-package yasnippet
+    :hook (prog-mode . yas-minor-mode)
+    :config
+    (yas-reload-all))
+  
+  (use-package yasnippet-snippets
+    :after yasnippet)  
+#+end_src
+** Company
+#+begin_src emacs-lisp
+  (use-package company
+    :after lsp-mode
+    :hook (prog-mode . company-mode)
+    :custom
+    (company-minimum-prefix-length 1)
+    (company-idle-delay 0.0))
+#+end_src
 * Python
 #+begin_src emacs-lisp
   ;; Python Development Configuration
@@ -700,129 +722,160 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
              (venv-path (when project-dir (expand-file-name ".venv" project-dir))))
         (when (and venv-path (file-directory-p venv-path))
           (pyvenv-activate venv-path)
-          ;; Explicitly set the pylsp path from virtualenv
-          (let ((pylsp-path (expand-file-name "bin/pylsp" venv-path)))
-            (when (file-exists-p pylsp-path)
-              (setq-local lsp-pylsp-server-command pylsp-path))))))
+          ;; Restart Eglot if it's running to pick up the new virtualenv
+          (when (and (bound-and-true-p eglot--managed-mode)
+                     (eglot-current-server))
+            (eglot-shutdown)
+            (eglot)))))
 
     ;; Auto-activate for Python modes
     (add-hook 'python-mode-hook #'efs/auto-activate-virtualenv)
-    (add-hook 'python-ts-mode-hook #'efs/auto-activate-virtualenv)
+    (add-hook 'python-ts-mode-hook #'efs/auto-activate-virtualenv))
 
-    ;; Restart LSP when virtualenv changes
-    (add-hook 'pyvenv-post-activate-hooks
-              (lambda ()
-                (when (bound-and-true-p lsp-mode)
-                  (lsp-workspace-restart))))
-    (add-hook 'pyvenv-post-deactivate-hooks
-              (lambda ()
-                (when (bound-and-true-p lsp-mode)
-                  (lsp-workspace-restart)))))
-
-  ;; Python Development Configuration
-  (use-package yasnippet
-    :hook (prog-mode . yas-minor-mode)
+  ;; Configure Eglot with Ruff
+  (use-package eglot
+    :straight (:type built-in)  ; Eglot is built into Emacs 29+
+    :hook ((python-mode . eglot-ensure)
+           (python-ts-mode . eglot-ensure))
     :config
-    (yas-reload-all))
+    ;; Function to get server path
+    (defun efs/get-virtualenv-ruff (server-name)
+      "Get path to ruff executable in current virtualenv or fall back to global.
+       Argument SERVER-NAME is required by Eglot but unused."
+      (let ((ruff-path (if pyvenv-virtual-env
+                           (expand-file-name "bin/ruff" pyvenv-virtual-env)
+                         (executable-find "ruff"))))
+        (when ruff-path
+          (list ruff-path "server"))))
 
-  (use-package yasnippet-snippets
-    :after yasnippet)
+    ;; Interactive format functions
+    (defun efs/format-python-buffer ()
+      "Format the current Python buffer using Eglot."
+      (interactive)
+      (if (and (bound-and-true-p eglot--managed-mode)
+               (eglot-current-server))
+          (eglot-format-buffer)
+        (message "Eglot is not running. Start it with M-x eglot")))
 
-  (use-package company
-    :after lsp-mode
-    :hook (prog-mode . company-mode)
-    :custom
-    (company-minimum-prefix-length 1)
-    (company-idle-delay 0.0))
+    (defun efs/python-sort-imports ()
+      "Sort Python imports using Ruff."
+      (interactive)
+      (if (and (bound-and-true-p eglot--managed-mode)
+               (eglot-current-server))
+          (let* ((current-file (buffer-file-name))
+                 (ruff-path (if pyvenv-virtual-env
+                               (expand-file-name "bin/ruff" pyvenv-virtual-env)
+                             (executable-find "ruff")))
+                 (output-buffer (generate-new-buffer "*ruff-output*")))
+            (if (and current-file ruff-path)
+                (progn
+                  ;; Save buffer first if modified
+                  (when (buffer-modified-p)
+                    (save-buffer))
+                  ;; Run ruff with correct command syntax
+                  (if (zerop (call-process ruff-path nil output-buffer t 
+                                         "check"
+                                         "--select" "I001" 
+                                         "--fix"
+                                         current-file))
+                      (progn
+                        ;; Force a reread from disk
+                        (revert-buffer t t t)
+                        (message "Imports sorted successfully"))
+                    (with-current-buffer output-buffer
+                      (message "Ruff error: %s" (buffer-string))))
+                  (kill-buffer output-buffer))
+              (message "Unable to find ruff or current buffer is not visiting a file")))
+        (message "Eglot is not running. Start it with M-x eglot")))
 
-  ;; Add company to lsp completion setup
-  (use-package lsp-mode
-    :commands (lsp lsp-deferred)
-    :hook ((python-mode . lsp-deferred)
-           (python-ts-mode . lsp-deferred))
-    :init
-    (setq lsp-keymap-prefix "C-c l")
-    :custom
-    (lsp-enable-which-key-integration t)
-    (lsp-idle-delay 0.5)
-    (lsp-log-io nil)
-    (read-process-output-max (* 1024 1024))
-    ;; Configure completion with company
-    (lsp-completion-provider :capf)
-    ;; Configure snippet support
-    (lsp-enable-snippet t)
-    ;; Configure Python LSP settings
-    (lsp-disabled-clients '(semgrep-ls pyls ruff))
-    (lsp-enabled-clients '(pylsp))
-    (lsp-pylsp-plugins-ruff-enabled t)
-    :config
-    ;; Add explicit server path detection
-    (defun efs/detect-pylsp-path ()
-      "Detect pylsp executable path in current virtualenv or globally."
-      (let* ((venv-path (when pyvenv-virtual-env
-                         (expand-file-name "bin/pylsp" pyvenv-virtual-env)))
-             (global-path (executable-find "pylsp")))
-        (or venv-path global-path)))
+    ;; Configure Eglot to use Ruff
+    (add-to-list 'eglot-server-programs
+                 `((python-mode python-ts-mode) . ,#'efs/get-virtualenv-ruff))
 
-    (setq lsp-pylsp-server-command (efs/detect-pylsp-path))
+    ;; Key bindings for Python modes
+    (define-key python-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
+    (define-key python-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
 
-    ;; Register mypy and other plugin settings
-    (lsp-register-custom-settings
-     '(("pylsp.plugins.pylsp_mypy.enabled" t t)
-       ("pylsp.plugins.pylsp_mypy.live_mode" t t)
-       ("pylsp.plugins.pylsp_mypy.dmypy" t t)
-       ("pylsp.plugins.pylsp_mypy.strict" t t)
-       ("pylsp.plugins.black.enabled" nil t)
-       ("pylsp.plugins.pylsp_black.enabled" nil t)
-       ("pylsp.configurationSources" ["pyproject-toml"] t)))
+    ;; Also add bindings for python-ts-mode
+    (define-key python-ts-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
+    (define-key python-ts-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
 
-    ;; Force pylsp to use settings from pyproject.toml
-    (setq lsp-pylsp-configuration-sources ["pyproject-toml"]))
+  ;; Format and sort imports on save
+  (add-hook 'before-save-hook
+            (lambda ()
+              (when (and (bound-and-true-p eglot--managed-mode)
+                         (or (derived-mode-p 'python-mode)
+                             (derived-mode-p 'python-ts-mode)))
+                ;; First format with eglot
+                (eglot-format-buffer)
+                ;; Then run ruff sort imports directly without saving
+                (let* ((current-file (buffer-file-name))
+                       (ruff-path (if pyvenv-virtual-env
+                                     (expand-file-name "bin/ruff" pyvenv-virtual-env)
+                                   (executable-find "ruff"))))
+                  (when (and current-file ruff-path)
+                    (call-process ruff-path nil nil nil 
+                                "check"
+                                "--select" "I001" 
+                                "--fix"
+                                current-file)
+                    ;; Revert the buffer to pick up ruff's changes
+                    ;; but don't trigger another save
+                    (revert-buffer t t t))))))
 
-  ;; Optional but recommended: Add LSP UI enhancements
-  (use-package lsp-ui
-    :hook (lsp-mode . lsp-ui-mode)
-    :custom
-    (lsp-ui-doc-enable t)
-    (lsp-ui-doc-position 'bottom))
+    ;; Configure Eglot to show diagnostics immediately
+    (setq eglot-send-changes-idle-time 0)
+    (setq eglot-events-buffer-size 0)
+    (setq eglot-sync-connect nil)
+    (setq eglot-connect-timeout 10)
+    (setq eglot-autoshutdown t))
 
-  (defun efs/debug-pylsp-config ()
-    "Debug python-lsp-server configuration and project settings."
+  ;; Debug function for Python development setup
+  (defun efs/debug-python-dev-config ()
+    "Debug Python development configuration."
     (interactive)
-    (let* ((project-root (lsp-workspace-root))
-           (pyproject-path (expand-file-name "pyproject.toml" project-root))
-           (venv-path (when pyvenv-virtual-env
-                       (expand-file-name "bin/pylsp" pyvenv-virtual-env)))
-           (global-pylsp (executable-find "pylsp"))
-           (actual-pylsp (or venv-path global-pylsp)))
+    (let* ((project-root (and (project-current) (project-root (project-current))))
+           (pyproject-path (when project-root (expand-file-name "pyproject.toml" project-root)))
+           (venv-path pyvenv-virtual-env)
+           (venv-ruff (when venv-path 
+                       (expand-file-name "bin/ruff" venv-path)))
+           (global-ruff (executable-find "ruff"))
+           (active-ruff (if (and venv-path (file-exists-p venv-ruff))
+                           venv-ruff
+                         global-ruff))
+           (eglot-server (when (bound-and-true-p eglot--managed-mode)
+                          (eglot--server-name (eglot-current-server)))))
 
       ;; Print debug information
-      (with-current-buffer (get-buffer-create "*pylsp-debug*")
+      (with-current-buffer (get-buffer-create "*python-dev-debug*")
         (erase-buffer)
-        (insert "Python LSP Configuration Debug Info:\n\n")
+        (insert "Python Development Configuration Debug Info:\n\n")
         (insert (format "Project Root: %s\n" project-root))
-        (insert (format "pyproject.toml exists: %s\n" (file-exists-p pyproject-path)))
+        (insert (format "pyproject.toml exists: %s\n" (and pyproject-path (file-exists-p pyproject-path))))
         (insert (format "pyproject.toml path: %s\n" pyproject-path))
-        (insert (format "Virtual Env: %s\n" pyvenv-virtual-env))
-        (insert (format "pylsp path: %s\n" actual-pylsp))
-        (insert (format "LSP Server Command: %s\n" lsp-pylsp-server-command))
-        (insert "\nConfiguration Sources:\n")
-        (insert (format "%s\n" lsp-pylsp-configuration-sources))
+        (insert (format "Virtual Env: %s\n" venv-path))
+        (insert (format "Virtualenv Ruff: %s\n" venv-ruff))
+        (insert (format "Global Ruff: %s\n" global-ruff))
+        (insert (format "Active Ruff: %s\n" active-ruff))
+        (insert (format "Eglot running: %s\n" (bound-and-true-p eglot--managed-mode)))
+        (insert (format "Eglot server: %s\n" eglot-server))
+        (insert (format "Current server: %s\n" (and (bound-and-true-p eglot--managed-mode)
+                                                   (eglot-current-server))))
 
         ;; Try to read pyproject.toml content if it exists
-        (when (file-exists-p pyproject-path)
+        (when (and pyproject-path (file-exists-p pyproject-path))
           (insert "\npyproject.toml content:\n")
           (insert-file-contents pyproject-path)
           (goto-char (point-max))))
 
-      ;; (switch-to-buffer "*pylsp-debug*")
-      ))
+      (display-buffer "*python-dev-debug*")))
 
-  ;; Add to LSP hooks for auto-debugging on startup
-  (defun efs/pylsp-debug-hook ()
-    "Hook to run pylsp debug info when LSP starts."
+  ;; Add debug hook for Python modes
+  (defun efs/python-mode-debug-hook ()
+    "Hook to run python debug info when mode starts."
     (when (derived-mode-p 'python-mode 'python-ts-mode)
-      (efs/debug-pylsp-config)))
+      (efs/debug-python-dev-config)))
 
-  (add-hook 'lsp-after-initialize-hook #'efs/pylsp-debug-hook)
+  (add-hook 'python-mode-hook #'efs/python-mode-debug-hook)
+  (add-hook 'python-ts-mode-hook #'efs/python-mode-debug-hook)
 #+end_src
