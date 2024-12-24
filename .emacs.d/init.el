@@ -605,7 +605,53 @@
 ;; Ensure we use built-in project package
 (use-package project
   :straight (:type built-in)  ;; Tell straight.el this is a built-in package
-  :demand t)  ;; Load immediately to avoid conflicts
+  :demand t  ;; Load immediately to avoid conflicts
+  :bind-keymap
+  ("C-c p" . project-prefix-map)  ;; Similar to projectile's prefix
+  :custom
+  (project-list-file (locate-user-emacs-file "projects"))
+  (project-vc-extra-root-markers '("pyproject.toml" "package.json"))
+  (project-switch-commands 'project-find-file)
+  (project-ignored-directories '(".venv" "node_modules" ".git"))
+  (project-ignored-globs '("*.pyc" "*.o" "*.elc"))
+  :config
+  ;; Use ripgrep for project searches when available
+  (when (executable-find "rg")
+    (setq xref-search-program 'ripgrep))
+
+  ;; Set project search paths
+  (when (file-directory-p "~/Projects")
+    (setq project-switch-commands 'project-dired))
+
+  ;; Bind search to 's' in project keymap
+  (define-key project-prefix-map "s" #'project-find-regexp)
+
+  ;; Add eat terminal in project root
+  (defun efs/project-eat ()
+    "Start or switch to an eat terminal in the project root directory."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project))
+              (project-name (project-name project))
+              (buffer-name (format "*%s-eat*" project-name)))
+        (if (get-buffer buffer-name)
+            (pop-to-buffer buffer-name)
+          (let ((default-directory root)
+                (created-buffer))
+            (eat)
+            ;; Find the newly created eat buffer
+            (setq created-buffer
+                  (car (cl-remove-if-not
+                        (lambda (buf)
+                          (string-match-p "\\*eat\\*" (buffer-name buf)))
+                        (buffer-list))))
+            (when created-buffer
+              (with-current-buffer created-buffer
+                (rename-buffer buffer-name t)))))
+      (user-error "Not in a project")))
+
+  ;; Bind eat to 't' in project keymap
+  (define-key project-prefix-map "t" #'efs/project-eat))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
