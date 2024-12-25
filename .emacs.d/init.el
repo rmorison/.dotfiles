@@ -270,20 +270,49 @@
   :commands (dired dired-jump)
   :bind (("C-x C-j" . dired-jump))
   :custom
-  (dired-listing-switches "-agho --group-directories-first"))
+  (dired-listing-switches "-aghoL --group-directories-first"))
 
 (use-package dirvish
   :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
-  :config
+  :init
   (dirvish-override-dired-mode)
-
-  ;; Optional settings
-  (setq dirvish-cache-dir "~/.cache/dirvish/"
-        dirvish-attributes '(nerd-icons file-size file-time))  ; Changed from all-the-icons to nerd-icons
-
-  ;; Keybindings for Dirvish
-  (define-key dirvish-mode-map (kbd "h") 'dired-up-directory)
-  (define-key dirvish-mode-map (kbd "l") 'dired-find-file))
+  :custom
+  (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
+   '(("h" "~/"                          "Home")
+     ("d" "~/Downloads/"                "Downloads")
+     ("p" "~/Projects/"                 "Projects")
+     ("s" "~/Screenshots/"              "Screenshots")))
+  :config
+  ;; (dirvish-peek-mode) ; Preview files in minibuffer
+  ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+  (setq dirvish-mode-line-format
+        '(:left (sort symlink) :right (omit yank index)))
+  (setq dirvish-attributes
+        '(nerd-icons file-time file-size collapse subtree-state vc-state))
+  (setq delete-by-moving-to-trash nil)
+  (setq dirvish-hide-details nil)
+  (setq dired-listing-switches
+        "-l --almost-all --human-readable --group-directories-first --no-group")
+  :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
+  (("C-c f" . dirvish-fd)
+   :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+   ("a"   . dirvish-quick-access)
+   ("f"   . dirvish-file-info-menu)
+   ("y"   . dirvish-yank-menu)
+   ("N"   . dirvish-narrow)
+   ("^"   . dirvish-history-last)
+   ("h"   . dirvish-history-jump) ; remapped `describe-mode'
+   ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
+   ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
+   ("TAB" . dirvish-subtree-toggle)
+   ("M-f" . dirvish-history-go-forward)
+   ("M-b" . dirvish-history-go-backward)
+   ("M-l" . dirvish-ls-switches-menu)
+   ("M-m" . dirvish-mark-menu)
+   ("M-t" . dirvish-layout-toggle)
+   ("M-s" . dirvish-setup-menu)
+   ("M-e" . dirvish-emerge-menu)
+   ("M-j" . dirvish-fd-jump)))
 
 ;; Install and configure eat
 (straight-use-package
@@ -605,7 +634,53 @@
 ;; Ensure we use built-in project package
 (use-package project
   :straight (:type built-in)  ;; Tell straight.el this is a built-in package
-  :demand t)  ;; Load immediately to avoid conflicts
+  :demand t  ;; Load immediately to avoid conflicts
+  :bind-keymap
+  ("C-c p" . project-prefix-map)  ;; Similar to projectile's prefix
+  :custom
+  (project-list-file (locate-user-emacs-file "projects"))
+  (project-vc-extra-root-markers '("pyproject.toml" "package.json"))
+  (project-switch-commands 'project-find-file)
+  (project-ignored-directories '(".venv" "node_modules" ".git"))
+  (project-ignored-globs '("*.pyc" "*.o" "*.elc"))
+  :config
+  ;; Use ripgrep for project searches when available
+  (when (executable-find "rg")
+    (setq xref-search-program 'ripgrep))
+
+  ;; Set project search paths
+  (when (file-directory-p "~/Projects")
+    (setq project-switch-commands 'project-dired))
+
+  ;; Bind search to 's' in project keymap
+  (define-key project-prefix-map "s" #'project-find-regexp)
+
+  ;; Add eat terminal in project root
+  (defun efs/project-eat ()
+    "Start or switch to an eat terminal in the project root directory."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project))
+              (project-name (project-name project))
+              (buffer-name (format "*%s-eat*" project-name)))
+        (if (get-buffer buffer-name)
+            (pop-to-buffer buffer-name)
+          (let ((default-directory root)
+                (created-buffer))
+            (eat)
+            ;; Find the newly created eat buffer
+            (setq created-buffer
+                  (car (cl-remove-if-not
+                        (lambda (buf)
+                          (string-match-p "\\*eat\\*" (buffer-name buf)))
+                        (buffer-list))))
+            (when created-buffer
+              (with-current-buffer created-buffer
+                (rename-buffer buffer-name t)))))
+      (user-error "Not in a project")))
+
+  ;; Bind eat to 't' in project keymap
+  (define-key project-prefix-map "t" #'efs/project-eat))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)

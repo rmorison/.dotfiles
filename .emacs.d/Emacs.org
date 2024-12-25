@@ -206,6 +206,7 @@
   ;; Comment toggle
   (global-set-key (kbd "C-c C-/") 'comment-or-uncomment-region)
 #+end_src
+
 * General, Ivy, Counsel
 #+begin_src emacs-lisp
   (use-package general)
@@ -319,21 +320,146 @@
     :commands (dired dired-jump)
     :bind (("C-x C-j" . dired-jump))
     :custom
-    (dired-listing-switches "-agho --group-directories-first"))
+    (dired-listing-switches "-aghoL --group-directories-first"))
+#+end_src
 
+* Dirvish
+** Code
+#+begin_src emacs-lisp
   (use-package dirvish
     :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
-    :config
+    :init
     (dirvish-override-dired-mode)
-  
-    ;; Optional settings
-    (setq dirvish-cache-dir "~/.cache/dirvish/"
-          dirvish-attributes '(nerd-icons file-size file-time))  ; Changed from all-the-icons to nerd-icons
-  
-    ;; Keybindings for Dirvish
-    (define-key dirvish-mode-map (kbd "h") 'dired-up-directory)
-    (define-key dirvish-mode-map (kbd "l") 'dired-find-file))
+    :custom
+    (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
+     '(("h" "~/"                          "Home")
+       ("d" "~/Downloads/"                "Downloads")
+       ("p" "~/Projects/"                 "Projects")
+       ("s" "~/Screenshots/"              "Screenshots")))
+    :config
+    ;; (dirvish-peek-mode) ; Preview files in minibuffer
+    ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+    (setq dirvish-mode-line-format
+          '(:left (sort symlink) :right (omit yank index)))
+    (setq dirvish-attributes
+          '(nerd-icons file-time file-size collapse subtree-state vc-state))
+    (setq delete-by-moving-to-trash nil)
+    (setq dirvish-hide-details nil)
+    (setq dired-listing-switches
+          "-l --almost-all --human-readable --group-directories-first --no-group")
+    :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
+    (("C-c f" . dirvish-fd)
+     :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+     ("a"   . dirvish-quick-access)
+     ("f"   . dirvish-file-info-menu)
+     ("y"   . dirvish-yank-menu)
+     ("N"   . dirvish-narrow)
+     ("^"   . dirvish-history-last)
+     ("h"   . dirvish-history-jump) ; remapped `describe-mode'
+     ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
+     ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
+     ("TAB" . dirvish-subtree-toggle)
+     ("M-f" . dirvish-history-go-forward)
+     ("M-b" . dirvish-history-go-backward)
+     ("M-l" . dirvish-ls-switches-menu)
+     ("M-m" . dirvish-mark-menu)
+     ("M-t" . dirvish-layout-toggle)
+     ("M-s" . dirvish-setup-menu)
+     ("M-e" . dirvish-emerge-menu)
+     ("M-j" . dirvish-fd-jump)))
 #+end_src
+
+** Reference
+
+*** Prerequisites
+**** Installing fd
+fd is a modern alternative to find. Install it based on your platform:
+
+***** Ubuntu/Debian
+Install using: sudo apt update && sudo apt install fd-find
+Then create symlink since Debian-based systems name it fdfind:
+Create a symlink from fdfind to fd in your ~/.local/bin directory
+
+***** MacOS
+Install using Homebrew: brew install fd
+
+***** Arch Linux
+Install using pacman: sudo pacman -S fd
+
+*** Key Features
+- Enhanced file preview capabilities
+- Advanced file operations with visual feedback
+- Customizable layout and display options
+- File type icons integration with nerd-icons
+- Advanced search and filtering capabilities
+- Git integration for repository awareness
+- History tracking for directory navigation
+
+*** Key Bindings
+All key bindings are available within dirvish-mode-map:
+
+**** Navigation
+- =a= - Quick access to predefined directories
+- =^= - Go to previous directory in history
+- =h= - Jump to directory in history
+- =M-f= - Forward in history
+- =M-b= - Backward in history
+- =N= - Narrow the view (filter)
+- =TAB= - Toggle subtree expansion
+
+**** Operations
+- =f= - File information menu
+- =y= - Yank (copy) menu
+- =v= - Version control menu
+- =s= - Quick sort options
+
+**** Layout and Display
+- =M-t= - Toggle layout mode
+- =M-l= - ls switches menu
+- =M-s= - Setup menu
+- =M-e= - Emerge (compare) menu
+
+*** Customization Options
+**** Quick Access Setup
+The quick-access-entries variable allows you to define shortcuts to frequently accessed directories. Each entry consists of a key, path, and description.
+
+**** Display Attributes
+Dirvish can display various file attributes including icons, file times, sizes, VC state, and more. These can be customized through the dirvish-attributes variable.
+
+**** Mode Line Format
+The mode line can be customized to show different information including sort status, symlink info, omit status, and yank status.
+
+**** Directory Listing Options
+Directory listing can be customized to show various information in different formats, including human-readable sizes and directory-first sorting.
+
+*** Advanced Features
+**** Preview Configuration
+File preview can be enabled in the minibuffer, providing quick looks at file contents without opening them.
+
+**** Automatic Directory Following
+Directory tracking can be enabled to automatically update the dirvish buffer based on your current working directory.
+
+**** File Search Integration
+Dirvish integrates with fd for advanced file searching:
+- Use C-c f to invoke fd search in current directory
+- Results are displayed in dirvish buffer
+- Supports all fd command line options
+- Can be combined with project.el for project-wide searches
+
+*** Troubleshooting Tips
+1. If icons are not displaying:
+   - Install nerd-icons fonts using M-x nerd-icons-install-fonts
+   - Run fc-cache -f -v from shell
+   - Restart Emacs
+
+2. If preview is not working:
+   - Check if required preview programs are installed
+   - Verify preview dispatcher configuration
+
+3. For performance issues:
+   - Disable heavy attributes in attributes configuration
+   - Adjust cache directory location
+   - Consider disabling peek mode for large directories
 
 * Eat Terminal
 #+begin_src emacs-lisp
@@ -377,6 +503,7 @@
 
   (global-set-key (kbd "C-c T") #'efs/eat-project)
 #+end_src
+
 * Org Mode
 #+begin_src emacs-lisp
   ;; org mode
@@ -605,6 +732,7 @@
     :hook (yaml-mode . (lambda ()
                         (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 #+end_src
+
 * Version Control
 #+begin_src emacs-lisp
   ;; Magit configuration
@@ -635,6 +763,7 @@
     :config
     (setq git-gutter:update-interval 0.02))
 #+end_src
+
 * Tree-sitter Support
 Configures tree-sitter for enhanced syntax parsing and highlighting.
 
@@ -668,15 +797,106 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
     ;; Ensure font-lock works well
     (setq treesit-font-lock-level 4))
 #+end_src
-* Project, Company, Yasnippet
-** Project
+
+* Project
+** Code
 #+begin_src emacs-lisp
   ;; Ensure we use built-in project package
   (use-package project
     :straight (:type built-in)  ;; Tell straight.el this is a built-in package
-    :demand t)  ;; Load immediately to avoid conflicts
+    :demand t  ;; Load immediately to avoid conflicts
+    :bind-keymap
+    ("C-c p" . project-prefix-map)  ;; Similar to projectile's prefix
+    :custom
+    (project-list-file (locate-user-emacs-file "projects"))
+    (project-vc-extra-root-markers '("pyproject.toml" "package.json"))
+    (project-switch-commands 'project-find-file)
+    (project-ignored-directories '(".venv" "node_modules" ".git"))
+    (project-ignored-globs '("*.pyc" "*.o" "*.elc"))
+    :config
+    ;; Use ripgrep for project searches when available
+    (when (executable-find "rg")
+      (setq xref-search-program 'ripgrep))
+  
+    ;; Set project search paths
+    (when (file-directory-p "~/Projects")
+      (setq project-switch-commands 'project-dired))
+  
+    ;; Bind search to 's' in project keymap
+    (define-key project-prefix-map "s" #'project-find-regexp)
+
+    ;; Add eat terminal in project root
+    (defun efs/project-eat ()
+      "Start or switch to an eat terminal in the project root directory."
+      (interactive)
+      (if-let* ((project (project-current))
+                (root (project-root project))
+                (project-name (project-name project))
+                (buffer-name (format "*%s-eat*" project-name)))
+          (if (get-buffer buffer-name)
+              (pop-to-buffer buffer-name)
+            (let ((default-directory root)
+                  (created-buffer))
+              (eat)
+              ;; Find the newly created eat buffer
+              (setq created-buffer
+                    (car (cl-remove-if-not
+                          (lambda (buf)
+                            (string-match-p "\\*eat\\*" (buffer-name buf)))
+                          (buffer-list))))
+              (when created-buffer
+                (with-current-buffer created-buffer
+                  (rename-buffer buffer-name t)))))
+        (user-error "Not in a project")))
+  
+    ;; Bind eat to 't' in project keymap
+    (define-key project-prefix-map "t" #'efs/project-eat))
 #+end_src
-** Yasnippet
+** Reference
+Key bindings and features available through project.el with the =C-c p= prefix.
+
+*** File Navigation
+- =C-c p f= - Find file in project (=project-find-file=)
+- =C-c p d= - Find directory in project (=project-find-dir=)
+- =C-c p b= - Switch to project buffer (=project-switch-to-buffer=)
+- =C-c p s= - Search project with regexp (=project-find-regexp=)
+
+*** Project Management
+- =C-c p p= - Switch to another project (=project-switch-project=)
+- =C-c p k= - Kill project buffers (=project-kill-buffers=)
+- =C-c p v= - Run VC commands on project (=project-vc-dir=)
+- =C-c p != - Run shell command in project root (=project-shell-command=)
+- =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
+- =C-c p e= - List project files in dired (=project-dired=)
+
+*** Shell Integration
+- =C-c p e= - Run eshell in project root (=project-eshell=)
+- =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
+
+*** Buffer Management
+- =C-c p b= - Switch to project buffer
+- =C-c p k= - Kill all project buffers
+- =C-c p C-b= - Display list of all project buffers
+
+*** Command Execution
+- =C-c p x= - Run a project-specific command (=project-execute-extended-command=)
+              Like =M-x= but limited to project-related commands
+
+*** Additional Features
+- Integration with xref for finding definitions
+- Built-in VC (version control) operations
+- Remote projects support through TRAMP
+
+*** Common Customization Variables
+These variables are already set in our configuration, shown here for reference:
+
+- =project-list-file= - Where project.el saves the project list
+- =project-vc-extra-root-markers= - Additional markers to identify project roots
+- =project-switch-commands= - Default command when switching projects
+- =project-ignored-directories= - Directories to ignore in project operations
+- =project-ignored-globs= - File patterns to ignore in project operations
+
+* Yasnippet
 #+begin_src emacs-lisp
   (use-package yasnippet
     :hook (prog-mode . yas-minor-mode)
@@ -686,7 +906,8 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
   (use-package yasnippet-snippets
     :after yasnippet)  
 #+end_src
-** Company
+
+* Company
 #+begin_src emacs-lisp
   (use-package company
     :after lsp-mode
@@ -695,6 +916,7 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
     (company-minimum-prefix-length 1)
     (company-idle-delay 0.0))
 #+end_src
+
 * Python
 #+begin_src emacs-lisp
   ;; Python Development Configuration
