@@ -270,20 +270,49 @@
   :commands (dired dired-jump)
   :bind (("C-x C-j" . dired-jump))
   :custom
-  (dired-listing-switches "-agho --group-directories-first"))
+  (dired-listing-switches "-aghoL --group-directories-first"))
 
 (use-package dirvish
   :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
-  :config
+  :init
   (dirvish-override-dired-mode)
-
-  ;; Optional settings
-  (setq dirvish-cache-dir "~/.cache/dirvish/"
-        dirvish-attributes '(nerd-icons file-size file-time))  ; Changed from all-the-icons to nerd-icons
-
-  ;; Keybindings for Dirvish
-  (define-key dirvish-mode-map (kbd "h") 'dired-up-directory)
-  (define-key dirvish-mode-map (kbd "l") 'dired-find-file))
+  :custom
+  (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
+   '(("h" "~/"                          "Home")
+     ("d" "~/Downloads/"                "Downloads")
+     ("p" "~/Projects/"                 "Projects")
+     ("s" "~/Screenshots/"              "Screenshots")))
+  :config
+  ;; (dirvish-peek-mode) ; Preview files in minibuffer
+  ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+  (setq dirvish-mode-line-format
+        '(:left (sort symlink) :right (omit yank index)))
+  (setq dirvish-attributes
+        '(nerd-icons file-time file-size collapse subtree-state vc-state))
+  (setq delete-by-moving-to-trash nil)
+  (setq dirvish-hide-details nil)
+  (setq dired-listing-switches
+        "-l --almost-all --human-readable --group-directories-first --no-group")
+  :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
+  (("C-c f" . dirvish-fd)
+   :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+   ("a"   . dirvish-quick-access)
+   ("f"   . dirvish-file-info-menu)
+   ("y"   . dirvish-yank-menu)
+   ("N"   . dirvish-narrow)
+   ("^"   . dirvish-history-last)
+   ("h"   . dirvish-history-jump) ; remapped `describe-mode'
+   ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
+   ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
+   ("TAB" . dirvish-subtree-toggle)
+   ("M-f" . dirvish-history-go-forward)
+   ("M-b" . dirvish-history-go-backward)
+   ("M-l" . dirvish-ls-switches-menu)
+   ("M-m" . dirvish-mark-menu)
+   ("M-t" . dirvish-layout-toggle)
+   ("M-s" . dirvish-setup-menu)
+   ("M-e" . dirvish-emerge-menu)
+   ("M-j" . dirvish-fd-jump)))
 
 ;; Install and configure eat
 (straight-use-package
