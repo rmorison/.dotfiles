@@ -752,27 +752,6 @@
   (add-to-list 'eglot-server-programs
                `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
 
-;; Configure DAP mode for debugging
-(use-package dap-mode
-  :after eglot
-  :config
-  (require 'dap-python)
-  (dap-mode 1)
-  (dap-ui-mode 1)
-  (dap-tooltip-mode 1)
-  (tooltip-mode 1)
-  (dap-ui-controls-mode 1))
-
-;; Configure debugpy for DAP mode
-(use-package dap-python
-  :straight (:type built-in)
-  :after dap-mode
-  :custom
-  (dap-python-debugger 'debugpy)
-  :config
-  ;; Use virtualenv python for debugging
-  (setq dap-python-executable #'efs/get-project-python))
-
 ;; Legacy support for poetry projects
 (use-package poetry
   :after python
@@ -783,13 +762,42 @@
 (use-package python-docstring
   :hook ((python-ts-mode python-mode) . python-docstring-mode))
 
-;; Format Python code with black
+;; Format Python code with ruff
 (use-package reformatter
   :config
-  (reformatter-define black-format
-    :program "black"
-    :args '("-"))
-  :hook ((python-ts-mode python-mode) . black-format-on-save-mode))
+  ;; Function to get ruff formatter command
+  (defun efs/get-ruff-command ()
+    "Get ruff command from virtualenv or global install."
+    (let* ((project-dir (project-root (project-current t)))
+           (venv-dir (when project-dir 
+                       (expand-file-name ".venv" project-dir)))
+           (venv-ruff (when venv-dir
+                        (expand-file-name "bin/ruff" venv-dir))))
+      (if (and venv-ruff (file-executable-p venv-ruff))
+          venv-ruff
+        "ruff")))
+
+  ;; Define formatters for both format and isort
+  (reformatter-define ruff-format
+    :program (efs/get-ruff-command)
+    :args '("format" "-"))
+
+  (reformatter-define ruff-isort
+    :program (efs/get-ruff-command)
+    :args '("check" "--select" "I" "--fix" "-"))
+
+  ;; Combined formatting function
+  (defun ruff-format-and-sort ()
+    "Run ruff format and import sorting on current buffer."
+    (interactive)
+    (ruff-isort-buffer)
+    (ruff-format-buffer))
+
+  ;; Hook to run both on save
+  :hook ((python-ts-mode . (lambda ()
+                             (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))
+         (python-mode . (lambda ()
+                          (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))))
 
 ;; Advanced Python folding
 (use-package origami
@@ -801,11 +809,18 @@
   :custom
   (python-pytest-confirm t)
   :bind
+  (:map python-ts-mode-map
+        ("C-c C-x t" . python-pytest-dispatch))
   (:map python-mode-map
-        ("C-c t" . python-pytest-dispatch)))
+        ("C-c C-x t" . python-pytest-dispatch)))
 
 ;; Add Python-specific key bindings
 (with-eval-after-load 'python
-  (define-key python-mode-map (kbd "C-c C-f") 'black-format-buffer)
-  (define-key python-mode-map (kbd "C-c C-t") 'python-pytest)
-  (define-key python-mode-map (kbd "C-c C-d") 'python-docstring-insert))
+  ;; Define a custom prefix keymap for Python-specific bindings
+  (define-prefix-command 'python-custom-map)
+  (define-key python-ts-mode-map (kbd "C-c C-p") 'python-custom-map)
+  (define-key python-mode-map (kbd "C-c C-p") 'python-custom-map)
+
+  ;; Add specific bindings under the prefix
+  (define-key python-custom-map (kbd "f") 'ruff-format-and-sort)
+  (define-key python-custom-map (kbd "d") 'python-docstring-insert))
