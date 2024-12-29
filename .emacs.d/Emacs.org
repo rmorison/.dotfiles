@@ -917,6 +917,22 @@ These variables are already set in our configuration, shown here for reference:
     (company-idle-delay 0.0))
 #+end_src
 
+* LLMs
+#+begin_src emacs-lisp
+  (use-package chatgpt-shell
+    :config
+    (setq chatgpt-shell-openai-key
+          (auth-source-pick-first-password :host "api.openai.com"))
+    (setq chatgpt-shell-anthropic-key
+          (auth-source-pick-first-password :host "api.anthropic.com"))
+    (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+
+  ;; Key bindings for ChatGPT shell commands
+  (global-set-key (kbd "C-c s") 'chatgpt-shell)
+  (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
+  (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
+#+end_src
+
 * Python
 #+begin_src emacs-lisp
   ;; Python Development Configuration

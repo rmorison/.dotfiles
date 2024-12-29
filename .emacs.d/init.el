@@ -697,6 +697,19 @@
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
+(use-package chatgpt-shell
+  :config
+  (setq chatgpt-shell-openai-key
+        (auth-source-pick-first-password :host "api.openai.com"))
+  (setq chatgpt-shell-anthropic-key
+        (auth-source-pick-first-password :host "api.anthropic.com"))
+  (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+
+;; Key bindings for ChatGPT shell commands
+(global-set-key (kbd "C-c s") 'chatgpt-shell)
+(global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
+(global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
+
 ;; Python Development Configuration
 
 ;; Use treesit-based python mode when available
