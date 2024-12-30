@@ -324,51 +324,6 @@
 #+end_src
 
 * Dirvish
-** Code
-#+begin_src emacs-lisp
-  (use-package dirvish
-    :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
-    :init
-    (dirvish-override-dired-mode)
-    :custom
-    (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
-     '(("h" "~/"                          "Home")
-       ("d" "~/Downloads/"                "Downloads")
-       ("p" "~/Projects/"                 "Projects")
-       ("s" "~/Screenshots/"              "Screenshots")))
-    :config
-    ;; (dirvish-peek-mode) ; Preview files in minibuffer
-    ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
-    (setq dirvish-mode-line-format
-          '(:left (sort symlink) :right (omit yank index)))
-    (setq dirvish-attributes
-          '(nerd-icons file-time file-size collapse subtree-state vc-state))
-    (setq delete-by-moving-to-trash nil)
-    (setq dirvish-hide-details nil)
-    (setq dired-listing-switches
-          "-l --almost-all --human-readable --group-directories-first --no-group")
-    :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
-    (("C-c f" . dirvish-fd)
-     :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
-     ("a"   . dirvish-quick-access)
-     ("f"   . dirvish-file-info-menu)
-     ("y"   . dirvish-yank-menu)
-     ("N"   . dirvish-narrow)
-     ("^"   . dirvish-history-last)
-     ("h"   . dirvish-history-jump) ; remapped `describe-mode'
-     ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
-     ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
-     ("TAB" . dirvish-subtree-toggle)
-     ("M-f" . dirvish-history-go-forward)
-     ("M-b" . dirvish-history-go-backward)
-     ("M-l" . dirvish-ls-switches-menu)
-     ("M-m" . dirvish-mark-menu)
-     ("M-t" . dirvish-layout-toggle)
-     ("M-s" . dirvish-setup-menu)
-     ("M-e" . dirvish-emerge-menu)
-     ("M-j" . dirvish-fd-jump)))
-#+end_src
-
 ** Reference
 
 *** Prerequisites
@@ -460,6 +415,51 @@ Dirvish integrates with fd for advanced file searching:
    - Disable heavy attributes in attributes configuration
    - Adjust cache directory location
    - Consider disabling peek mode for large directories
+
+** Code
+#+begin_src emacs-lisp
+  (use-package dirvish
+    :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
+    :init
+    (dirvish-override-dired-mode)
+    :custom
+    (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
+     '(("h" "~/"                          "Home")
+       ("d" "~/Downloads/"                "Downloads")
+       ("p" "~/Projects/"                 "Projects")
+       ("s" "~/Screenshots/"              "Screenshots")))
+    :config
+    ;; (dirvish-peek-mode) ; Preview files in minibuffer
+    ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+    (setq dirvish-mode-line-format
+          '(:left (sort symlink) :right (omit yank index)))
+    (setq dirvish-attributes
+          '(nerd-icons file-time file-size collapse subtree-state vc-state))
+    (setq delete-by-moving-to-trash nil)
+    (setq dirvish-hide-details nil)
+    (setq dired-listing-switches
+          "-l --almost-all --human-readable --group-directories-first --no-group")
+    :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
+    (("C-c f" . dirvish-fd)
+     :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+     ("a"   . dirvish-quick-access)
+     ("f"   . dirvish-file-info-menu)
+     ("y"   . dirvish-yank-menu)
+     ("N"   . dirvish-narrow)
+     ("^"   . dirvish-history-last)
+     ("h"   . dirvish-history-jump) ; remapped `describe-mode'
+     ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
+     ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
+     ("TAB" . dirvish-subtree-toggle)
+     ("M-f" . dirvish-history-go-forward)
+     ("M-b" . dirvish-history-go-backward)
+     ("M-l" . dirvish-ls-switches-menu)
+     ("M-m" . dirvish-mark-menu)
+     ("M-t" . dirvish-layout-toggle)
+     ("M-s" . dirvish-setup-menu)
+     ("M-e" . dirvish-emerge-menu)
+     ("M-j" . dirvish-fd-jump)))
+#+end_src
 
 * Eat Terminal
 #+begin_src emacs-lisp
@@ -799,6 +799,50 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
 #+end_src
 
 * Project
+** Reference
+Key bindings and features available through project.el with the =C-c p= prefix.
+
+*** File Navigation
+- =C-c p f= - Find file in project (=project-find-file=)
+- =C-c p d= - Find directory in project (=project-find-dir=)
+- =C-c p b= - Switch to project buffer (=project-switch-to-buffer=)
+- =C-c p s= - Search project with regexp (=project-find-regexp=)
+
+*** Project Management
+- =C-c p p= - Switch to another project (=project-switch-project=)
+- =C-c p k= - Kill project buffers (=project-kill-buffers=)
+- =C-c p v= - Run VC commands on project (=project-vc-dir=)
+- =C-c p != - Run shell command in project root (=project-shell-command=)
+- =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
+- =C-c p e= - List project files in dired (=project-dired=)
+
+*** Shell Integration
+- =C-c p e= - Run eshell in project root (=project-eshell=)
+- =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
+
+*** Buffer Management
+- =C-c p b= - Switch to project buffer
+- =C-c p k= - Kill all project buffers
+- =C-c p C-b= - Display list of all project buffers
+
+*** Command Execution
+- =C-c p x= - Run a project-specific command (=project-execute-extended-command=)
+              Like =M-x= but limited to project-related commands
+
+*** Additional Features
+- Integration with xref for finding definitions
+- Built-in VC (version control) operations
+- Remote projects support through TRAMP
+
+*** Common Customization Variables
+These variables are already set in our configuration, shown here for reference:
+
+- =project-list-file= - Where project.el saves the project list
+- =project-vc-extra-root-markers= - Additional markers to identify project roots
+- =project-switch-commands= - Default command when switching projects
+- =project-ignored-directories= - Directories to ignore in project operations
+- =project-ignored-globs= - File patterns to ignore in project operations
+
 ** Code
 #+begin_src emacs-lisp
   ;; Ensure we use built-in project package
@@ -852,50 +896,6 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
     ;; Bind eat to 't' in project keymap
     (define-key project-prefix-map "t" #'efs/project-eat))
 #+end_src
-** Reference
-Key bindings and features available through project.el with the =C-c p= prefix.
-
-*** File Navigation
-- =C-c p f= - Find file in project (=project-find-file=)
-- =C-c p d= - Find directory in project (=project-find-dir=)
-- =C-c p b= - Switch to project buffer (=project-switch-to-buffer=)
-- =C-c p s= - Search project with regexp (=project-find-regexp=)
-
-*** Project Management
-- =C-c p p= - Switch to another project (=project-switch-project=)
-- =C-c p k= - Kill project buffers (=project-kill-buffers=)
-- =C-c p v= - Run VC commands on project (=project-vc-dir=)
-- =C-c p != - Run shell command in project root (=project-shell-command=)
-- =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
-- =C-c p e= - List project files in dired (=project-dired=)
-
-*** Shell Integration
-- =C-c p e= - Run eshell in project root (=project-eshell=)
-- =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
-
-*** Buffer Management
-- =C-c p b= - Switch to project buffer
-- =C-c p k= - Kill all project buffers
-- =C-c p C-b= - Display list of all project buffers
-
-*** Command Execution
-- =C-c p x= - Run a project-specific command (=project-execute-extended-command=)
-              Like =M-x= but limited to project-related commands
-
-*** Additional Features
-- Integration with xref for finding definitions
-- Built-in VC (version control) operations
-- Remote projects support through TRAMP
-
-*** Common Customization Variables
-These variables are already set in our configuration, shown here for reference:
-
-- =project-list-file= - Where project.el saves the project list
-- =project-vc-extra-root-markers= - Additional markers to identify project roots
-- =project-switch-commands= - Default command when switching projects
-- =project-ignored-directories= - Directories to ignore in project operations
-- =project-ignored-globs= - File patterns to ignore in project operations
-
 * Yasnippet
 #+begin_src emacs-lisp
   (use-package yasnippet
