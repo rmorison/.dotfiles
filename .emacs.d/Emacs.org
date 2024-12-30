@@ -324,51 +324,6 @@
 #+end_src
 
 * Dirvish
-** Code
-#+begin_src emacs-lisp
-  (use-package dirvish
-    :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
-    :init
-    (dirvish-override-dired-mode)
-    :custom
-    (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
-     '(("h" "~/"                          "Home")
-       ("d" "~/Downloads/"                "Downloads")
-       ("p" "~/Projects/"                 "Projects")
-       ("s" "~/Screenshots/"              "Screenshots")))
-    :config
-    ;; (dirvish-peek-mode) ; Preview files in minibuffer
-    ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
-    (setq dirvish-mode-line-format
-          '(:left (sort symlink) :right (omit yank index)))
-    (setq dirvish-attributes
-          '(nerd-icons file-time file-size collapse subtree-state vc-state))
-    (setq delete-by-moving-to-trash nil)
-    (setq dirvish-hide-details nil)
-    (setq dired-listing-switches
-          "-l --almost-all --human-readable --group-directories-first --no-group")
-    :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
-    (("C-c f" . dirvish-fd)
-     :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
-     ("a"   . dirvish-quick-access)
-     ("f"   . dirvish-file-info-menu)
-     ("y"   . dirvish-yank-menu)
-     ("N"   . dirvish-narrow)
-     ("^"   . dirvish-history-last)
-     ("h"   . dirvish-history-jump) ; remapped `describe-mode'
-     ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
-     ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
-     ("TAB" . dirvish-subtree-toggle)
-     ("M-f" . dirvish-history-go-forward)
-     ("M-b" . dirvish-history-go-backward)
-     ("M-l" . dirvish-ls-switches-menu)
-     ("M-m" . dirvish-mark-menu)
-     ("M-t" . dirvish-layout-toggle)
-     ("M-s" . dirvish-setup-menu)
-     ("M-e" . dirvish-emerge-menu)
-     ("M-j" . dirvish-fd-jump)))
-#+end_src
-
 ** Reference
 
 *** Prerequisites
@@ -460,6 +415,51 @@ Dirvish integrates with fd for advanced file searching:
    - Disable heavy attributes in attributes configuration
    - Adjust cache directory location
    - Consider disabling peek mode for large directories
+
+** Code
+#+begin_src emacs-lisp
+  (use-package dirvish
+    :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
+    :init
+    (dirvish-override-dired-mode)
+    :custom
+    (dirvish-quick-access-entries ; It's a custom option, `setq' won't work
+     '(("h" "~/"                          "Home")
+       ("d" "~/Downloads/"                "Downloads")
+       ("p" "~/Projects/"                 "Projects")
+       ("s" "~/Screenshots/"              "Screenshots")))
+    :config
+    ;; (dirvish-peek-mode) ; Preview files in minibuffer
+    ;; (dirvish-side-follow-mode) ; similar to `treemacs-follow-mode'
+    (setq dirvish-mode-line-format
+          '(:left (sort symlink) :right (omit yank index)))
+    (setq dirvish-attributes
+          '(nerd-icons file-time file-size collapse subtree-state vc-state))
+    (setq delete-by-moving-to-trash nil)
+    (setq dirvish-hide-details nil)
+    (setq dired-listing-switches
+          "-l --almost-all --human-readable --group-directories-first --no-group")
+    :bind ; Bind `dirvish|dirvish-side|dirvish-dwim' as you see fit
+    (("C-c f" . dirvish-fd)
+     :map dirvish-mode-map ; Dirvish inherits `dired-mode-map'
+     ("a"   . dirvish-quick-access)
+     ("f"   . dirvish-file-info-menu)
+     ("y"   . dirvish-yank-menu)
+     ("N"   . dirvish-narrow)
+     ("^"   . dirvish-history-last)
+     ("h"   . dirvish-history-jump) ; remapped `describe-mode'
+     ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
+     ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
+     ("TAB" . dirvish-subtree-toggle)
+     ("M-f" . dirvish-history-go-forward)
+     ("M-b" . dirvish-history-go-backward)
+     ("M-l" . dirvish-ls-switches-menu)
+     ("M-m" . dirvish-mark-menu)
+     ("M-t" . dirvish-layout-toggle)
+     ("M-s" . dirvish-setup-menu)
+     ("M-e" . dirvish-emerge-menu)
+     ("M-j" . dirvish-fd-jump)))
+#+end_src
 
 * Eat Terminal
 #+begin_src emacs-lisp
@@ -799,6 +799,50 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
 #+end_src
 
 * Project
+** Reference
+Key bindings and features available through project.el with the =C-c p= prefix.
+
+*** File Navigation
+- =C-c p f= - Find file in project (=project-find-file=)
+- =C-c p d= - Find directory in project (=project-find-dir=)
+- =C-c p b= - Switch to project buffer (=project-switch-to-buffer=)
+- =C-c p s= - Search project with regexp (=project-find-regexp=)
+
+*** Project Management
+- =C-c p p= - Switch to another project (=project-switch-project=)
+- =C-c p k= - Kill project buffers (=project-kill-buffers=)
+- =C-c p v= - Run VC commands on project (=project-vc-dir=)
+- =C-c p != - Run shell command in project root (=project-shell-command=)
+- =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
+- =C-c p e= - List project files in dired (=project-dired=)
+
+*** Shell Integration
+- =C-c p e= - Run eshell in project root (=project-eshell=)
+- =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
+
+*** Buffer Management
+- =C-c p b= - Switch to project buffer
+- =C-c p k= - Kill all project buffers
+- =C-c p C-b= - Display list of all project buffers
+
+*** Command Execution
+- =C-c p x= - Run a project-specific command (=project-execute-extended-command=)
+              Like =M-x= but limited to project-related commands
+
+*** Additional Features
+- Integration with xref for finding definitions
+- Built-in VC (version control) operations
+- Remote projects support through TRAMP
+
+*** Common Customization Variables
+These variables are already set in our configuration, shown here for reference:
+
+- =project-list-file= - Where project.el saves the project list
+- =project-vc-extra-root-markers= - Additional markers to identify project roots
+- =project-switch-commands= - Default command when switching projects
+- =project-ignored-directories= - Directories to ignore in project operations
+- =project-ignored-globs= - File patterns to ignore in project operations
+
 ** Code
 #+begin_src emacs-lisp
   ;; Ensure we use built-in project package
@@ -852,50 +896,6 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
     ;; Bind eat to 't' in project keymap
     (define-key project-prefix-map "t" #'efs/project-eat))
 #+end_src
-** Reference
-Key bindings and features available through project.el with the =C-c p= prefix.
-
-*** File Navigation
-- =C-c p f= - Find file in project (=project-find-file=)
-- =C-c p d= - Find directory in project (=project-find-dir=)
-- =C-c p b= - Switch to project buffer (=project-switch-to-buffer=)
-- =C-c p s= - Search project with regexp (=project-find-regexp=)
-
-*** Project Management
-- =C-c p p= - Switch to another project (=project-switch-project=)
-- =C-c p k= - Kill project buffers (=project-kill-buffers=)
-- =C-c p v= - Run VC commands on project (=project-vc-dir=)
-- =C-c p != - Run shell command in project root (=project-shell-command=)
-- =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
-- =C-c p e= - List project files in dired (=project-dired=)
-
-*** Shell Integration
-- =C-c p e= - Run eshell in project root (=project-eshell=)
-- =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
-
-*** Buffer Management
-- =C-c p b= - Switch to project buffer
-- =C-c p k= - Kill all project buffers
-- =C-c p C-b= - Display list of all project buffers
-
-*** Command Execution
-- =C-c p x= - Run a project-specific command (=project-execute-extended-command=)
-              Like =M-x= but limited to project-related commands
-
-*** Additional Features
-- Integration with xref for finding definitions
-- Built-in VC (version control) operations
-- Remote projects support through TRAMP
-
-*** Common Customization Variables
-These variables are already set in our configuration, shown here for reference:
-
-- =project-list-file= - Where project.el saves the project list
-- =project-vc-extra-root-markers= - Additional markers to identify project roots
-- =project-switch-commands= - Default command when switching projects
-- =project-ignored-directories= - Directories to ignore in project operations
-- =project-ignored-globs= - File patterns to ignore in project operations
-
 * Yasnippet
 #+begin_src emacs-lisp
   (use-package yasnippet
@@ -917,187 +917,293 @@ These variables are already set in our configuration, shown here for reference:
     (company-idle-delay 0.0))
 #+end_src
 
+* LLMs
+#+begin_src emacs-lisp
+  (use-package chatgpt-shell
+    :config
+    (setq chatgpt-shell-openai-key
+          (auth-source-pick-first-password :host "api.openai.com"))
+    (setq chatgpt-shell-anthropic-key
+          (auth-source-pick-first-password :host "api.anthropic.com"))
+    (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+
+  ;; Key bindings for ChatGPT shell commands
+  (global-set-key (kbd "C-c s") 'chatgpt-shell)
+  (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
+  (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
+#+end_src
+
 * Python
+** Reference
+*Note*: Not all key bindings are test or mapped. That is a work in progress.
+
+*** Core Python Features
+**** Tree-sitter Mode
+- Modern syntax-aware major mode for Python
+- Automatically activated for .py files
+- Better syntax highlighting and structural editing
+
+**** Virtual Environment Integration
+- Automatically detects and uses project's .venv
+- Integrates with python-shell, tools, and LSP
+- Helper function ~efs/get-venv-program~ for virtualenv-aware commands
+
+**** Language Server (Eglot + Jedi)
+- Code completion
+- Go to definition
+- Find references
+- Documentation on hover
+- Signature help
+- Symbol renaming
+- Auto-imports
+
+*** Code Formatting and Linting
+**** Ruff Integration
+***** Formatting (automatic on save)
+- Code formatting to match black style
+- Import sorting (isort functionality)
+- Configurable through ~pyproject.toml~ or ~ruff.toml~
+
+***** Linting with Flymake
+- Real-time linting using Ruff
+- Error navigation:
+  - ~M-n~ or ~C-M-n~: Next error
+  - ~M-p~ or ~C-M-p~: Previous error
+  - ~M-?~ or ~M-g b~: Show diagnostics buffer
+- Visual indicators in fringe
+- Inline diagnostics in minibuffer via eldoc
+- Automatic checking on save and while typing
+
+*** Testing
+**** Pytest Integration (~C-c C-x t~)
+- Run all tests
+- Run current test
+- Run tests in current file
+- Debug test
+- Last failed tests
+- Coverage report
+
+*** Additional Tools
+**** Poetry
+- Automatic virtualenv activation
+- Project dependency management
+- Environment tracking
+
+**** Docstring Support
+- ~M-x python-docstring-insert~: Insert docstring template
+- ~TAB~: Navigate through docstring fields
+- ~M-q~: Reflow docstring paragraphs
+- Syntax highlighting for docstrings
+
+**** Code Folding (Origami)
+- ~C-c @ C-c~: Toggle fold at point
+- ~C-c @ C-a~: Toggle all folds
+- ~C-c @ C-s~: Show all
+- ~C-c @ C-h~: Hide all
+- ~C-c @ C-f~: Forward fold
+- ~C-c @ C-b~: Backward fold
+
+*** Python Mode Key Bindings Cheat Sheet
+**** REPL and Shell Integration
+- ~C-c C-p~ : Run Python shell
+- ~C-c C-z~ : Switch to Python shell
+- ~C-c C-c~ : Send current buffer region to shell
+- ~C-c C-r~ : Send region to shell
+- ~C-c C-s~ : Send statement to shell
+- ~C-M-x~   : Send function definition to shell
+
+**** Navigation and Structure
+- ~C-M-a~ : Beginning of defun (class/function)
+- ~C-M-e~ : End of defun
+- ~C-M-h~ : Mark defun
+- ~C-c C-j~ : Jump to definition (using Eglot)
+- ~M-{~   : Previous defun
+- ~M-}~   : Next defun
+
+**** Code Formatting
+- ~C-c <~ : Shift region left
+- ~C-c >~ : Shift region right
+- ~C-M-\~ : Indent region
+- ~TAB~   : Indent line or region
+
+**** Testing (python-pytest)
+- ~C-c C-x t~ : Pytest dispatch menu
+  - ~t~ : Test at point
+  - ~f~ : Test current file
+  - ~p~ : Test previous
+  - ~r~ : Rerun failed tests
+  - ~d~ : Debug test at point
+
+**** Documentation and Help
+- ~C-c C-v~ : Python documentation lookup
+- ~C-h f~   : Describe function (works with Eglot)
+- ~C-c C-d~ : Show documentation for symbol at point
+
+*** Required Python Packages
+Install in your project's virtualenv:
+#+begin_example
+pip install ruff jedi-language-server pytest
+#+end_example
+
+*** Configuration Files
+**** Example ruff.toml or pyproject.toml
+#+begin_example
+[tool.ruff]
+# Enable flake8-bugbear (`B`) rules
+select = ["E", "F", "B"]
+# Same as Black
+line-length = 88
+indent-width = 4
+# Assume Python 3.8
+target-version = "py38"
+#+end_example
+** Code
+
+*** Python mode with Eglot and Jedi Language Server
 #+begin_src emacs-lisp
   ;; Python Development Configuration
-  (defun efs/python-mode-setup ()
-    "Setup for Python development environment."
-    (setq-local indent-tabs-mode nil)
-    (when (fboundp 'python-ts-mode)
-      (python-ts-mode))
-    (setq eldoc-mode t))
 
-  ;; Virtual environment management
-  (use-package pyvenv
-    :after python
-    :init
-    (setenv "WORKON_HOME" (expand-file-name "~/.pyenv/versions"))
+  ;; Find programs in virtual env bin dir or relay on PATH
+  (defun efs/get-venv-program (program-name)
+    "Get command for PROGRAM-NAME using project's virtualenv.
+  Returns a list containing the full path if found in virtualenv,
+  otherwise returns a list with just the program name."
+    (let* ((project-dir (project-root (project-current t)))
+           (venv-dir (when project-dir 
+                       (expand-file-name ".venv" project-dir)))
+           (venv-program (when venv-dir
+                           (expand-file-name (concat "bin/" program-name) venv-dir))))
+      (if (and venv-program (file-executable-p venv-program))
+          (list venv-program)
+        (list program-name))))
+
+  ;; Use treesit-based python mode when available
+  (use-package python
+    :straight (:type built-in)
+    :mode ("\\.py\\'" . python-ts-mode)
+    :custom
+    (python-indent-offset 4)
+    ;; Look for .venv in project root
+    (python-shell-virtualenv-root (lambda () 
+                                    (let ((project-dir (project-root (project-current t))))
+                                      (when project-dir
+                                        (expand-file-name ".venv" project-dir)))))
     :config
-    ;; Display virtual env in mode line
-    (setq pyvenv-mode-line-indicator '(pyvenv-virtual-env-name ("[venv:%s]" pyvenv-virtual-env-name)))
+    ;; Function to get the project's virtualenv python
+    (defun efs/get-project-python ()
+      "Get python executable from project's virtualenv."
+      (car (efs/get-venv-program "python")))
 
-    ;; Helper function to find and activate virtualenv
-    (defun efs/auto-activate-virtualenv ()
-      "Automatically activate virtualenv in the current project."
-      (interactive)
-      (let* ((project-dir (locate-dominating-file default-directory ".venv"))
-             (venv-path (when project-dir (expand-file-name ".venv" project-dir))))
-        (when (and venv-path (file-directory-p venv-path))
-          (pyvenv-activate venv-path)
-          ;; Restart Eglot if it's running to pick up the new virtualenv
-          (when (and (bound-and-true-p eglot--managed-mode)
-                     (eglot-current-server))
-            (eglot-shutdown)
-            (eglot)))))
+    ;; Set python shell interpreter dynamically
+    (setq python-shell-interpreter #'efs/get-project-python))
 
-    ;; Auto-activate for Python modes
-    (add-hook 'python-mode-hook #'efs/auto-activate-virtualenv)
-    (add-hook 'python-ts-mode-hook #'efs/auto-activate-virtualenv))
-
-  ;; Configure Eglot with Ruff
+  ;; Configure eglot for Python
   (use-package eglot
-    :straight (:type built-in)  ; Eglot is built into Emacs 29+
-    :hook ((python-mode . eglot-ensure)
-           (python-ts-mode . eglot-ensure))
+    :straight (:type built-in)
+    :hook ((python-ts-mode . eglot-ensure)
+           (python-mode . eglot-ensure))
+    :init (setq eglot-stay-out-of '(flymake))
+    :custom
+    (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
+    (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
+    (eglot-auto-display-help-buffer nil)  ; Don't automatically show help
     :config
-    ;; Function to get server path
-    (defun efs/get-virtualenv-ruff (server-name)
-      "Get path to ruff executable in current virtualenv or fall back to global.
-       Argument SERVER-NAME is required by Eglot but unused."
-      (let ((ruff-path (if pyvenv-virtual-env
-                           (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                         (executable-find "ruff"))))
-        (when ruff-path
-          (list ruff-path "server"))))
+    ;; Function to get virtualenv-aware jedi command
+    (defun efs/get-jedi-command ()
+      "Get jedi-language-server command using project's virtualenv."
+      (efs/get-venv-program "jedi-language-server"))
 
-    ;; Interactive format functions
-    (defun efs/format-python-buffer ()
-      "Format the current Python buffer using Eglot."
-      (interactive)
-      (if (and (bound-and-true-p eglot--managed-mode)
-               (eglot-current-server))
-          (eglot-format-buffer)
-        (message "Eglot is not running. Start it with M-x eglot")))
-
-    (defun efs/python-sort-imports ()
-      "Sort Python imports using Ruff."
-      (interactive)
-      (if (and (bound-and-true-p eglot--managed-mode)
-               (eglot-current-server))
-          (let* ((current-file (buffer-file-name))
-                 (ruff-path (if pyvenv-virtual-env
-                               (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                             (executable-find "ruff")))
-                 (output-buffer (generate-new-buffer "*ruff-output*")))
-            (if (and current-file ruff-path)
-                (progn
-                  ;; Save buffer first if modified
-                  (when (buffer-modified-p)
-                    (save-buffer))
-                  ;; Run ruff with correct command syntax
-                  (if (zerop (call-process ruff-path nil output-buffer t 
-                                         "check"
-                                         "--select" "I001" 
-                                         "--fix"
-                                         current-file))
-                      (progn
-                        ;; Force a reread from disk
-                        (revert-buffer t t t)
-                        (message "Imports sorted successfully"))
-                    (with-current-buffer output-buffer
-                      (message "Ruff error: %s" (buffer-string))))
-                  (kill-buffer output-buffer))
-              (message "Unable to find ruff or current buffer is not visiting a file")))
-        (message "Eglot is not running. Start it with M-x eglot")))
-
-    ;; Configure Eglot to use Ruff
+    ;; Register jedi with eglot using dynamic command resolution
     (add-to-list 'eglot-server-programs
-                 `((python-mode python-ts-mode) . ,#'efs/get-virtualenv-ruff))
+                 `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
+#+end_src
 
-    ;; Key bindings for Python modes
-    (define-key python-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
-    (define-key python-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
+*** Python formatting with Ruff
+#+begin_src emacs-lisp
+  ;; Format Python code with ruff
+  (use-package reformatter
+    :config
+    ;; Function to get ruff formatter command
+    (defun efs/get-ruff-command ()
+      "Get ruff command from virtualenv or global install."
+      (car (efs/get-venv-program "ruff")))
 
-    ;; Also add bindings for python-ts-mode
-    (define-key python-ts-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
-    (define-key python-ts-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
+    ;; Define formatters for both format and isort
+    (reformatter-define ruff-format
+      :program (efs/get-ruff-command)
+      :args '("format" "-"))
 
-  ;; Format and sort imports on save
-  (add-hook 'before-save-hook
-            (lambda ()
-              (when (and (bound-and-true-p eglot--managed-mode)
-                         (or (derived-mode-p 'python-mode)
-                             (derived-mode-p 'python-ts-mode)))
-                ;; First format with eglot
-                (eglot-format-buffer)
-                ;; Then run ruff sort imports directly without saving
-                (let* ((current-file (buffer-file-name))
-                       (ruff-path (if pyvenv-virtual-env
-                                     (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                                   (executable-find "ruff"))))
-                  (when (and current-file ruff-path)
-                    (call-process ruff-path nil nil nil 
-                                "check"
-                                "--select" "I001" 
-                                "--fix"
-                                current-file)
-                    ;; Revert the buffer to pick up ruff's changes
-                    ;; but don't trigger another save
-                    (revert-buffer t t t))))))
+    (reformatter-define ruff-isort
+      :program (efs/get-ruff-command)
+      :args '("check" "--select" "I" "--fix" "-"))
 
-    ;; Configure Eglot to show diagnostics immediately
-    (setq eglot-send-changes-idle-time 0)
-    (setq eglot-events-buffer-size 0)
-    (setq eglot-sync-connect nil)
-    (setq eglot-connect-timeout 10)
-    (setq eglot-autoshutdown t))
+    ;; Combined formatting function
+    (defun ruff-format-and-sort ()
+      "Run ruff format and import sorting on current buffer."
+      (interactive)
+      (ruff-isort-buffer)
+      (ruff-format-buffer))
 
-  ;; Debug function for Python development setup
-  (defun efs/debug-python-dev-config ()
-    "Debug Python development configuration."
-    (interactive)
-    (let* ((project-root (and (project-current) (project-root (project-current))))
-           (pyproject-path (when project-root (expand-file-name "pyproject.toml" project-root)))
-           (venv-path pyvenv-virtual-env)
-           (venv-ruff (when venv-path 
-                       (expand-file-name "bin/ruff" venv-path)))
-           (global-ruff (executable-find "ruff"))
-           (active-ruff (if (and venv-path (file-exists-p venv-ruff))
-                           venv-ruff
-                         global-ruff))
-           (eglot-server (when (bound-and-true-p eglot--managed-mode)
-                          (eglot--server-name (eglot-current-server)))))
+    ;; Hook to run both on save
+    :hook ((python-ts-mode . (lambda ()
+                               (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))
+           (python-mode . (lambda ()
+                            (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))))
+#+end_src
 
-      ;; Print debug information
-      (with-current-buffer (get-buffer-create "*python-dev-debug*")
-        (erase-buffer)
-        (insert "Python Development Configuration Debug Info:\n\n")
-        (insert (format "Project Root: %s\n" project-root))
-        (insert (format "pyproject.toml exists: %s\n" (and pyproject-path (file-exists-p pyproject-path))))
-        (insert (format "pyproject.toml path: %s\n" pyproject-path))
-        (insert (format "Virtual Env: %s\n" venv-path))
-        (insert (format "Virtualenv Ruff: %s\n" venv-ruff))
-        (insert (format "Global Ruff: %s\n" global-ruff))
-        (insert (format "Active Ruff: %s\n" active-ruff))
-        (insert (format "Eglot running: %s\n" (bound-and-true-p eglot--managed-mode)))
-        (insert (format "Eglot server: %s\n" eglot-server))
-        (insert (format "Current server: %s\n" (and (bound-and-true-p eglot--managed-mode)
-                                                   (eglot-current-server))))
+*** Pytest
+#+begin_src emacs-lisp
+  ;; Configure pytest integration
+  (use-package python-pytest
+    :after python
+    :custom
+    (python-pytest-confirm t)
+    :bind
+    (:map python-ts-mode-map
+          ("C-c C-x t" . python-pytest-dispatch))
+    (:map python-mode-map
+          ("C-c C-x t" . python-pytest-dispatch)))
+#+end_src
 
-        ;; Try to read pyproject.toml content if it exists
-        (when (and pyproject-path (file-exists-p pyproject-path))
-          (insert "\npyproject.toml content:\n")
-          (insert-file-contents pyproject-path)
-          (goto-char (point-max))))
+*** Misc Python tools
+#+begin_src emacs-lisp
+  ;; Legacy support for poetry projects
+  (use-package poetry
+    :after python
+    :config
+    (poetry-tracking-mode))
 
-      (display-buffer "*python-dev-debug*")))
+  ;; Improved Python docstring editing
+  (use-package python-docstring
+    :hook ((python-ts-mode python-mode) . python-docstring-mode))
 
-  ;; Add debug hook for Python modes
-  (defun efs/python-mode-debug-hook ()
-    "Hook to run python debug info when mode starts."
-    (when (derived-mode-p 'python-mode 'python-ts-mode)
-      (efs/debug-python-dev-config)))
+  ;; Advanced Python folding
+  (use-package origami
+    :hook ((python-ts-mode python-mode) . origami-mode))
+#+end_src
 
-  (add-hook 'python-mode-hook #'efs/python-mode-debug-hook)
-  (add-hook 'python-ts-mode-hook #'efs/python-mode-debug-hook)
+*** Linting with flymake-ruff
+#+begin_src emacs-lisp
+  ;; Python Linting Configuration
+  (use-package flymake
+    :straight (:type built-in)
+    :custom
+    (flymake-fringe-indicator-position 'left-fringe)
+    (flymake-suppress-zero-counters t)
+    (flymake-start-on-save-buffer t)
+    (flymake-no-changes-timeout 0.3)
+    :config
+    ;; Show flymake diagnostics first in minibuffer
+    (setq eldoc-documentation-functions
+          (cons #'flymake-eldoc-function
+                (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+    :hook ((python-ts-mode . flymake-mode)
+           (python-mode . flymake-mode)))
+
+  (use-package flymake-ruff
+    :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+    :custom
+    (flymake-ruff-program (car (efs/get-venv-program "ruff")))
+    :hook ((python-ts-mode . flymake-ruff-load)
+           (python-mode . flymake-ruff-load)))
 #+end_src

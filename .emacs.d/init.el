@@ -697,184 +697,149 @@
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
+(use-package chatgpt-shell
+  :config
+  (setq chatgpt-shell-openai-key
+        (auth-source-pick-first-password :host "api.openai.com"))
+  (setq chatgpt-shell-anthropic-key
+        (auth-source-pick-first-password :host "api.anthropic.com"))
+  (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+
+;; Key bindings for ChatGPT shell commands
+(global-set-key (kbd "C-c s") 'chatgpt-shell)
+(global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
+(global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
+
 ;; Python Development Configuration
-(defun efs/python-mode-setup ()
-  "Setup for Python development environment."
-  (setq-local indent-tabs-mode nil)
-  (when (fboundp 'python-ts-mode)
-    (python-ts-mode))
-  (setq eldoc-mode t))
 
-;; Virtual environment management
-(use-package pyvenv
-  :after python
-  :init
-  (setenv "WORKON_HOME" (expand-file-name "~/.pyenv/versions"))
+;; Find programs in virtual env bin dir or relay on PATH
+(defun efs/get-venv-program (program-name)
+  "Get command for PROGRAM-NAME using project's virtualenv.
+Returns a list containing the full path if found in virtualenv,
+otherwise returns a list with just the program name."
+  (let* ((project-dir (project-root (project-current t)))
+         (venv-dir (when project-dir 
+                     (expand-file-name ".venv" project-dir)))
+         (venv-program (when venv-dir
+                         (expand-file-name (concat "bin/" program-name) venv-dir))))
+    (if (and venv-program (file-executable-p venv-program))
+        (list venv-program)
+      (list program-name))))
+
+;; Use treesit-based python mode when available
+(use-package python
+  :straight (:type built-in)
+  :mode ("\\.py\\'" . python-ts-mode)
+  :custom
+  (python-indent-offset 4)
+  ;; Look for .venv in project root
+  (python-shell-virtualenv-root (lambda () 
+                                  (let ((project-dir (project-root (project-current t))))
+                                    (when project-dir
+                                      (expand-file-name ".venv" project-dir)))))
   :config
-  ;; Display virtual env in mode line
-  (setq pyvenv-mode-line-indicator '(pyvenv-virtual-env-name ("[venv:%s]" pyvenv-virtual-env-name)))
+  ;; Function to get the project's virtualenv python
+  (defun efs/get-project-python ()
+    "Get python executable from project's virtualenv."
+    (car (efs/get-venv-program "python")))
 
-  ;; Helper function to find and activate virtualenv
-  (defun efs/auto-activate-virtualenv ()
-    "Automatically activate virtualenv in the current project."
-    (interactive)
-    (let* ((project-dir (locate-dominating-file default-directory ".venv"))
-           (venv-path (when project-dir (expand-file-name ".venv" project-dir))))
-      (when (and venv-path (file-directory-p venv-path))
-        (pyvenv-activate venv-path)
-        ;; Restart Eglot if it's running to pick up the new virtualenv
-        (when (and (bound-and-true-p eglot--managed-mode)
-                   (eglot-current-server))
-          (eglot-shutdown)
-          (eglot)))))
+  ;; Set python shell interpreter dynamically
+  (setq python-shell-interpreter #'efs/get-project-python))
 
-  ;; Auto-activate for Python modes
-  (add-hook 'python-mode-hook #'efs/auto-activate-virtualenv)
-  (add-hook 'python-ts-mode-hook #'efs/auto-activate-virtualenv))
-
-;; Configure Eglot with Ruff
+;; Configure eglot for Python
 (use-package eglot
-  :straight (:type built-in)  ; Eglot is built into Emacs 29+
-  :hook ((python-mode . eglot-ensure)
-         (python-ts-mode . eglot-ensure))
+  :straight (:type built-in)
+  :hook ((python-ts-mode . eglot-ensure)
+         (python-mode . eglot-ensure))
+  :init (setq eglot-stay-out-of '(flymake))
+  :custom
+  (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
+  (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
+  (eglot-auto-display-help-buffer nil)  ; Don't automatically show help
   :config
-  ;; Function to get server path
-  (defun efs/get-virtualenv-ruff (server-name)
-    "Get path to ruff executable in current virtualenv or fall back to global.
-     Argument SERVER-NAME is required by Eglot but unused."
-    (let ((ruff-path (if pyvenv-virtual-env
-                         (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                       (executable-find "ruff"))))
-      (when ruff-path
-        (list ruff-path "server"))))
+  ;; Function to get virtualenv-aware jedi command
+  (defun efs/get-jedi-command ()
+    "Get jedi-language-server command using project's virtualenv."
+    (efs/get-venv-program "jedi-language-server"))
 
-  ;; Interactive format functions
-  (defun efs/format-python-buffer ()
-    "Format the current Python buffer using Eglot."
-    (interactive)
-    (if (and (bound-and-true-p eglot--managed-mode)
-             (eglot-current-server))
-        (eglot-format-buffer)
-      (message "Eglot is not running. Start it with M-x eglot")))
-
-  (defun efs/python-sort-imports ()
-    "Sort Python imports using Ruff."
-    (interactive)
-    (if (and (bound-and-true-p eglot--managed-mode)
-             (eglot-current-server))
-        (let* ((current-file (buffer-file-name))
-               (ruff-path (if pyvenv-virtual-env
-                             (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                           (executable-find "ruff")))
-               (output-buffer (generate-new-buffer "*ruff-output*")))
-          (if (and current-file ruff-path)
-              (progn
-                ;; Save buffer first if modified
-                (when (buffer-modified-p)
-                  (save-buffer))
-                ;; Run ruff with correct command syntax
-                (if (zerop (call-process ruff-path nil output-buffer t 
-                                       "check"
-                                       "--select" "I001" 
-                                       "--fix"
-                                       current-file))
-                    (progn
-                      ;; Force a reread from disk
-                      (revert-buffer t t t)
-                      (message "Imports sorted successfully"))
-                  (with-current-buffer output-buffer
-                    (message "Ruff error: %s" (buffer-string))))
-                (kill-buffer output-buffer))
-            (message "Unable to find ruff or current buffer is not visiting a file")))
-      (message "Eglot is not running. Start it with M-x eglot")))
-
-  ;; Configure Eglot to use Ruff
+  ;; Register jedi with eglot using dynamic command resolution
   (add-to-list 'eglot-server-programs
-               `((python-mode python-ts-mode) . ,#'efs/get-virtualenv-ruff))
+               `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
 
-  ;; Key bindings for Python modes
-  (define-key python-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
-  (define-key python-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
+;; Format Python code with ruff
+(use-package reformatter
+  :config
+  ;; Function to get ruff formatter command
+  (defun efs/get-ruff-command ()
+    "Get ruff command from virtualenv or global install."
+    (car (efs/get-venv-program "ruff")))
 
-  ;; Also add bindings for python-ts-mode
-  (define-key python-ts-mode-map (kbd "C-c f b") #'efs/format-python-buffer)
-  (define-key python-ts-mode-map (kbd "C-c f i") #'efs/python-sort-imports)
+  ;; Define formatters for both format and isort
+  (reformatter-define ruff-format
+    :program (efs/get-ruff-command)
+    :args '("format" "-"))
 
-;; Format and sort imports on save
-(add-hook 'before-save-hook
-          (lambda ()
-            (when (and (bound-and-true-p eglot--managed-mode)
-                       (or (derived-mode-p 'python-mode)
-                           (derived-mode-p 'python-ts-mode)))
-              ;; First format with eglot
-              (eglot-format-buffer)
-              ;; Then run ruff sort imports directly without saving
-              (let* ((current-file (buffer-file-name))
-                     (ruff-path (if pyvenv-virtual-env
-                                   (expand-file-name "bin/ruff" pyvenv-virtual-env)
-                                 (executable-find "ruff"))))
-                (when (and current-file ruff-path)
-                  (call-process ruff-path nil nil nil 
-                              "check"
-                              "--select" "I001" 
-                              "--fix"
-                              current-file)
-                  ;; Revert the buffer to pick up ruff's changes
-                  ;; but don't trigger another save
-                  (revert-buffer t t t))))))
+  (reformatter-define ruff-isort
+    :program (efs/get-ruff-command)
+    :args '("check" "--select" "I" "--fix" "-"))
 
-  ;; Configure Eglot to show diagnostics immediately
-  (setq eglot-send-changes-idle-time 0)
-  (setq eglot-events-buffer-size 0)
-  (setq eglot-sync-connect nil)
-  (setq eglot-connect-timeout 10)
-  (setq eglot-autoshutdown t))
+  ;; Combined formatting function
+  (defun ruff-format-and-sort ()
+    "Run ruff format and import sorting on current buffer."
+    (interactive)
+    (ruff-isort-buffer)
+    (ruff-format-buffer))
 
-;; Debug function for Python development setup
-(defun efs/debug-python-dev-config ()
-  "Debug Python development configuration."
-  (interactive)
-  (let* ((project-root (and (project-current) (project-root (project-current))))
-         (pyproject-path (when project-root (expand-file-name "pyproject.toml" project-root)))
-         (venv-path pyvenv-virtual-env)
-         (venv-ruff (when venv-path 
-                     (expand-file-name "bin/ruff" venv-path)))
-         (global-ruff (executable-find "ruff"))
-         (active-ruff (if (and venv-path (file-exists-p venv-ruff))
-                         venv-ruff
-                       global-ruff))
-         (eglot-server (when (bound-and-true-p eglot--managed-mode)
-                        (eglot--server-name (eglot-current-server)))))
+  ;; Hook to run both on save
+  :hook ((python-ts-mode . (lambda ()
+                             (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))
+         (python-mode . (lambda ()
+                          (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))))
 
-    ;; Print debug information
-    (with-current-buffer (get-buffer-create "*python-dev-debug*")
-      (erase-buffer)
-      (insert "Python Development Configuration Debug Info:\n\n")
-      (insert (format "Project Root: %s\n" project-root))
-      (insert (format "pyproject.toml exists: %s\n" (and pyproject-path (file-exists-p pyproject-path))))
-      (insert (format "pyproject.toml path: %s\n" pyproject-path))
-      (insert (format "Virtual Env: %s\n" venv-path))
-      (insert (format "Virtualenv Ruff: %s\n" venv-ruff))
-      (insert (format "Global Ruff: %s\n" global-ruff))
-      (insert (format "Active Ruff: %s\n" active-ruff))
-      (insert (format "Eglot running: %s\n" (bound-and-true-p eglot--managed-mode)))
-      (insert (format "Eglot server: %s\n" eglot-server))
-      (insert (format "Current server: %s\n" (and (bound-and-true-p eglot--managed-mode)
-                                                 (eglot-current-server))))
+;; Configure pytest integration
+(use-package python-pytest
+  :after python
+  :custom
+  (python-pytest-confirm t)
+  :bind
+  (:map python-ts-mode-map
+        ("C-c C-x t" . python-pytest-dispatch))
+  (:map python-mode-map
+        ("C-c C-x t" . python-pytest-dispatch)))
 
-      ;; Try to read pyproject.toml content if it exists
-      (when (and pyproject-path (file-exists-p pyproject-path))
-        (insert "\npyproject.toml content:\n")
-        (insert-file-contents pyproject-path)
-        (goto-char (point-max))))
+;; Legacy support for poetry projects
+(use-package poetry
+  :after python
+  :config
+  (poetry-tracking-mode))
 
-    (display-buffer "*python-dev-debug*")))
+;; Improved Python docstring editing
+(use-package python-docstring
+  :hook ((python-ts-mode python-mode) . python-docstring-mode))
 
-;; Add debug hook for Python modes
-(defun efs/python-mode-debug-hook ()
-  "Hook to run python debug info when mode starts."
-  (when (derived-mode-p 'python-mode 'python-ts-mode)
-    (efs/debug-python-dev-config)))
+;; Advanced Python folding
+(use-package origami
+  :hook ((python-ts-mode python-mode) . origami-mode))
 
-(add-hook 'python-mode-hook #'efs/python-mode-debug-hook)
-(add-hook 'python-ts-mode-hook #'efs/python-mode-debug-hook)
+;; Python Linting Configuration
+(use-package flymake
+  :straight (:type built-in)
+  :custom
+  (flymake-fringe-indicator-position 'left-fringe)
+  (flymake-suppress-zero-counters t)
+  (flymake-start-on-save-buffer t)
+  (flymake-no-changes-timeout 0.3)
+  :config
+  ;; Show flymake diagnostics first in minibuffer
+  (setq eldoc-documentation-functions
+        (cons #'flymake-eldoc-function
+              (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+  :hook ((python-ts-mode . flymake-mode)
+         (python-mode . flymake-mode)))
+
+(use-package flymake-ruff
+  :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+  :custom
+  (flymake-ruff-program (car (efs/get-venv-program "ruff")))
+  :hook ((python-ts-mode . flymake-ruff-load)
+         (python-mode . flymake-ruff-load)))
