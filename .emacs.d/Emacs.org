@@ -934,6 +934,132 @@ These variables are already set in our configuration, shown here for reference:
 #+end_src
 
 * Python
+** Reference
+*Note*: Not all key bindings are test or mapped. That is a work in progress.
+
+*** Core Python Features
+**** Tree-sitter Mode
+- Modern syntax-aware major mode for Python
+- Automatically activated for .py files
+- Better syntax highlighting and structural editing
+
+**** Virtual Environment Integration
+- Automatically detects and uses project's .venv
+- Integrates with python-shell, tools, and LSP
+- Helper function ~efs/get-venv-program~ for virtualenv-aware commands
+
+**** Language Server (Eglot + Jedi)
+- Code completion
+- Go to definition
+- Find references
+- Documentation on hover
+- Signature help
+- Symbol renaming
+- Auto-imports
+
+*** Code Formatting and Linting
+**** Ruff Integration
+***** Formatting (automatic on save)
+- Code formatting to match black style
+- Import sorting (isort functionality)
+- Configurable through ~pyproject.toml~ or ~ruff.toml~
+
+***** Linting with Flymake
+- Real-time linting using Ruff
+- Error navigation:
+  - ~M-n~ or ~C-M-n~: Next error
+  - ~M-p~ or ~C-M-p~: Previous error
+  - ~M-?~ or ~M-g b~: Show diagnostics buffer
+- Visual indicators in fringe
+- Inline diagnostics in minibuffer via eldoc
+- Automatic checking on save and while typing
+
+*** Testing
+**** Pytest Integration (~C-c C-x t~)
+- Run all tests
+- Run current test
+- Run tests in current file
+- Debug test
+- Last failed tests
+- Coverage report
+
+*** Additional Tools
+**** Poetry
+- Automatic virtualenv activation
+- Project dependency management
+- Environment tracking
+
+**** Docstring Support
+- ~M-x python-docstring-insert~: Insert docstring template
+- ~TAB~: Navigate through docstring fields
+- ~M-q~: Reflow docstring paragraphs
+- Syntax highlighting for docstrings
+
+**** Code Folding (Origami)
+- ~C-c @ C-c~: Toggle fold at point
+- ~C-c @ C-a~: Toggle all folds
+- ~C-c @ C-s~: Show all
+- ~C-c @ C-h~: Hide all
+- ~C-c @ C-f~: Forward fold
+- ~C-c @ C-b~: Backward fold
+
+*** Python Mode Key Bindings Cheat Sheet
+**** REPL and Shell Integration
+- ~C-c C-p~ : Run Python shell
+- ~C-c C-z~ : Switch to Python shell
+- ~C-c C-c~ : Send current buffer region to shell
+- ~C-c C-r~ : Send region to shell
+- ~C-c C-s~ : Send statement to shell
+- ~C-M-x~   : Send function definition to shell
+
+**** Navigation and Structure
+- ~C-M-a~ : Beginning of defun (class/function)
+- ~C-M-e~ : End of defun
+- ~C-M-h~ : Mark defun
+- ~C-c C-j~ : Jump to definition (using Eglot)
+- ~M-{~   : Previous defun
+- ~M-}~   : Next defun
+
+**** Code Formatting
+- ~C-c <~ : Shift region left
+- ~C-c >~ : Shift region right
+- ~C-M-\~ : Indent region
+- ~TAB~   : Indent line or region
+
+**** Testing (python-pytest)
+- ~C-c C-x t~ : Pytest dispatch menu
+  - ~t~ : Test at point
+  - ~f~ : Test current file
+  - ~p~ : Test previous
+  - ~r~ : Rerun failed tests
+  - ~d~ : Debug test at point
+
+**** Documentation and Help
+- ~C-c C-v~ : Python documentation lookup
+- ~C-h f~   : Describe function (works with Eglot)
+- ~C-c C-d~ : Show documentation for symbol at point
+
+*** Required Python Packages
+Install in your project's virtualenv:
+#+begin_example
+pip install ruff jedi-language-server pytest
+#+end_example
+
+*** Configuration Files
+**** Example ruff.toml or pyproject.toml
+#+begin_example
+[tool.ruff]
+# Enable flake8-bugbear (`B`) rules
+select = ["E", "F", "B"]
+# Same as Black
+line-length = 88
+indent-width = 4
+# Assume Python 3.8
+target-version = "py38"
+#+end_example
+** Code
+
+*** Python mode with Eglot and Jedi Language Server
 #+begin_src emacs-lisp
   ;; Python Development Configuration
 
@@ -976,6 +1102,7 @@ These variables are already set in our configuration, shown here for reference:
     :straight (:type built-in)
     :hook ((python-ts-mode . eglot-ensure)
            (python-mode . eglot-ensure))
+    :init (setq eglot-stay-out-of '(flymake))
     :custom
     (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
     (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
@@ -989,17 +1116,10 @@ These variables are already set in our configuration, shown here for reference:
     ;; Register jedi with eglot using dynamic command resolution
     (add-to-list 'eglot-server-programs
                  `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
+#+end_src
 
-  ;; Legacy support for poetry projects
-  (use-package poetry
-    :after python
-    :config
-    (poetry-tracking-mode))
-
-  ;; Improved Python docstring editing
-  (use-package python-docstring
-    :hook ((python-ts-mode python-mode) . python-docstring-mode))
-
+*** Python formatting with Ruff
+#+begin_src emacs-lisp
   ;; Format Python code with ruff
   (use-package reformatter
     :config
@@ -1029,11 +1149,10 @@ These variables are already set in our configuration, shown here for reference:
                                (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))
            (python-mode . (lambda ()
                             (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))))
+#+end_src
 
-  ;; Advanced Python folding
-  (use-package origami
-    :hook ((python-ts-mode python-mode) . origami-mode))
-
+*** Pytest
+#+begin_src emacs-lisp
   ;; Configure pytest integration
   (use-package python-pytest
     :after python
@@ -1044,15 +1163,47 @@ These variables are already set in our configuration, shown here for reference:
           ("C-c C-x t" . python-pytest-dispatch))
     (:map python-mode-map
           ("C-c C-x t" . python-pytest-dispatch)))
+#+end_src
 
-  ;; Add Python-specific key bindings
-  (with-eval-after-load 'python
-    ;; Define a custom prefix keymap for Python-specific bindings
-    (define-prefix-command 'python-custom-map)
-    (define-key python-ts-mode-map (kbd "C-c C-p") 'python-custom-map)
-    (define-key python-mode-map (kbd "C-c C-p") 'python-custom-map)
+*** Misc Python tools
+#+begin_src emacs-lisp
+  ;; Legacy support for poetry projects
+  (use-package poetry
+    :after python
+    :config
+    (poetry-tracking-mode))
 
-    ;; Add specific bindings under the prefix
-    (define-key python-custom-map (kbd "f") 'ruff-format-and-sort)
-    (define-key python-custom-map (kbd "d") 'python-docstring-insert))
+  ;; Improved Python docstring editing
+  (use-package python-docstring
+    :hook ((python-ts-mode python-mode) . python-docstring-mode))
+
+  ;; Advanced Python folding
+  (use-package origami
+    :hook ((python-ts-mode python-mode) . origami-mode))
+#+end_src
+
+*** Linting with flymake-ruff
+#+begin_src emacs-lisp
+  ;; Python Linting Configuration
+  (use-package flymake
+    :straight (:type built-in)
+    :custom
+    (flymake-fringe-indicator-position 'left-fringe)
+    (flymake-suppress-zero-counters t)
+    (flymake-start-on-save-buffer t)
+    (flymake-no-changes-timeout 0.3)
+    :config
+    ;; Show flymake diagnostics first in minibuffer
+    (setq eldoc-documentation-functions
+          (cons #'flymake-eldoc-function
+                (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+    :hook ((python-ts-mode . flymake-mode)
+           (python-mode . flymake-mode)))
+
+  (use-package flymake-ruff
+    :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+    :custom
+    (flymake-ruff-program (car (efs/get-venv-program "ruff")))
+    :hook ((python-ts-mode . flymake-ruff-load)
+           (python-mode . flymake-ruff-load)))
 #+end_src

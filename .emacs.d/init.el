@@ -751,6 +751,7 @@ otherwise returns a list with just the program name."
   :straight (:type built-in)
   :hook ((python-ts-mode . eglot-ensure)
          (python-mode . eglot-ensure))
+  :init (setq eglot-stay-out-of '(flymake))
   :custom
   (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
   (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
@@ -764,16 +765,6 @@ otherwise returns a list with just the program name."
   ;; Register jedi with eglot using dynamic command resolution
   (add-to-list 'eglot-server-programs
                `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
-
-;; Legacy support for poetry projects
-(use-package poetry
-  :after python
-  :config
-  (poetry-tracking-mode))
-
-;; Improved Python docstring editing
-(use-package python-docstring
-  :hook ((python-ts-mode python-mode) . python-docstring-mode))
 
 ;; Format Python code with ruff
 (use-package reformatter
@@ -805,10 +796,6 @@ otherwise returns a list with just the program name."
          (python-mode . (lambda ()
                           (add-hook 'before-save-hook #'ruff-format-and-sort nil t)))))
 
-;; Advanced Python folding
-(use-package origami
-  :hook ((python-ts-mode python-mode) . origami-mode))
-
 ;; Configure pytest integration
 (use-package python-pytest
   :after python
@@ -820,13 +807,39 @@ otherwise returns a list with just the program name."
   (:map python-mode-map
         ("C-c C-x t" . python-pytest-dispatch)))
 
-;; Add Python-specific key bindings
-(with-eval-after-load 'python
-  ;; Define a custom prefix keymap for Python-specific bindings
-  (define-prefix-command 'python-custom-map)
-  (define-key python-ts-mode-map (kbd "C-c C-p") 'python-custom-map)
-  (define-key python-mode-map (kbd "C-c C-p") 'python-custom-map)
+;; Legacy support for poetry projects
+(use-package poetry
+  :after python
+  :config
+  (poetry-tracking-mode))
 
-  ;; Add specific bindings under the prefix
-  (define-key python-custom-map (kbd "f") 'ruff-format-and-sort)
-  (define-key python-custom-map (kbd "d") 'python-docstring-insert))
+;; Improved Python docstring editing
+(use-package python-docstring
+  :hook ((python-ts-mode python-mode) . python-docstring-mode))
+
+;; Advanced Python folding
+(use-package origami
+  :hook ((python-ts-mode python-mode) . origami-mode))
+
+;; Python Linting Configuration
+(use-package flymake
+  :straight (:type built-in)
+  :custom
+  (flymake-fringe-indicator-position 'left-fringe)
+  (flymake-suppress-zero-counters t)
+  (flymake-start-on-save-buffer t)
+  (flymake-no-changes-timeout 0.3)
+  :config
+  ;; Show flymake diagnostics first in minibuffer
+  (setq eldoc-documentation-functions
+        (cons #'flymake-eldoc-function
+              (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+  :hook ((python-ts-mode . flymake-mode)
+         (python-mode . flymake-mode)))
+
+(use-package flymake-ruff
+  :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+  :custom
+  (flymake-ruff-program (car (efs/get-venv-program "ruff")))
+  :hook ((python-ts-mode . flymake-ruff-load)
+         (python-mode . flymake-ruff-load)))
