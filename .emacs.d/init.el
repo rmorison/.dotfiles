@@ -712,6 +712,20 @@
 
 ;; Python Development Configuration
 
+;; Find programs in virtual env bin dir or relay on PATH
+(defun efs/get-venv-program (program-name)
+  "Get command for PROGRAM-NAME using project's virtualenv.
+Returns a list containing the full path if found in virtualenv,
+otherwise returns a list with just the program name."
+  (let* ((project-dir (project-root (project-current t)))
+         (venv-dir (when project-dir 
+                     (expand-file-name ".venv" project-dir)))
+         (venv-program (when venv-dir
+                         (expand-file-name (concat "bin/" program-name) venv-dir))))
+    (if (and venv-program (file-executable-p venv-program))
+        (list venv-program)
+      (list program-name))))
+
 ;; Use treesit-based python mode when available
 (use-package python
   :straight (:type built-in)
@@ -727,14 +741,7 @@
   ;; Function to get the project's virtualenv python
   (defun efs/get-project-python ()
     "Get python executable from project's virtualenv."
-    (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir 
-                       (expand-file-name ".venv" project-dir)))
-           (venv-python (when venv-dir
-                          (expand-file-name "bin/python" venv-dir))))
-      (if (and venv-python (file-executable-p venv-python))
-          venv-python
-        "python")))
+    (car (efs/get-venv-program "python")))
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python))
@@ -752,14 +759,7 @@
   ;; Function to get virtualenv-aware jedi command
   (defun efs/get-jedi-command ()
     "Get jedi-language-server command using project's virtualenv."
-    (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir 
-                       (expand-file-name ".venv" project-dir)))
-           (venv-jedi (when venv-dir
-                        (expand-file-name "bin/jedi-language-server" venv-dir))))
-      (if (and venv-jedi (file-executable-p venv-jedi))
-          (list venv-jedi)
-        '("jedi-language-server"))))
+    (efs/get-venv-program "jedi-language-server"))
 
   ;; Register jedi with eglot using dynamic command resolution
   (add-to-list 'eglot-server-programs
@@ -781,14 +781,7 @@
   ;; Function to get ruff formatter command
   (defun efs/get-ruff-command ()
     "Get ruff command from virtualenv or global install."
-    (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir 
-                       (expand-file-name ".venv" project-dir)))
-           (venv-ruff (when venv-dir
-                        (expand-file-name "bin/ruff" venv-dir))))
-      (if (and venv-ruff (file-executable-p venv-ruff))
-          venv-ruff
-        "ruff")))
+    (car (efs/get-venv-program "ruff")))
 
   ;; Define formatters for both format and isort
   (reformatter-define ruff-format
