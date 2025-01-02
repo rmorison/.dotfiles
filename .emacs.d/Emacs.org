@@ -933,6 +933,16 @@ These variables are already set in our configuration, shown here for reference:
   (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 #+end_src
 
+* Markdown
+#+begin_src emacs-lisp
+  (use-package markdown-mode
+    :straight t
+    :mode (("README\\.md\\'" . gfm-mode)
+           ("\\.md\\'" . markdown-mode)
+           ("\\.markdown\\'" . markdown-mode))
+    :init (setq markdown-command "multimarkdown"))
+#+end_src
+
 * Python
 ** Reference
 *Note*: Not all key bindings are test or mapped. That is a work in progress.

@@ -710,6 +710,13 @@
 (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
 (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 
+(use-package markdown-mode
+  :straight t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init (setq markdown-command "multimarkdown"))
+
 ;; Python Development Configuration
 
 ;; Find programs in virtual env bin dir or relay on PATH
