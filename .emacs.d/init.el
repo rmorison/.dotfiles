@@ -10,15 +10,15 @@
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 6))
+	 (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+	(bootstrap-version 6))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
-	(url-retrieve-synchronously
-	 "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-	 'silent 'inhibit-cookies)
-      (goto-char (point-max))
-      (eval-print-last-sexp)))
+	  (url-retrieve-synchronously
+	   "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+	   'silent 'inhibit-cookies)
+	(goto-char (point-max))
+	(eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 (setq straight-use-package-by-default t) ;; Automatically use `straight.el` with `use-package`
 
@@ -125,7 +125,10 @@
 ;;(load-theme 'tango-dark)
 ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
 (use-package doom-themes
-  :init (load-theme 'doom-acario-dark t))
+  :init (load-theme 'doom-acario-dark t)
+  :config
+  (custom-set-faces
+   '(region ((t (:background "#4f5b66"))))))
 
 ;; Replace the all-the-icons package with nerd-icons
 ;; all-the-icons is broken in doomemacs, see
@@ -180,15 +183,15 @@
 (use-package ivy
   :diminish
   :bind (("C-s" . swiper)
-	 ("C-c i" . imenu)
-	 :map ivy-minibuffer-map
-	 ("TAB" . ivy-alt-done)
-	 ("C-l" . ivy-partial)
-	 :map ivy-switch-buffer-map
-	 ("C-l" . ivy-partial)
-	 ("C-d" . ivy-switch-buffer-kill)
-	 :map ivy-reverse-i-search-map
-	 ("C-d" . ivy-reverse-i-search-kill))
+	   ("C-c i" . imenu)
+	   :map ivy-minibuffer-map
+	   ("TAB" . ivy-alt-done)
+	   ("C-l" . ivy-partial)
+	   :map ivy-switch-buffer-map
+	   ("C-l" . ivy-partial)
+	   ("C-d" . ivy-switch-buffer-kill)
+	   :map ivy-reverse-i-search-map
+	   ("C-d" . ivy-reverse-i-search-kill))
   :config
   (ivy-mode 1))
 
@@ -197,8 +200,8 @@
 
 (use-package counsel
   :bind (("C-M-j" . 'counsel-switch-buffer)
-	 :map minibuffer-local-map
-	 ("C-r" . 'counsel-minibuffer-history))
+	   :map minibuffer-local-map
+	   ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
   :config
@@ -300,7 +303,6 @@
    ("f"   . dirvish-file-info-menu)
    ("y"   . dirvish-yank-menu)
    ("N"   . dirvish-narrow)
-   ("^"   . dirvish-history-last)
    ("h"   . dirvish-history-jump) ; remapped `describe-mode'
    ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
    ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
@@ -710,12 +712,21 @@
 (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
 (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 
-(use-package markdown-mode
-  :straight t
-  :mode (("README\\.md\\'" . gfm-mode)
-         ("\\.md\\'" . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode))
-  :init (setq markdown-command "multimarkdown"))
+;; Dockerfile mode for editing Dockerfiles
+(use-package dockerfile-mode
+  :ensure t
+  :mode ("Dockerfile\\'" . dockerfile-mode))
+
+;; Docker management from Emacs
+(use-package docker
+  :ensure t
+  :bind ("C-c d" . docker)
+  :config
+  (setq docker-command "docker"))
+
+;; docker compose mode
+(use-package docker-compose-mode
+  :ensure t)
 
 ;; Python Development Configuration
 

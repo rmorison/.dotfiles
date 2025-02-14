@@ -160,7 +160,10 @@
   ;;(load-theme 'tango-dark)
   ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
   (use-package doom-themes
-    :init (load-theme 'doom-acario-dark t))
+    :init (load-theme 'doom-acario-dark t)
+    :config
+    (custom-set-faces
+     '(region ((t (:background "#4f5b66"))))))
 
   ;; Replace the all-the-icons package with nerd-icons
   ;; all-the-icons is broken in doomemacs, see
@@ -446,7 +449,6 @@ Dirvish integrates with fd for advanced file searching:
      ("f"   . dirvish-file-info-menu)
      ("y"   . dirvish-yank-menu)
      ("N"   . dirvish-narrow)
-     ("^"   . dirvish-history-last)
      ("h"   . dirvish-history-jump) ; remapped `describe-mode'
      ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
      ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
@@ -933,14 +935,114 @@ These variables are already set in our configuration, shown here for reference:
   (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 #+end_src
 
-* Markdown
+* Docker
+
+** Emacs Docker Mode Reference
+
+*** Basic Docker Commands
+    | Command                | Description                    | Keybinding |
+    |-----------------------+--------------------------------+------------|
+    | ~docker~              | Open main Docker menu          | C-c d      |
+    | ~docker-containers~   | List all containers            |            |
+    | ~docker-images~       | List all images                |            |
+    | ~docker-networks~     | List all networks              |            |
+    | ~docker-volumes~      | List all volumes               |            |
+
+*** Container Management
+    | Command                      | Description                          |
+    |------------------------------+--------------------------------------|
+    | ~docker-container-start~     | Start container(s)                  |
+    | ~docker-container-stop~      | Stop container(s)                   |
+    | ~docker-container-restart~   | Restart container(s)                |
+    | ~docker-container-pause~     | Pause container(s)                  |
+    | ~docker-container-unpause~   | Unpause container(s)                |
+    | ~docker-container-rm~        | Remove container(s)                 |
+    | ~docker-container-shells~    | Open shell in container             |
+    | ~docker-container-logs~      | View container logs                 |
+
+*** Image Management
+    | Command                | Description                              |
+    |------------------------+------------------------------------------|
+    | ~docker-image-pull~    | Pull an image                           |
+    | ~docker-image-push~    | Push an image                           |
+    | ~docker-image-rm~      | Remove image(s)                         |
+    | ~docker-image-inspect~ | Inspect image                           |
+
+*** Docker Compose
+    | Command                     | Description                         |
+    |-----------------------------+-------------------------------------|
+    | ~docker-compose-up~         | Start containers                   |
+    | ~docker-compose-down~       | Stop containers                    |
+    | ~docker-compose-restart~    | Restart containers                 |
+    | ~docker-compose-logs~       | View logs                          |
+    | ~docker-compose-build~      | Build services                     |
+
+*** Dockerfile Mode
+    | Command                | Description                              |
+    |------------------------+------------------------------------------|
+    | ~dockerfile-build-buffer~ | Build Dockerfile from current buffer   |
+    | ~dockerfile-build-no-cache-buffer~ | Build without cache          |
+
+*** In Container/Image List Buffer
+    | Key     | Description                                  |
+    |---------+----------------------------------------------|
+    | ~?~     | Show help                                    |
+    | ~m~     | Mark item                                    |
+    | ~u~     | Unmark item                                  |
+    | ~t~     | Toggle marks                                 |
+    | ~U~     | Unmark all                                   |
+    | ~RET~   | Select item                                  |
+    | ~q~     | Quit window                                  |
+
+*** Tips
+    - Use ~M-x customize-group RET docker~ to customize Docker mode settings
+    - Most commands that operate on multiple items work on marked items
+    - In listing buffers, press ~?~ to see all available keybindings
+    - Use ~docker-container-find-file~ to edit files inside containers
+
+*** Docker Compose Mode Features
+    - Syntax highlighting for docker-compose.yml
+    - Validation of docker-compose files
+    - Auto-completion of services, volumes, and networks
+    - YAML validation and linting
+
+*** Common Patterns
+    #+BEGIN_SRC org
+    1. Starting a new container:
+       - M-x docker
+       - i (to switch to images)
+       - Find desired image
+       - c (to create container)
+
+    2. Managing running containers:
+       - M-x docker
+       - c (to switch to containers)
+       - Mark containers with 'm'
+       - Perform operations (start/stop/restart)
+
+    3. Viewing logs:
+       - In containers list
+       - Move to container
+       - l (for logs)
+    #+END_SRC
+
+** Code
 #+begin_src emacs-lisp
-  (use-package markdown-mode
-    :straight t
-    :mode (("README\\.md\\'" . gfm-mode)
-           ("\\.md\\'" . markdown-mode)
-           ("\\.markdown\\'" . markdown-mode))
-    :init (setq markdown-command "multimarkdown"))
+  ;; Dockerfile mode for editing Dockerfiles
+  (use-package dockerfile-mode
+    :ensure t
+    :mode ("Dockerfile\\'" . dockerfile-mode))
+
+  ;; Docker management from Emacs
+  (use-package docker
+    :ensure t
+    :bind ("C-c d" . docker)
+    :config
+    (setq docker-command "docker"))
+
+  ;; docker compose mode
+  (use-package docker-compose-mode
+    :ensure t)
 #+end_src
 
 * Python
