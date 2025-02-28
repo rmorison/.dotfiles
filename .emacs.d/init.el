@@ -60,7 +60,7 @@
   (setq mac-option-modifier 'meta)
   (setq insert-directory-program "gls" dired-use-ls-dired t)
 
-  ;; nice up the osx screen on 3440x1440 display 
+  ;; nice up the osx screen on 3440x1440 display
   (setq efs/default-font-size 160)
   (setq efs/default-variable-font-size 160))
 
@@ -147,7 +147,7 @@
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
-  :custom 
+  :custom
   ((doom-modeline-height 15)
    (doom-modeline-icon t)
    (doom-modeline-major-mode-icon t)
@@ -622,13 +622,14 @@
       (treesit-install-language-grammar (car grammar))))
 
   ;; Use tree-sitter modes when available
-  (setq major-mode-remap-alist
-        '((python-mode . python-ts-mode)
-          (typescript-mode . typescript-ts-mode)
-          (js-mode . js-ts-mode)
-          (js2-mode . js-ts-mode)
-          (go-mode . go-ts-mode)
-          (sql-mode . sql-ts-mode)))
+  (with-eval-after-load 'sql  ;; Only remap sql-mode after it's loaded
+    (setq major-mode-remap-alist
+          '((python-mode . python-ts-mode)
+            (typescript-mode . typescript-ts-mode)
+            (js-mode . js-ts-mode)
+            (js2-mode . js-ts-mode)
+            (go-mode . go-ts-mode)
+            (sql-mode . sql-ts-mode))))
 
   ;; Ensure font-lock works well
   (setq treesit-font-lock-level 4))
@@ -736,7 +737,7 @@
 Returns a list containing the full path if found in virtualenv,
 otherwise returns a list with just the program name."
   (let* ((project-dir (project-root (project-current t)))
-         (venv-dir (when project-dir 
+         (venv-dir (when project-dir
                      (expand-file-name ".venv" project-dir)))
          (venv-program (when venv-dir
                          (expand-file-name (concat "bin/" program-name) venv-dir))))
@@ -751,7 +752,7 @@ otherwise returns a list with just the program name."
   :custom
   (python-indent-offset 4)
   ;; Look for .venv in project root
-  (python-shell-virtualenv-root (lambda () 
+  (python-shell-virtualenv-root (lambda ()
                                   (let ((project-dir (project-root (project-current t))))
                                     (when project-dir
                                       (expand-file-name ".venv" project-dir)))))
@@ -861,3 +862,124 @@ otherwise returns a list with just the program name."
   (flymake-ruff-program (car (efs/get-venv-program "ruff")))
   :hook ((python-ts-mode . flymake-ruff-load)
          (python-mode . flymake-ruff-load)))
+
+;; SQL Mode Configuration
+;; Note, you'll need
+;; # For Ubuntu/Debian
+;; sudo apt install pgformatter
+;; # For MacOS
+;; brew install pgformatter
+
+;; Try to load sql-ts-mode, don't error if not found
+(require 'sql-ts-mode nil t)
+
+;; Then check status again
+(message "After require: SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+         (and (fboundp 'treesit-language-available-p)
+              (treesit-language-available-p 'sql))
+         (fboundp 'sql-ts-mode))
+
+;; Basic SQL Mode
+(use-package sql
+  :straight (:type built-in)
+  :mode ("\\.sql\\'" . sql-mode)  ;; Regular mapping, tree-sitter handled by remap
+  :custom
+  (sql-product 'postgres)  ; Default to PostgreSQL
+  (sql-indent-offset 2)
+  :config
+  ;; Load connection configuration if it exists
+  (when (file-exists-p (expand-file-name "sql-connections.el" user-emacs-directory))
+    (load (expand-file-name "sql-connections.el" user-emacs-directory)))
+
+  ;; Helper function for SQL connections
+  (defun efs/sql-connect-preset (name)
+    "Connect to a predefined SQL connection by NAME."
+    (interactive
+     (list
+      (completing-read "SQL connection: "
+                       (mapcar #'car sql-connection-alist))))
+    (let ((connection (assoc name sql-connection-alist)))
+      (when connection
+        (setq sql-connection-alist (cons connection (delete connection sql-connection-alist)))
+        (let ((sql-product (cadr (assoc 'sql-product connection))))
+          (sql-connect name)))))
+
+  ;; Helper function to set dialect based on file extension or buffer name
+  (defun efs/sql-set-dialect-from-file ()
+    "Set SQL dialect based on file extension or buffer name."
+    (let ((file-name (buffer-file-name))
+          (buffer-name (buffer-name)))
+      (cond
+       ;; By file extension
+       ((and file-name (string-match "\\.psql\\'" file-name)) (sql-set-product 'postgres))
+       ((and file-name (string-match "\\.mysql\\'" file-name)) (sql-set-product 'mysql))
+       ((and file-name (string-match "\\.sqlite\\'" file-name)) (sql-set-product 'sqlite))
+       ;; By buffer naming conventions
+       ((and buffer-name (string-match "postgres\\|pg_\\|pgsql" buffer-name)) (sql-set-product 'postgres))
+       ((and buffer-name (string-match "mysql" buffer-name)) (sql-set-product 'mysql))
+       ((and buffer-name (string-match "sqlite" buffer-name)) (sql-set-product 'sqlite))))))
+
+;; SQLi history configuration
+(use-package sql
+  :straight (:type built-in)
+  :custom
+  (sql-input-ring-file-name (expand-file-name "sqli_history" no-littering-var-directory))
+  (sql-input-ring-size 1000)
+  :hook
+  ;; Set dialect on file open
+  (sql-mode . efs/sql-set-dialect-from-file)
+  (sql-interactive-mode . (lambda ()
+                            (toggle-truncate-lines t)
+                            (sql-input-ring-load)
+                            (add-hook 'kill-buffer-hook 'sql-input-ring-save nil t))))
+
+;; SQL indentation
+(use-package sql-indent
+  :hook ((sql-mode sql-ts-mode) . sqlind-minor-mode)
+  :custom
+  (sqlind-basic-offset 2)
+  (sqlind-indentation-offsets-alist
+   '((select-clause 0)
+     (insert-clause 0)
+     (delete-clause 0)
+     (update-clause 0)
+     (select-column-continuation + sqlind-basic-offset)
+     (select-join-condition + sqlind-basic-offset)
+     (select-table (sqlind-lineup-joins-to-anchor sqlind-basic-offset 1))
+     (in-select-clause sqlind-lineup-select-target)
+     (in-select-join-condition sqlind-lineup-select-join)
+     (in-select-column sqlind-lineup-list-item)
+     (select-table-continuation + sqlind-basic-offset))))
+
+;; Enable sqlup-mode for SQL keyword capitalization
+(use-package sqlup-mode
+  :hook ((sql-mode sql-interactive-mode sql-ts-mode) . sqlup-mode))
+
+;; SQL Mode company integration
+(with-eval-after-load 'company
+  (add-hook 'sql-mode-hook
+            (lambda ()
+              (setq-local company-backends
+                          (append '(company-keywords company-dabbrev-code)
+                                  company-backends))))
+  (add-hook 'sql-ts-mode-hook
+            (lambda ()
+              (setq-local company-backends
+                          (append '(company-keywords company-dabbrev-code)
+                                  company-backends)))))
+
+;; Format SQL with sqlformat
+(use-package sqlformat
+  :custom
+  (sqlformat-command 'pgformatter)    ; 'sqlformat, 'pgformatter, or 'sqlfluff
+  (sqlformat-args '("-s2" "-g"))      ; Arguments for pgformatter
+  :hook
+  ((sql-mode sql-ts-mode) . (lambda ()
+                            (add-hook 'before-save-hook 'sqlformat-buffer nil t))))
+
+;; Add debug info to help diagnose tree-sitter status
+(with-eval-after-load 'sql
+  (message "SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+           (and (fboundp 'treesit-language-available-p)
+                (treesit-language-available-p 'sql))
+           (fboundp 'sql-ts-mode)))
