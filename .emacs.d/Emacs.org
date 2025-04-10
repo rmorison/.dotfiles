@@ -421,6 +421,9 @@ Dirvish integrates with fd for advanced file searching:
 
 ** Code
 #+begin_src emacs-lisp
+  ;; Load server explicitly before dirvish
+  (require 'server)
+
   (use-package dirvish
     :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
     :init
@@ -464,6 +467,39 @@ Dirvish integrates with fd for advanced file searching:
 #+end_src
 
 * Eat Terminal
+** Reference
+*** General Input Bindings
+- ~C-q~ - Send next key to the terminal
+- ~C-y~ - Like `yank`, but send the text to the terminal
+- ~M-y~ - Like `yank-pop`, but send the text to the terminal
+- ~C-c C-k~ - Kill process
+
+*** Input Mode Switching
+- ~C-c C-e~ - Switch to "emacs" input mode
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+- ~C-c C-l~ - Switch to "line" input mode
+
+*** Mode-Specific Bindings
+
+**** Emacs Mode
+No special keybindings except mode switching and process control:
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+- ~C-c C-l~ - Switch to "line" input mode
+- ~C-c C-k~ - Kill process
+
+**** Char Mode
+All supported keys are bound to send the key to the terminal, except:
+- ~C-M-m~ or ~M-RET~ - Switch to "semi-char" input mode
+
+**** Line Mode
+Similar to Comint, Shell mode and Term line mode. Terminal input is sent one line at a time:
+- ~C-c C-e~ - Switch to "emacs" input mode
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+  
+** Code
 #+begin_src emacs-lisp
   ;; Install and configure eat
   (straight-use-package
@@ -677,6 +713,7 @@ Dirvish integrates with fd for advanced file searching:
     (add-to-list 'org-structure-template-alist '("go" . "src go"))
     (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
     (add-to-list 'org-structure-template-alist '("ty" . "src typescript"))
+    (add-to-list 'org-structure-template-alist '("sq" . "src sql"))
     (add-to-list 'org-structure-template-alist '("mm" . "src mermaid"))
 
     ;; don't ask on eval block C-c C-c
@@ -928,7 +965,7 @@ These variables are already set in our configuration, shown here for reference:
           (auth-source-pick-first-password :host "api.openai.com"))
     (setq chatgpt-shell-anthropic-key
           (auth-source-pick-first-password :host "api.anthropic.com"))
-    (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+    (setq chatgpt-shell-model-version "claude-3-7-sonnet-latest"))
 
   ;; Key bindings for ChatGPT shell commands
   (global-set-key (kbd "C-c s") 'chatgpt-shell)

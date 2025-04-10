@@ -275,6 +275,9 @@
   :custom
   (dired-listing-switches "-aghoL --group-directories-first"))
 
+;; Load server explicitly before dirvish
+(require 'server)
+
 (use-package dirvish
   :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
   :init
@@ -525,6 +528,7 @@
   (add-to-list 'org-structure-template-alist '("go" . "src go"))
   (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
   (add-to-list 'org-structure-template-alist '("ty" . "src typescript"))
+  (add-to-list 'org-structure-template-alist '("sq" . "src sql"))
   (add-to-list 'org-structure-template-alist '("mm" . "src mermaid"))
 
   ;; don't ask on eval block C-c C-c
@@ -706,7 +710,7 @@
         (auth-source-pick-first-password :host "api.openai.com"))
   (setq chatgpt-shell-anthropic-key
         (auth-source-pick-first-password :host "api.anthropic.com"))
-  (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+  (setq chatgpt-shell-model-version "claude-3-7-sonnet-latest"))
 
 ;; Key bindings for ChatGPT shell commands
 (global-set-key (kbd "C-c s") 'chatgpt-shell)
