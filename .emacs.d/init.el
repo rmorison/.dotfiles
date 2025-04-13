@@ -580,6 +580,74 @@
   :hook (yaml-mode . (lambda ()
                       (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 
+;; Markdown Mode for composing, editing, and reviewing markdown documents
+(use-package markdown-mode
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init
+  (setq markdown-command "pandoc")  ;; Use pandoc for previewing
+  :custom
+  (markdown-fontify-code-blocks-natively t)  ;; Syntax highlight code blocks
+  (markdown-enable-math t)  ;; Enable LaTeX math support
+  (markdown-enable-wiki-links t)  ;; Enable wiki-style links
+  (markdown-italic-underscore t)  ;; Use underscores for italic
+  (markdown-asymmetric-header t)  ;; Don't add trailing # on headers
+  (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
+  (markdown-header-scaling t)  ;; Scale headers
+  (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
+  (markdown-hide-urls nil)  ;; Show URLs
+  (markdown-indent-on-enter t)  ;; Automatically indent new lines
+  (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+  :config
+  ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+  (add-hook 'markdown-mode-hook #'visual-line-mode)
+  (add-hook 'markdown-mode-hook (lambda ()
+                                  (setq visual-fill-column-width efs/default-fill-column)
+                                  (visual-fill-column-mode 1)))
+  
+  ;; Key bindings
+  :bind (:map markdown-mode-map
+         ("C-c C-s a" . markdown-table-align)  ;; Align tables
+         ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
+         ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
+         ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+         ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+;; Live preview of Markdown
+(use-package markdown-preview-mode
+  :after markdown-mode
+  :custom
+  (markdown-preview-stylesheets
+   '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"))
+  :config
+  (add-to-list 'markdown-preview-javascript
+               "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"))
+
+;; Add markdown table of contents support
+(use-package markdown-toc
+  :after markdown-mode)
+
+;; Imenu integration for markdown headers
+(add-hook 'markdown-mode-hook
+          (lambda ()
+            (setq imenu-generic-expression
+                  '(("Heading 1" "^# \\(.+\\)" 1)
+                    ("Heading 2" "^## \\(.+\\)" 1)
+                    ("Heading 3" "^### \\(.+\\)" 1)
+                    ("Heading 4" "^#### \\(.+\\)" 1)
+                    ("Heading 5" "^##### \\(.+\\)" 1)
+                    ("Heading 6" "^###### \\(.+\\)" 1)))))
+
+;; Enable flyspell for spell checking in markdown documents
+(add-hook 'markdown-mode-hook 'flyspell-mode)
+
+;; Integrate with markdownlint if available
+(when (executable-find "markdownlint")
+  (use-package flymake-markdownlint
+    :after markdown-mode
+    :hook (markdown-mode . flymake-markdownlint-setup)))
+
 ;; Magit configuration
 (use-package magit
   :commands magit-status
@@ -688,6 +756,15 @@
 
   ;; Bind eat to 't' in project keymap
   (define-key project-prefix-map "t" #'efs/project-eat))
+
+(use-package claude-code
+  :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                   :files ("*.el" (:exclude "demo.gif")))
+  :bind-keymap
+  ("C-c c" . claude-code-command-map)
+  :hook ((claude-code--start . sm-setup-claude-faces))
+  :config
+  (claude-code-mode))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
@@ -987,3 +1064,6 @@ otherwise returns a list with just the program name."
            (and (fboundp 'treesit-language-available-p)
                 (treesit-language-available-p 'sql))
            (fboundp 'sql-ts-mode)))
+
+(use-package dotenv-mode
+  :mode ("\\.env\\(\\..*\\)?\\'" . dotenv-mode))

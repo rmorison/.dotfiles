@@ -772,6 +772,152 @@ Similar to Comint, Shell mode and Term line mode. Terminal input is sent one lin
                         (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 #+end_src
 
+* Markdown Mode
+** Reference
+*** Core Features
+**** Basic Editing
+- Syntax highlighting for Markdown text
+- Support for GitHub Flavored Markdown (GFM)
+- Automatic indentation and list formatting
+- Wiki links support with ~[[link]]~ syntax
+- Math expressions with LaTeX syntax
+
+**** Document Navigation
+- Imenu integration for headers (navigate with ~C-c C-j~)
+- Structure movement commands (next/previous header, etc.)
+- Outline-mode style visibility cycling with ~TAB~ on headers
+
+**** Formatting Commands
+- ~C-c C-s b~ - Insert bold text
+- ~C-c C-s i~ - Insert italic text
+- ~C-c C-s c~ - Insert inline code
+- ~C-c C-s k~ - Insert block code
+- ~C-c C-s q~ - Insert blockquote
+- ~C-c C-s h~ - Insert header (level based on prefix arg)
+
+**** Link & Image Handling
+- ~C-c C-l~ - Insert or edit link
+- ~C-c C-x i~ - Insert image
+- ~C-c C-x u~ - Insert URI
+- ~C-c C-s P~ - Pre-formatted text
+- ~C-c C-s [~ - Reference link
+
+**** Tables & Lists
+- ~C-c C-s t~ - Generate table of contents
+- ~C-c C-s a~ - Align table columns
+- ~C-c C-s T~ - Insert table
+- ~C-c C-c -~ - Convert line to horizontal rule
+- ~C-c -~ - Insert horizontal rule
+- ~M-RET~ - Insert new list item
+
+**** Preview & Export
+- ~C-c C-s p~ - Live preview in browser
+- ~C-c C-c p~ - Export to HTML and preview
+- ~C-c C-c e~ - Export to various formats via Pandoc
+
+*** Package Integration
+**** markdown-preview-mode
+- Live browser preview with auto-refresh
+- Supports GitHub CSS styling
+- Code block syntax highlighting with highlight.js
+
+**** markdown-toc
+- ~markdown-toc-generate-toc~ - Generate TOC at point
+- ~markdown-toc-refresh-toc~ - Update existing TOC
+- Customizable TOC depth and formatting
+
+**** flyspell
+- Interactive spell checking
+- Ignore code blocks and URLs
+- ~M-$~ to correct words
+
+**** markdownlint
+- Style checking based on common Markdown rules
+- Error highlighting with flymake
+- Configurable via ~.markdownlint.json~ files
+
+*** Installation Requirements
+**** Pandoc (Required for best preview/export)
+For previewing and conversion:
+- Ubuntu/Debian: ~sudo apt-get install pandoc~
+- MacOS: ~brew install pandoc~
+
+**** markdownlint (Optional for linting)
+For markdown style checking and linting:
+- Install with npm: ~npm install -g markdownlint-cli~
+- Or using yarn: ~yarn global add markdownlint-cli~
+
+** Code
+#+begin_src emacs-lisp
+  ;; Markdown Mode for composing, editing, and reviewing markdown documents
+  (use-package markdown-mode
+    :mode (("README\\.md\\'" . gfm-mode)
+           ("\\.md\\'" . markdown-mode)
+           ("\\.markdown\\'" . markdown-mode))
+    :init
+    (setq markdown-command "pandoc")  ;; Use pandoc for previewing
+    :custom
+    (markdown-fontify-code-blocks-natively t)  ;; Syntax highlight code blocks
+    (markdown-enable-math t)  ;; Enable LaTeX math support
+    (markdown-enable-wiki-links t)  ;; Enable wiki-style links
+    (markdown-italic-underscore t)  ;; Use underscores for italic
+    (markdown-asymmetric-header t)  ;; Don't add trailing # on headers
+    (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
+    (markdown-header-scaling t)  ;; Scale headers
+    (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
+    (markdown-hide-urls nil)  ;; Show URLs
+    (markdown-indent-on-enter t)  ;; Automatically indent new lines
+    (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+    :config
+    ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+    (add-hook 'markdown-mode-hook #'visual-line-mode)
+    (add-hook 'markdown-mode-hook (lambda ()
+                                    (setq visual-fill-column-width efs/default-fill-column)
+                                    (visual-fill-column-mode 1)))
+    
+    ;; Key bindings
+    :bind (:map markdown-mode-map
+           ("C-c C-s a" . markdown-table-align)  ;; Align tables
+           ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
+           ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
+           ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+           ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+  ;; Live preview of Markdown
+  (use-package markdown-preview-mode
+    :after markdown-mode
+    :custom
+    (markdown-preview-stylesheets
+     '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"))
+    :config
+    (add-to-list 'markdown-preview-javascript
+                 "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"))
+
+  ;; Add markdown table of contents support
+  (use-package markdown-toc
+    :after markdown-mode)
+
+  ;; Imenu integration for markdown headers
+  (add-hook 'markdown-mode-hook
+            (lambda ()
+              (setq imenu-generic-expression
+                    '(("Heading 1" "^# \\(.+\\)" 1)
+                      ("Heading 2" "^## \\(.+\\)" 1)
+                      ("Heading 3" "^### \\(.+\\)" 1)
+                      ("Heading 4" "^#### \\(.+\\)" 1)
+                      ("Heading 5" "^##### \\(.+\\)" 1)
+                      ("Heading 6" "^###### \\(.+\\)" 1)))))
+
+  ;; Enable flyspell for spell checking in markdown documents
+  (add-hook 'markdown-mode-hook 'flyspell-mode)
+
+  ;; Integrate with markdownlint if available
+  (when (executable-find "markdownlint")
+    (use-package flymake-markdownlint
+      :after markdown-mode
+      :hook (markdown-mode . flymake-markdownlint-setup)))
+#+end_src
+
 * Version Control
 #+begin_src emacs-lisp
   ;; Magit configuration
@@ -936,6 +1082,41 @@ These variables are already set in our configuration, shown here for reference:
     ;; Bind eat to 't' in project keymap
     (define-key project-prefix-map "t" #'efs/project-eat))
 #+end_src
+
+* Claude Code
+** Reference
+*** Basic Commands
+- ~C-c c c~ - Start Claude in the current project root
+- ~C-c c d~ - Start Claude in the current directory
+- ~C-c c t~ - Toggle Claude window
+- ~C-c c b~ - Switch to the Claude buffer
+- ~C-c c k~ - Kill Claude session
+- ~C-c c s~ - Send command to Claude
+- ~C-c c x~ - Send command with current file and line context
+- ~C-c c r~ - Send the current region or buffer to Claude
+- ~C-c c e~ - Ask Claude to fix the error at the current point (requires flycheck)
+- ~C-c c /~ - Access Claude slash commands menu
+- ~C-c c m~ - Show all commands (transient menu)
+- ~C-c c y~ - Send return key to Claude (useful for confirming with Claude without switching to the Claude REPL buffer)
+- ~C-c c n~ - Send escape key to Claude (useful for saying "No" when Claude asks for confirmation without switching to the Claude REPL buffer)
+
+*** Usage Notes
+- With a prefix arg, ~claude-code~, ~claude-code-current-directory~, ~claude-code-send-command~ and ~claude-code-send-command-with-context~ will switch to the Claude terminal buffer after sending the command.
+- Use the transient menu with ~C-c c m~ to access all commands.
+- For quick access to Claude slash commands like ~/help~, ~/clear~, or ~/compact~, use ~C-c c /~ to open the slash commands menu.
+
+** Code
+#+begin_src emacs-lisp
+  (use-package claude-code
+    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                     :files ("*.el" (:exclude "demo.gif")))
+    :bind-keymap
+    ("C-c c" . claude-code-command-map)
+    :hook ((claude-code--start . sm-setup-claude-faces))
+    :config
+    (claude-code-mode))
+#+end_src
+
 * Yasnippet
 #+begin_src emacs-lisp
   (use-package yasnippet
@@ -1554,4 +1735,10 @@ Create a ~/.emacs.d/sql-connections.el file with content like:
              (and (fboundp 'treesit-language-available-p)
                   (treesit-language-available-p 'sql))
              (fboundp 'sql-ts-mode)))
+#+end_src
+
+* Env Mode
+#+begin_src emacs-lisp
+  (use-package dotenv-mode
+    :mode ("\\.env\\(\\..*\\)?\\'" . dotenv-mode))
 #+end_src
