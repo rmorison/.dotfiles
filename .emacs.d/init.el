@@ -10,15 +10,15 @@
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
-       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-      (bootstrap-version 6))
+	 (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+	(bootstrap-version 6))
   (unless (file-exists-p bootstrap-file)
     (with-current-buffer
-	(url-retrieve-synchronously
-	 "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-	 'silent 'inhibit-cookies)
-      (goto-char (point-max))
-      (eval-print-last-sexp)))
+	  (url-retrieve-synchronously
+	   "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+	   'silent 'inhibit-cookies)
+	(goto-char (point-max))
+	(eval-print-last-sexp)))
   (load bootstrap-file nil 'nomessage))
 (setq straight-use-package-by-default t) ;; Automatically use `straight.el` with `use-package`
 
@@ -60,7 +60,7 @@
   (setq mac-option-modifier 'meta)
   (setq insert-directory-program "gls" dired-use-ls-dired t)
 
-  ;; nice up the osx screen on 3440x1440 display 
+  ;; nice up the osx screen on 3440x1440 display
   (setq efs/default-font-size 160)
   (setq efs/default-variable-font-size 160))
 
@@ -125,7 +125,10 @@
 ;;(load-theme 'tango-dark)
 ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
 (use-package doom-themes
-  :init (load-theme 'doom-acario-dark t))
+  :init (load-theme 'doom-acario-dark t)
+  :config
+  (custom-set-faces
+   '(region ((t (:background "#4f5b66"))))))
 
 ;; Replace the all-the-icons package with nerd-icons
 ;; all-the-icons is broken in doomemacs, see
@@ -144,7 +147,7 @@
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
-  :custom 
+  :custom
   ((doom-modeline-height 15)
    (doom-modeline-icon t)
    (doom-modeline-major-mode-icon t)
@@ -180,15 +183,15 @@
 (use-package ivy
   :diminish
   :bind (("C-s" . swiper)
-	 ("C-c i" . imenu)
-	 :map ivy-minibuffer-map
-	 ("TAB" . ivy-alt-done)
-	 ("C-l" . ivy-partial)
-	 :map ivy-switch-buffer-map
-	 ("C-l" . ivy-partial)
-	 ("C-d" . ivy-switch-buffer-kill)
-	 :map ivy-reverse-i-search-map
-	 ("C-d" . ivy-reverse-i-search-kill))
+	   ("C-c i" . imenu)
+	   :map ivy-minibuffer-map
+	   ("TAB" . ivy-alt-done)
+	   ("C-l" . ivy-partial)
+	   :map ivy-switch-buffer-map
+	   ("C-l" . ivy-partial)
+	   ("C-d" . ivy-switch-buffer-kill)
+	   :map ivy-reverse-i-search-map
+	   ("C-d" . ivy-reverse-i-search-kill))
   :config
   (ivy-mode 1))
 
@@ -197,8 +200,8 @@
 
 (use-package counsel
   :bind (("C-M-j" . 'counsel-switch-buffer)
-	 :map minibuffer-local-map
-	 ("C-r" . 'counsel-minibuffer-history))
+	   :map minibuffer-local-map
+	   ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
   :config
@@ -272,6 +275,9 @@
   :custom
   (dired-listing-switches "-aghoL --group-directories-first"))
 
+;; Load server explicitly before dirvish
+(require 'server)
+
 (use-package dirvish
   :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
   :init
@@ -300,7 +306,6 @@
    ("f"   . dirvish-file-info-menu)
    ("y"   . dirvish-yank-menu)
    ("N"   . dirvish-narrow)
-   ("^"   . dirvish-history-last)
    ("h"   . dirvish-history-jump) ; remapped `describe-mode'
    ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
    ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
@@ -523,6 +528,7 @@
   (add-to-list 'org-structure-template-alist '("go" . "src go"))
   (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
   (add-to-list 'org-structure-template-alist '("ty" . "src typescript"))
+  (add-to-list 'org-structure-template-alist '("sq" . "src sql"))
   (add-to-list 'org-structure-template-alist '("mm" . "src mermaid"))
 
   ;; don't ask on eval block C-c C-c
@@ -574,6 +580,74 @@
   :hook (yaml-mode . (lambda ()
                       (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 
+;; Markdown Mode for composing, editing, and reviewing markdown documents
+(use-package markdown-mode
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init
+  (setq markdown-command "pandoc")  ;; Use pandoc for previewing
+  :custom
+  (markdown-fontify-code-blocks-natively t)  ;; Syntax highlight code blocks
+  (markdown-enable-math t)  ;; Enable LaTeX math support
+  (markdown-enable-wiki-links t)  ;; Enable wiki-style links
+  (markdown-italic-underscore t)  ;; Use underscores for italic
+  (markdown-asymmetric-header t)  ;; Don't add trailing # on headers
+  (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
+  (markdown-header-scaling t)  ;; Scale headers
+  (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
+  (markdown-hide-urls nil)  ;; Show URLs
+  (markdown-indent-on-enter t)  ;; Automatically indent new lines
+  (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+  :config
+  ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+  (add-hook 'markdown-mode-hook #'visual-line-mode)
+  (add-hook 'markdown-mode-hook (lambda ()
+                                  (setq visual-fill-column-width efs/default-fill-column)
+                                  (visual-fill-column-mode 1)))
+  
+  ;; Key bindings
+  :bind (:map markdown-mode-map
+         ("C-c C-s a" . markdown-table-align)  ;; Align tables
+         ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
+         ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
+         ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+         ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+;; Live preview of Markdown
+(use-package markdown-preview-mode
+  :after markdown-mode
+  :custom
+  (markdown-preview-stylesheets
+   '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"))
+  :config
+  (add-to-list 'markdown-preview-javascript
+               "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"))
+
+;; Add markdown table of contents support
+(use-package markdown-toc
+  :after markdown-mode)
+
+;; Imenu integration for markdown headers
+(add-hook 'markdown-mode-hook
+          (lambda ()
+            (setq imenu-generic-expression
+                  '(("Heading 1" "^# \\(.+\\)" 1)
+                    ("Heading 2" "^## \\(.+\\)" 1)
+                    ("Heading 3" "^### \\(.+\\)" 1)
+                    ("Heading 4" "^#### \\(.+\\)" 1)
+                    ("Heading 5" "^##### \\(.+\\)" 1)
+                    ("Heading 6" "^###### \\(.+\\)" 1)))))
+
+;; Enable flyspell for spell checking in markdown documents
+(add-hook 'markdown-mode-hook 'flyspell-mode)
+
+;; Integrate with markdownlint if available
+(when (executable-find "markdownlint")
+  (use-package flymake-markdownlint
+    :after markdown-mode
+    :hook (markdown-mode . flymake-markdownlint-setup)))
+
 ;; Magit configuration
 (use-package magit
   :commands magit-status
@@ -620,13 +694,14 @@
       (treesit-install-language-grammar (car grammar))))
 
   ;; Use tree-sitter modes when available
-  (setq major-mode-remap-alist
-        '((python-mode . python-ts-mode)
-          (typescript-mode . typescript-ts-mode)
-          (js-mode . js-ts-mode)
-          (js2-mode . js-ts-mode)
-          (go-mode . go-ts-mode)
-          (sql-mode . sql-ts-mode)))
+  (with-eval-after-load 'sql  ;; Only remap sql-mode after it's loaded
+    (setq major-mode-remap-alist
+          '((python-mode . python-ts-mode)
+            (typescript-mode . typescript-ts-mode)
+            (js-mode . js-ts-mode)
+            (js2-mode . js-ts-mode)
+            (go-mode . go-ts-mode)
+            (sql-mode . sql-ts-mode))))
 
   ;; Ensure font-lock works well
   (setq treesit-font-lock-level 4))
@@ -682,6 +757,15 @@
   ;; Bind eat to 't' in project keymap
   (define-key project-prefix-map "t" #'efs/project-eat))
 
+(use-package claude-code
+  :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                   :files ("*.el" (:exclude "demo.gif")))
+  :bind-keymap
+  ("C-c c" . claude-code-command-map)
+  :hook ((claude-code--start . sm-setup-claude-faces))
+  :config
+  (claude-code-mode))
+
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
   :config
@@ -703,19 +787,28 @@
         (auth-source-pick-first-password :host "api.openai.com"))
   (setq chatgpt-shell-anthropic-key
         (auth-source-pick-first-password :host "api.anthropic.com"))
-  (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+  (setq chatgpt-shell-model-version "claude-3-7-sonnet-latest"))
 
 ;; Key bindings for ChatGPT shell commands
 (global-set-key (kbd "C-c s") 'chatgpt-shell)
 (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
 (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 
-(use-package markdown-mode
-  :straight t
-  :mode (("README\\.md\\'" . gfm-mode)
-         ("\\.md\\'" . markdown-mode)
-         ("\\.markdown\\'" . markdown-mode))
-  :init (setq markdown-command "multimarkdown"))
+;; Dockerfile mode for editing Dockerfiles
+(use-package dockerfile-mode
+  :ensure t
+  :mode ("Dockerfile\\'" . dockerfile-mode))
+
+;; Docker management from Emacs
+(use-package docker
+  :ensure t
+  :bind ("C-c d" . docker)
+  :config
+  (setq docker-command "docker"))
+
+;; docker compose mode
+(use-package docker-compose-mode
+  :ensure t)
 
 ;; Python Development Configuration
 
@@ -725,7 +818,7 @@
 Returns a list containing the full path if found in virtualenv,
 otherwise returns a list with just the program name."
   (let* ((project-dir (project-root (project-current t)))
-         (venv-dir (when project-dir 
+         (venv-dir (when project-dir
                      (expand-file-name ".venv" project-dir)))
          (venv-program (when venv-dir
                          (expand-file-name (concat "bin/" program-name) venv-dir))))
@@ -740,7 +833,7 @@ otherwise returns a list with just the program name."
   :custom
   (python-indent-offset 4)
   ;; Look for .venv in project root
-  (python-shell-virtualenv-root (lambda () 
+  (python-shell-virtualenv-root (lambda ()
                                   (let ((project-dir (project-root (project-current t))))
                                     (when project-dir
                                       (expand-file-name ".venv" project-dir)))))
@@ -850,3 +943,127 @@ otherwise returns a list with just the program name."
   (flymake-ruff-program (car (efs/get-venv-program "ruff")))
   :hook ((python-ts-mode . flymake-ruff-load)
          (python-mode . flymake-ruff-load)))
+
+;; SQL Mode Configuration
+;; Note, you'll need
+;; # For Ubuntu/Debian
+;; sudo apt install pgformatter
+;; # For MacOS
+;; brew install pgformatter
+
+;; Try to load sql-ts-mode, don't error if not found
+(require 'sql-ts-mode nil t)
+
+;; Then check status again
+(message "After require: SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+         (and (fboundp 'treesit-language-available-p)
+              (treesit-language-available-p 'sql))
+         (fboundp 'sql-ts-mode))
+
+;; Basic SQL Mode
+(use-package sql
+  :straight (:type built-in)
+  :mode ("\\.sql\\'" . sql-mode)  ;; Regular mapping, tree-sitter handled by remap
+  :custom
+  (sql-product 'postgres)  ; Default to PostgreSQL
+  (sql-indent-offset 2)
+  :config
+  ;; Load connection configuration if it exists
+  (when (file-exists-p (expand-file-name "sql-connections.el" user-emacs-directory))
+    (load (expand-file-name "sql-connections.el" user-emacs-directory)))
+
+  ;; Helper function for SQL connections
+  (defun efs/sql-connect-preset (name)
+    "Connect to a predefined SQL connection by NAME."
+    (interactive
+     (list
+      (completing-read "SQL connection: "
+                       (mapcar #'car sql-connection-alist))))
+    (let ((connection (assoc name sql-connection-alist)))
+      (when connection
+        (setq sql-connection-alist (cons connection (delete connection sql-connection-alist)))
+        (let ((sql-product (cadr (assoc 'sql-product connection))))
+          (sql-connect name)))))
+
+  ;; Helper function to set dialect based on file extension or buffer name
+  (defun efs/sql-set-dialect-from-file ()
+    "Set SQL dialect based on file extension or buffer name."
+    (let ((file-name (buffer-file-name))
+          (buffer-name (buffer-name)))
+      (cond
+       ;; By file extension
+       ((and file-name (string-match "\\.psql\\'" file-name)) (sql-set-product 'postgres))
+       ((and file-name (string-match "\\.mysql\\'" file-name)) (sql-set-product 'mysql))
+       ((and file-name (string-match "\\.sqlite\\'" file-name)) (sql-set-product 'sqlite))
+       ;; By buffer naming conventions
+       ((and buffer-name (string-match "postgres\\|pg_\\|pgsql" buffer-name)) (sql-set-product 'postgres))
+       ((and buffer-name (string-match "mysql" buffer-name)) (sql-set-product 'mysql))
+       ((and buffer-name (string-match "sqlite" buffer-name)) (sql-set-product 'sqlite))))))
+
+;; SQLi history configuration
+(use-package sql
+  :straight (:type built-in)
+  :custom
+  (sql-input-ring-file-name (expand-file-name "sqli_history" no-littering-var-directory))
+  (sql-input-ring-size 1000)
+  :hook
+  ;; Set dialect on file open
+  (sql-mode . efs/sql-set-dialect-from-file)
+  (sql-interactive-mode . (lambda ()
+                            (toggle-truncate-lines t)
+                            (sql-input-ring-load)
+                            (add-hook 'kill-buffer-hook 'sql-input-ring-save nil t))))
+
+;; SQL indentation
+(use-package sql-indent
+  :hook ((sql-mode sql-ts-mode) . sqlind-minor-mode)
+  :custom
+  (sqlind-basic-offset 2)
+  (sqlind-indentation-offsets-alist
+   '((select-clause 0)
+     (insert-clause 0)
+     (delete-clause 0)
+     (update-clause 0)
+     (select-column-continuation + sqlind-basic-offset)
+     (select-join-condition + sqlind-basic-offset)
+     (select-table (sqlind-lineup-joins-to-anchor sqlind-basic-offset 1))
+     (in-select-clause sqlind-lineup-select-target)
+     (in-select-join-condition sqlind-lineup-select-join)
+     (in-select-column sqlind-lineup-list-item)
+     (select-table-continuation + sqlind-basic-offset))))
+
+;; Enable sqlup-mode for SQL keyword capitalization
+(use-package sqlup-mode
+  :hook ((sql-mode sql-interactive-mode sql-ts-mode) . sqlup-mode))
+
+;; SQL Mode company integration
+(with-eval-after-load 'company
+  (add-hook 'sql-mode-hook
+            (lambda ()
+              (setq-local company-backends
+                          (append '(company-keywords company-dabbrev-code)
+                                  company-backends))))
+  (add-hook 'sql-ts-mode-hook
+            (lambda ()
+              (setq-local company-backends
+                          (append '(company-keywords company-dabbrev-code)
+                                  company-backends)))))
+
+;; Format SQL with sqlformat
+(use-package sqlformat
+  :custom
+  (sqlformat-command 'pgformatter)    ; 'sqlformat, 'pgformatter, or 'sqlfluff
+  (sqlformat-args '("-s2" "-g"))      ; Arguments for pgformatter
+  :hook
+  ((sql-mode sql-ts-mode) . (lambda ()
+                            (add-hook 'before-save-hook 'sqlformat-buffer nil t))))
+
+;; Add debug info to help diagnose tree-sitter status
+(with-eval-after-load 'sql
+  (message "SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+           (and (fboundp 'treesit-language-available-p)
+                (treesit-language-available-p 'sql))
+           (fboundp 'sql-ts-mode)))
+
+(use-package dotenv-mode
+  :mode ("\\.env\\(\\..*\\)?\\'" . dotenv-mode))

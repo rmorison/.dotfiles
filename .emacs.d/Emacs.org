@@ -30,7 +30,7 @@
     (load bootstrap-file nil 'nomessage))
   (setq straight-use-package-by-default t) ;; Automatically use `straight.el` with `use-package`
 
-  
+
   (use-package no-littering)
 #+end_src
 
@@ -76,7 +76,7 @@
     (setq mac-option-modifier 'meta)
     (setq insert-directory-program "gls" dired-use-ls-dired t)
 
-    ;; nice up the osx screen on 3440x1440 display 
+    ;; nice up the osx screen on 3440x1440 display
     (setq efs/default-font-size 160)
     (setq efs/default-variable-font-size 160))
 #+end_src
@@ -85,7 +85,7 @@
 #+begin_src emacs-lisp
   ;; The default is 800 kilobytes.  Measured in bytes.
   (setq gc-cons-threshold (* 500 1000 1000))
-  (setq read-process-output-max (* 2 1024 1024)) 
+  (setq read-process-output-max (* 2 1024 1024))
 #+end_src
 
 ** Startup and Frame Setup
@@ -160,7 +160,10 @@
   ;;(load-theme 'tango-dark)
   ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
   (use-package doom-themes
-    :init (load-theme 'doom-acario-dark t))
+    :init (load-theme 'doom-acario-dark t)
+    :config
+    (custom-set-faces
+     '(region ((t (:background "#4f5b66"))))))
 
   ;; Replace the all-the-icons package with nerd-icons
   ;; all-the-icons is broken in doomemacs, see
@@ -179,7 +182,7 @@
 
   (use-package doom-modeline
     :init (doom-modeline-mode 1)
-    :custom 
+    :custom
     ((doom-modeline-height 15)
      (doom-modeline-icon t)
      (doom-modeline-major-mode-icon t)
@@ -418,6 +421,9 @@ Dirvish integrates with fd for advanced file searching:
 
 ** Code
 #+begin_src emacs-lisp
+  ;; Load server explicitly before dirvish
+  (require 'server)
+
   (use-package dirvish
     :straight (dirvish :type git :host github :repo "alexluigit/dirvish")
     :init
@@ -446,7 +452,6 @@ Dirvish integrates with fd for advanced file searching:
      ("f"   . dirvish-file-info-menu)
      ("y"   . dirvish-yank-menu)
      ("N"   . dirvish-narrow)
-     ("^"   . dirvish-history-last)
      ("h"   . dirvish-history-jump) ; remapped `describe-mode'
      ("s"   . dirvish-quicksort)    ; remapped `dired-sort-toggle-or-edit'
      ("v"   . dirvish-vc-menu)      ; remapped `dired-view-file'
@@ -462,6 +467,39 @@ Dirvish integrates with fd for advanced file searching:
 #+end_src
 
 * Eat Terminal
+** Reference
+*** General Input Bindings
+- ~C-q~ - Send next key to the terminal
+- ~C-y~ - Like `yank`, but send the text to the terminal
+- ~M-y~ - Like `yank-pop`, but send the text to the terminal
+- ~C-c C-k~ - Kill process
+
+*** Input Mode Switching
+- ~C-c C-e~ - Switch to "emacs" input mode
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+- ~C-c C-l~ - Switch to "line" input mode
+
+*** Mode-Specific Bindings
+
+**** Emacs Mode
+No special keybindings except mode switching and process control:
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+- ~C-c C-l~ - Switch to "line" input mode
+- ~C-c C-k~ - Kill process
+
+**** Char Mode
+All supported keys are bound to send the key to the terminal, except:
+- ~C-M-m~ or ~M-RET~ - Switch to "semi-char" input mode
+
+**** Line Mode
+Similar to Comint, Shell mode and Term line mode. Terminal input is sent one line at a time:
+- ~C-c C-e~ - Switch to "emacs" input mode
+- ~C-c C-j~ - Switch to "semi-char" input mode
+- ~C-c M-d~ - Switch to "char" input mode
+  
+** Code
 #+begin_src emacs-lisp
   ;; Install and configure eat
   (straight-use-package
@@ -675,6 +713,7 @@ Dirvish integrates with fd for advanced file searching:
     (add-to-list 'org-structure-template-alist '("go" . "src go"))
     (add-to-list 'org-structure-template-alist '("ya" . "src yaml"))
     (add-to-list 'org-structure-template-alist '("ty" . "src typescript"))
+    (add-to-list 'org-structure-template-alist '("sq" . "src sql"))
     (add-to-list 'org-structure-template-alist '("mm" . "src mermaid"))
 
     ;; don't ask on eval block C-c C-c
@@ -733,6 +772,152 @@ Dirvish integrates with fd for advanced file searching:
                         (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 #+end_src
 
+* Markdown Mode
+** Reference
+*** Core Features
+**** Basic Editing
+- Syntax highlighting for Markdown text
+- Support for GitHub Flavored Markdown (GFM)
+- Automatic indentation and list formatting
+- Wiki links support with ~[[link]]~ syntax
+- Math expressions with LaTeX syntax
+
+**** Document Navigation
+- Imenu integration for headers (navigate with ~C-c C-j~)
+- Structure movement commands (next/previous header, etc.)
+- Outline-mode style visibility cycling with ~TAB~ on headers
+
+**** Formatting Commands
+- ~C-c C-s b~ - Insert bold text
+- ~C-c C-s i~ - Insert italic text
+- ~C-c C-s c~ - Insert inline code
+- ~C-c C-s k~ - Insert block code
+- ~C-c C-s q~ - Insert blockquote
+- ~C-c C-s h~ - Insert header (level based on prefix arg)
+
+**** Link & Image Handling
+- ~C-c C-l~ - Insert or edit link
+- ~C-c C-x i~ - Insert image
+- ~C-c C-x u~ - Insert URI
+- ~C-c C-s P~ - Pre-formatted text
+- ~C-c C-s [~ - Reference link
+
+**** Tables & Lists
+- ~C-c C-s t~ - Generate table of contents
+- ~C-c C-s a~ - Align table columns
+- ~C-c C-s T~ - Insert table
+- ~C-c C-c -~ - Convert line to horizontal rule
+- ~C-c -~ - Insert horizontal rule
+- ~M-RET~ - Insert new list item
+
+**** Preview & Export
+- ~C-c C-s p~ - Live preview in browser
+- ~C-c C-c p~ - Export to HTML and preview
+- ~C-c C-c e~ - Export to various formats via Pandoc
+
+*** Package Integration
+**** markdown-preview-mode
+- Live browser preview with auto-refresh
+- Supports GitHub CSS styling
+- Code block syntax highlighting with highlight.js
+
+**** markdown-toc
+- ~markdown-toc-generate-toc~ - Generate TOC at point
+- ~markdown-toc-refresh-toc~ - Update existing TOC
+- Customizable TOC depth and formatting
+
+**** flyspell
+- Interactive spell checking
+- Ignore code blocks and URLs
+- ~M-$~ to correct words
+
+**** markdownlint
+- Style checking based on common Markdown rules
+- Error highlighting with flymake
+- Configurable via ~.markdownlint.json~ files
+
+*** Installation Requirements
+**** Pandoc (Required for best preview/export)
+For previewing and conversion:
+- Ubuntu/Debian: ~sudo apt-get install pandoc~
+- MacOS: ~brew install pandoc~
+
+**** markdownlint (Optional for linting)
+For markdown style checking and linting:
+- Install with npm: ~npm install -g markdownlint-cli~
+- Or using yarn: ~yarn global add markdownlint-cli~
+
+** Code
+#+begin_src emacs-lisp
+  ;; Markdown Mode for composing, editing, and reviewing markdown documents
+  (use-package markdown-mode
+    :mode (("README\\.md\\'" . gfm-mode)
+           ("\\.md\\'" . markdown-mode)
+           ("\\.markdown\\'" . markdown-mode))
+    :init
+    (setq markdown-command "pandoc")  ;; Use pandoc for previewing
+    :custom
+    (markdown-fontify-code-blocks-natively t)  ;; Syntax highlight code blocks
+    (markdown-enable-math t)  ;; Enable LaTeX math support
+    (markdown-enable-wiki-links t)  ;; Enable wiki-style links
+    (markdown-italic-underscore t)  ;; Use underscores for italic
+    (markdown-asymmetric-header t)  ;; Don't add trailing # on headers
+    (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
+    (markdown-header-scaling t)  ;; Scale headers
+    (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
+    (markdown-hide-urls nil)  ;; Show URLs
+    (markdown-indent-on-enter t)  ;; Automatically indent new lines
+    (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+    :config
+    ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+    (add-hook 'markdown-mode-hook #'visual-line-mode)
+    (add-hook 'markdown-mode-hook (lambda ()
+                                    (setq visual-fill-column-width efs/default-fill-column)
+                                    (visual-fill-column-mode 1)))
+    
+    ;; Key bindings
+    :bind (:map markdown-mode-map
+           ("C-c C-s a" . markdown-table-align)  ;; Align tables
+           ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
+           ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
+           ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+           ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+  ;; Live preview of Markdown
+  (use-package markdown-preview-mode
+    :after markdown-mode
+    :custom
+    (markdown-preview-stylesheets
+     '("https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"))
+    :config
+    (add-to-list 'markdown-preview-javascript
+                 "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"))
+
+  ;; Add markdown table of contents support
+  (use-package markdown-toc
+    :after markdown-mode)
+
+  ;; Imenu integration for markdown headers
+  (add-hook 'markdown-mode-hook
+            (lambda ()
+              (setq imenu-generic-expression
+                    '(("Heading 1" "^# \\(.+\\)" 1)
+                      ("Heading 2" "^## \\(.+\\)" 1)
+                      ("Heading 3" "^### \\(.+\\)" 1)
+                      ("Heading 4" "^#### \\(.+\\)" 1)
+                      ("Heading 5" "^##### \\(.+\\)" 1)
+                      ("Heading 6" "^###### \\(.+\\)" 1)))))
+
+  ;; Enable flyspell for spell checking in markdown documents
+  (add-hook 'markdown-mode-hook 'flyspell-mode)
+
+  ;; Integrate with markdownlint if available
+  (when (executable-find "markdownlint")
+    (use-package flymake-markdownlint
+      :after markdown-mode
+      :hook (markdown-mode . flymake-markdownlint-setup)))
+#+end_src
+
 * Version Control
 #+begin_src emacs-lisp
   ;; Magit configuration
@@ -779,21 +964,22 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
             (javascript "https://github.com/tree-sitter/tree-sitter-javascript")
             (go "https://github.com/tree-sitter/tree-sitter-go")
             (sql "https://github.com/m-novikov/tree-sitter-sql")))
-  
+
     ;; Auto-install grammars if they're missing
     (dolist (grammar treesit-language-source-alist)
       (unless (treesit-language-available-p (car grammar))
         (treesit-install-language-grammar (car grammar))))
 
     ;; Use tree-sitter modes when available
-    (setq major-mode-remap-alist
-          '((python-mode . python-ts-mode)
-            (typescript-mode . typescript-ts-mode)
-            (js-mode . js-ts-mode)
-            (js2-mode . js-ts-mode)
-            (go-mode . go-ts-mode)
-            (sql-mode . sql-ts-mode)))
-  
+    (with-eval-after-load 'sql  ;; Only remap sql-mode after it's loaded
+      (setq major-mode-remap-alist
+            '((python-mode . python-ts-mode)
+              (typescript-mode . typescript-ts-mode)
+              (js-mode . js-ts-mode)
+              (js2-mode . js-ts-mode)
+              (go-mode . go-ts-mode)
+              (sql-mode . sql-ts-mode))))
+
     ;; Ensure font-lock works well
     (setq treesit-font-lock-level 4))
 #+end_src
@@ -861,11 +1047,11 @@ These variables are already set in our configuration, shown here for reference:
     ;; Use ripgrep for project searches when available
     (when (executable-find "rg")
       (setq xref-search-program 'ripgrep))
-  
+
     ;; Set project search paths
     (when (file-directory-p "~/Projects")
       (setq project-switch-commands 'project-dired))
-  
+
     ;; Bind search to 's' in project keymap
     (define-key project-prefix-map "s" #'project-find-regexp)
 
@@ -892,19 +1078,54 @@ These variables are already set in our configuration, shown here for reference:
                 (with-current-buffer created-buffer
                   (rename-buffer buffer-name t)))))
         (user-error "Not in a project")))
-  
+
     ;; Bind eat to 't' in project keymap
     (define-key project-prefix-map "t" #'efs/project-eat))
 #+end_src
+
+* Claude Code
+** Reference
+*** Basic Commands
+- ~C-c c c~ - Start Claude in the current project root
+- ~C-c c d~ - Start Claude in the current directory
+- ~C-c c t~ - Toggle Claude window
+- ~C-c c b~ - Switch to the Claude buffer
+- ~C-c c k~ - Kill Claude session
+- ~C-c c s~ - Send command to Claude
+- ~C-c c x~ - Send command with current file and line context
+- ~C-c c r~ - Send the current region or buffer to Claude
+- ~C-c c e~ - Ask Claude to fix the error at the current point (requires flycheck)
+- ~C-c c /~ - Access Claude slash commands menu
+- ~C-c c m~ - Show all commands (transient menu)
+- ~C-c c y~ - Send return key to Claude (useful for confirming with Claude without switching to the Claude REPL buffer)
+- ~C-c c n~ - Send escape key to Claude (useful for saying "No" when Claude asks for confirmation without switching to the Claude REPL buffer)
+
+*** Usage Notes
+- With a prefix arg, ~claude-code~, ~claude-code-current-directory~, ~claude-code-send-command~ and ~claude-code-send-command-with-context~ will switch to the Claude terminal buffer after sending the command.
+- Use the transient menu with ~C-c c m~ to access all commands.
+- For quick access to Claude slash commands like ~/help~, ~/clear~, or ~/compact~, use ~C-c c /~ to open the slash commands menu.
+
+** Code
+#+begin_src emacs-lisp
+  (use-package claude-code
+    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                     :files ("*.el" (:exclude "demo.gif")))
+    :bind-keymap
+    ("C-c c" . claude-code-command-map)
+    :hook ((claude-code--start . sm-setup-claude-faces))
+    :config
+    (claude-code-mode))
+#+end_src
+
 * Yasnippet
 #+begin_src emacs-lisp
   (use-package yasnippet
     :hook (prog-mode . yas-minor-mode)
     :config
     (yas-reload-all))
-  
+
   (use-package yasnippet-snippets
-    :after yasnippet)  
+    :after yasnippet)
 #+end_src
 
 * Company
@@ -925,7 +1146,7 @@ These variables are already set in our configuration, shown here for reference:
           (auth-source-pick-first-password :host "api.openai.com"))
     (setq chatgpt-shell-anthropic-key
           (auth-source-pick-first-password :host "api.anthropic.com"))
-    (setq chatgpt-shell-model-version "claude-3-5-sonnet-20241022"))
+    (setq chatgpt-shell-model-version "claude-3-7-sonnet-latest"))
 
   ;; Key bindings for ChatGPT shell commands
   (global-set-key (kbd "C-c s") 'chatgpt-shell)
@@ -933,14 +1154,114 @@ These variables are already set in our configuration, shown here for reference:
   (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
 #+end_src
 
-* Markdown
+* Docker
+
+** Emacs Docker Mode Reference
+
+*** Basic Docker Commands
+    | Command                | Description                    | Keybinding |
+    |-----------------------+--------------------------------+------------|
+    | ~docker~              | Open main Docker menu          | C-c d      |
+    | ~docker-containers~   | List all containers            |            |
+    | ~docker-images~       | List all images                |            |
+    | ~docker-networks~     | List all networks              |            |
+    | ~docker-volumes~      | List all volumes               |            |
+
+*** Container Management
+    | Command                      | Description                          |
+    |------------------------------+--------------------------------------|
+    | ~docker-container-start~     | Start container(s)                  |
+    | ~docker-container-stop~      | Stop container(s)                   |
+    | ~docker-container-restart~   | Restart container(s)                |
+    | ~docker-container-pause~     | Pause container(s)                  |
+    | ~docker-container-unpause~   | Unpause container(s)                |
+    | ~docker-container-rm~        | Remove container(s)                 |
+    | ~docker-container-shells~    | Open shell in container             |
+    | ~docker-container-logs~      | View container logs                 |
+
+*** Image Management
+    | Command                | Description                              |
+    |------------------------+------------------------------------------|
+    | ~docker-image-pull~    | Pull an image                           |
+    | ~docker-image-push~    | Push an image                           |
+    | ~docker-image-rm~      | Remove image(s)                         |
+    | ~docker-image-inspect~ | Inspect image                           |
+
+*** Docker Compose
+    | Command                     | Description                         |
+    |-----------------------------+-------------------------------------|
+    | ~docker-compose-up~         | Start containers                   |
+    | ~docker-compose-down~       | Stop containers                    |
+    | ~docker-compose-restart~    | Restart containers                 |
+    | ~docker-compose-logs~       | View logs                          |
+    | ~docker-compose-build~      | Build services                     |
+
+*** Dockerfile Mode
+    | Command                | Description                              |
+    |------------------------+------------------------------------------|
+    | ~dockerfile-build-buffer~ | Build Dockerfile from current buffer   |
+    | ~dockerfile-build-no-cache-buffer~ | Build without cache          |
+
+*** In Container/Image List Buffer
+    | Key     | Description                                  |
+    |---------+----------------------------------------------|
+    | ~?~     | Show help                                    |
+    | ~m~     | Mark item                                    |
+    | ~u~     | Unmark item                                  |
+    | ~t~     | Toggle marks                                 |
+    | ~U~     | Unmark all                                   |
+    | ~RET~   | Select item                                  |
+    | ~q~     | Quit window                                  |
+
+*** Tips
+    - Use ~M-x customize-group RET docker~ to customize Docker mode settings
+    - Most commands that operate on multiple items work on marked items
+    - In listing buffers, press ~?~ to see all available keybindings
+    - Use ~docker-container-find-file~ to edit files inside containers
+
+*** Docker Compose Mode Features
+    - Syntax highlighting for docker-compose.yml
+    - Validation of docker-compose files
+    - Auto-completion of services, volumes, and networks
+    - YAML validation and linting
+
+*** Common Patterns
+    #+BEGIN_SRC org
+    1. Starting a new container:
+       - M-x docker
+       - i (to switch to images)
+       - Find desired image
+       - c (to create container)
+
+    2. Managing running containers:
+       - M-x docker
+       - c (to switch to containers)
+       - Mark containers with 'm'
+       - Perform operations (start/stop/restart)
+
+    3. Viewing logs:
+       - In containers list
+       - Move to container
+       - l (for logs)
+    #+END_SRC
+
+** Code
 #+begin_src emacs-lisp
-  (use-package markdown-mode
-    :straight t
-    :mode (("README\\.md\\'" . gfm-mode)
-           ("\\.md\\'" . markdown-mode)
-           ("\\.markdown\\'" . markdown-mode))
-    :init (setq markdown-command "multimarkdown"))
+  ;; Dockerfile mode for editing Dockerfiles
+  (use-package dockerfile-mode
+    :ensure t
+    :mode ("Dockerfile\\'" . dockerfile-mode))
+
+  ;; Docker management from Emacs
+  (use-package docker
+    :ensure t
+    :bind ("C-c d" . docker)
+    :config
+    (setq docker-command "docker"))
+
+  ;; docker compose mode
+  (use-package docker-compose-mode
+    :ensure t)
 #+end_src
 
 * Python
@@ -1079,7 +1400,7 @@ target-version = "py38"
   Returns a list containing the full path if found in virtualenv,
   otherwise returns a list with just the program name."
     (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir 
+           (venv-dir (when project-dir
                        (expand-file-name ".venv" project-dir)))
            (venv-program (when venv-dir
                            (expand-file-name (concat "bin/" program-name) venv-dir))))
@@ -1094,7 +1415,7 @@ target-version = "py38"
     :custom
     (python-indent-offset 4)
     ;; Look for .venv in project root
-    (python-shell-virtualenv-root (lambda () 
+    (python-shell-virtualenv-root (lambda ()
                                     (let ((project-dir (project-root (project-current t))))
                                       (when project-dir
                                         (expand-file-name ".venv" project-dir)))))
@@ -1216,4 +1537,208 @@ target-version = "py38"
     (flymake-ruff-program (car (efs/get-venv-program "ruff")))
     :hook ((python-ts-mode . flymake-ruff-load)
            (python-mode . flymake-ruff-load)))
+#+end_src
+
+* SQL Mode
+** Reference
+This configuration provides comprehensive SQL editing, formatting, and execution capabilities in Emacs:
+
+*** Key Features
+**** SQL Mode Basics
+- Syntax highlighting for multiple SQL dialects
+- Statement completion
+- Indentation and formatting
+- Database connectivity with SQLi
+
+**** Dialect Support
+- PostgreSQL
+- MySQL
+- SQLite
+- Oracle
+- Microsoft SQL Server
+
+**** Tree-sitter Integration
+- Enhanced syntax highlighting
+- Better structural navigation
+- More accurate indentation
+
+*** Common Commands
+**** Interactive SQL (SQLi)
+- ~C-c C-c~ : Send region or current statement to SQLi buffer
+- ~C-c C-r~ : Send region to SQLi buffer
+- ~C-c C-s~ : Send current statement to SQLi buffer
+- ~C-c C-b~ : Send buffer to SQLi buffer
+
+**** Navigation
+- ~C-M-a~ : Move to beginning of statement
+- ~C-M-e~ : Move to end of statement
+- ~C-M-h~ : Mark current statement
+- ~C-M-n~ : Move to next statement
+- ~C-M-p~ : Move to previous statement
+
+**** Connection Management
+- ~M-x sql-connect~ : Connect to a preconfigured database
+- ~M-x sql-product-interactive~ : Start an interactive SQL session
+
+**** Formatting
+- ~C-c C-f~ : Format SQL region
+- ~TAB~ : Indent line or region
+
+*** Customization
+**** Product-Specific Settings
+```sql-postgres-login-params``` and similar variables let you customize connection parameters for each database type.
+
+**** Indentation Settings
+- ```sql-indent-offset``` controls indentation level (default: 4)
+- ```sql-indent-first-column-regexp``` affects what gets indented to column 0
+
+*** Connection Setup
+Create a ~/.emacs.d/sql-connections.el file with content like:
+
+```emacs-lisp
+(setq sql-connection-alist
+      '(("analysis-db"
+         (sql-product 'postgres)
+         (sql-server "analysis.host.name")
+         (sql-user "analyst")
+         (sql-password "password")
+         (sql-database "analytics")
+         (sql-port 5432))
+        ("staging-db"
+         (sql-product 'postgres)
+         (sql-server "localhost")
+         (sql-user "airflow")
+         (sql-database "airflow")
+         (sql-port 15432))))
+```
+
+** Code
+
+#+begin_src emacs-lisp
+  ;; SQL Mode Configuration
+  ;; Note, you'll need
+  ;; # For Ubuntu/Debian
+  ;; sudo apt install pgformatter
+  ;; # For MacOS
+  ;; brew install pgformatter
+
+  ;; Try to load sql-ts-mode, don't error if not found
+  (require 'sql-ts-mode nil t)
+
+  ;; Then check status again
+  (message "After require: SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+           (and (fboundp 'treesit-language-available-p)
+                (treesit-language-available-p 'sql))
+           (fboundp 'sql-ts-mode))
+
+  ;; Basic SQL Mode
+  (use-package sql
+    :straight (:type built-in)
+    :mode ("\\.sql\\'" . sql-mode)  ;; Regular mapping, tree-sitter handled by remap
+    :custom
+    (sql-product 'postgres)  ; Default to PostgreSQL
+    (sql-indent-offset 2)
+    :config
+    ;; Load connection configuration if it exists
+    (when (file-exists-p (expand-file-name "sql-connections.el" user-emacs-directory))
+      (load (expand-file-name "sql-connections.el" user-emacs-directory)))
+
+    ;; Helper function for SQL connections
+    (defun efs/sql-connect-preset (name)
+      "Connect to a predefined SQL connection by NAME."
+      (interactive
+       (list
+        (completing-read "SQL connection: "
+                         (mapcar #'car sql-connection-alist))))
+      (let ((connection (assoc name sql-connection-alist)))
+        (when connection
+          (setq sql-connection-alist (cons connection (delete connection sql-connection-alist)))
+          (let ((sql-product (cadr (assoc 'sql-product connection))))
+            (sql-connect name)))))
+
+    ;; Helper function to set dialect based on file extension or buffer name
+    (defun efs/sql-set-dialect-from-file ()
+      "Set SQL dialect based on file extension or buffer name."
+      (let ((file-name (buffer-file-name))
+            (buffer-name (buffer-name)))
+        (cond
+         ;; By file extension
+         ((and file-name (string-match "\\.psql\\'" file-name)) (sql-set-product 'postgres))
+         ((and file-name (string-match "\\.mysql\\'" file-name)) (sql-set-product 'mysql))
+         ((and file-name (string-match "\\.sqlite\\'" file-name)) (sql-set-product 'sqlite))
+         ;; By buffer naming conventions
+         ((and buffer-name (string-match "postgres\\|pg_\\|pgsql" buffer-name)) (sql-set-product 'postgres))
+         ((and buffer-name (string-match "mysql" buffer-name)) (sql-set-product 'mysql))
+         ((and buffer-name (string-match "sqlite" buffer-name)) (sql-set-product 'sqlite))))))
+
+  ;; SQLi history configuration
+  (use-package sql
+    :straight (:type built-in)
+    :custom
+    (sql-input-ring-file-name (expand-file-name "sqli_history" no-littering-var-directory))
+    (sql-input-ring-size 1000)
+    :hook
+    ;; Set dialect on file open
+    (sql-mode . efs/sql-set-dialect-from-file)
+    (sql-interactive-mode . (lambda ()
+                              (toggle-truncate-lines t)
+                              (sql-input-ring-load)
+                              (add-hook 'kill-buffer-hook 'sql-input-ring-save nil t))))
+
+  ;; SQL indentation
+  (use-package sql-indent
+    :hook ((sql-mode sql-ts-mode) . sqlind-minor-mode)
+    :custom
+    (sqlind-basic-offset 2)
+    (sqlind-indentation-offsets-alist
+     '((select-clause 0)
+       (insert-clause 0)
+       (delete-clause 0)
+       (update-clause 0)
+       (select-column-continuation + sqlind-basic-offset)
+       (select-join-condition + sqlind-basic-offset)
+       (select-table (sqlind-lineup-joins-to-anchor sqlind-basic-offset 1))
+       (in-select-clause sqlind-lineup-select-target)
+       (in-select-join-condition sqlind-lineup-select-join)
+       (in-select-column sqlind-lineup-list-item)
+       (select-table-continuation + sqlind-basic-offset))))
+
+  ;; Enable sqlup-mode for SQL keyword capitalization
+  (use-package sqlup-mode
+    :hook ((sql-mode sql-interactive-mode sql-ts-mode) . sqlup-mode))
+
+  ;; SQL Mode company integration
+  (with-eval-after-load 'company
+    (add-hook 'sql-mode-hook
+              (lambda ()
+                (setq-local company-backends
+                            (append '(company-keywords company-dabbrev-code)
+                                    company-backends))))
+    (add-hook 'sql-ts-mode-hook
+              (lambda ()
+                (setq-local company-backends
+                            (append '(company-keywords company-dabbrev-code)
+                                    company-backends)))))
+
+  ;; Format SQL with sqlformat
+  (use-package sqlformat
+    :custom
+    (sqlformat-command 'pgformatter)    ; 'sqlformat, 'pgformatter, or 'sqlfluff
+    (sqlformat-args '("-s2" "-g"))      ; Arguments for pgformatter
+    :hook
+    ((sql-mode sql-ts-mode) . (lambda ()
+                              (add-hook 'before-save-hook 'sqlformat-buffer nil t))))
+
+  ;; Add debug info to help diagnose tree-sitter status
+  (with-eval-after-load 'sql
+    (message "SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+             (and (fboundp 'treesit-language-available-p)
+                  (treesit-language-available-p 'sql))
+             (fboundp 'sql-ts-mode)))
+#+end_src
+
+* Env Mode
+#+begin_src emacs-lisp
+  (use-package dotenv-mode
+    :mode ("\\.env\\(\\..*\\)?\\'" . dotenv-mode))
 #+end_src
