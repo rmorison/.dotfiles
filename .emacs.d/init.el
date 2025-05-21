@@ -25,6 +25,30 @@
 
 (use-package no-littering)
 
+;; Functions for upgrading packages
+(defun efs/upgrade-all-packages ()
+  "Upgrade all straight.el packages."
+  (interactive)
+  (message "Upgrading all packages...")
+  (straight-pull-all)
+  (straight-rebuild-all)
+  (message "All packages upgraded!"))
+
+(defun efs/upgrade-package (package)
+  "Upgrade a specific PACKAGE."
+  (interactive
+   (list (completing-read "Upgrade package: "
+                         (straight--installed-packages)
+                         nil t)))
+  (message "Upgrading %s..." package)
+  (straight-pull-package package)
+  (straight-rebuild-package package)
+  (message "Package %s upgraded!" package))
+
+;; Add these to global key bindings
+(global-set-key (kbd "C-c u a") 'efs/upgrade-all-packages)
+(global-set-key (kbd "C-c u p") 'efs/upgrade-package)
+
 ;; You will most likely need to adjust this font size for your system!
 ;; If fonts are missing
 ;; sudo apt install fonts-firacode fonts-cantarell
@@ -761,10 +785,14 @@
   :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
                    :files ("*.el" (:exclude "demo.gif")))
   :bind-keymap
-  ("C-c c" . claude-code-command-map)
+  ("C-c C" . claude-code-command-map)
   :hook ((claude-code--start . sm-setup-claude-faces))
   :config
   (claude-code-mode))
+(setq claude-code-program "/Users/rod/.claude/local/claude")
+(setq claude-code-startup-delay 0.2)
+(custom-set-faces
+   '(claude-code-repl-face ((t (:family "JuliaMono")))))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
@@ -943,6 +971,19 @@ otherwise returns a list with just the program name."
   (flymake-ruff-program (car (efs/get-venv-program "ruff")))
   :hook ((python-ts-mode . flymake-ruff-load)
          (python-mode . flymake-ruff-load)))
+
+;; DAP Mode for debugging
+(use-package dap-mode
+  :after lsp-mode
+  :config
+  (dap-auto-configure-mode)
+  (require 'dap-python)
+  ;; Use debugpy for Python debugging
+  (setq dap-python-debugger 'debugpy)
+  ;; Get debugpy executable from virtualenv
+  (setq dap-python-executable (car (efs/get-venv-program "python")))
+  ;; Default to a fixed port
+  (setq dap-python-default-debug-port 5678))
 
 ;; SQL Mode Configuration
 ;; Note, you'll need
