@@ -149,10 +149,10 @@
 ;;(load-theme 'tango-dark)
 ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
 (use-package doom-themes
-  :init (load-theme 'doom-acario-dark t)
+  :init (load-theme 'doom-solarized-light t)
   :config
   (custom-set-faces
-   '(region ((t (:background "#4f5b66"))))))
+   '(region ((t (:background "#cfcbc6"))))))
 
 ;; Replace the all-the-icons package with nerd-icons
 ;; all-the-icons is broken in doomemacs, see
