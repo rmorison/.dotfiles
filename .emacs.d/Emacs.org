@@ -34,6 +34,33 @@
   (use-package no-littering)
 #+end_src
 
+* Package Upgrades
+#+begin_src emacs-lisp
+  ;; Functions for upgrading packages
+  (defun efs/upgrade-all-packages ()
+    "Upgrade all straight.el packages."
+    (interactive)
+    (message "Upgrading all packages...")
+    (straight-pull-all)
+    (straight-rebuild-all)
+    (message "All packages upgraded!"))
+
+  (defun efs/upgrade-package (package)
+    "Upgrade a specific PACKAGE."
+    (interactive
+     (list (completing-read "Upgrade package: "
+                           (straight--installed-packages)
+                           nil t)))
+    (message "Upgrading %s..." package)
+    (straight-pull-package package)
+    (straight-rebuild-package package)
+    (message "Package %s upgraded!" package))
+
+  ;; Add these to global key bindings
+  (global-set-key (kbd "C-c u a") 'efs/upgrade-all-packages)
+  (global-set-key (kbd "C-c u p") 'efs/upgrade-package)
+#+end_src
+
 * Basic UI Configuration
 
 ** Fonts and Default Sizes
@@ -160,10 +187,10 @@
   ;;(load-theme 'tango-dark)
   ;; have tried: doom-palenight doom-material-dark doom-solarized-light doom-solarized-light doom-zenburn doom-monokai-machine doom-oceanic-next
   (use-package doom-themes
-    :init (load-theme 'doom-acario-dark t)
+    :init (load-theme 'doom-solarized-light t)
     :config
     (custom-set-faces
-     '(region ((t (:background "#4f5b66"))))))
+     '(region ((t (:background "#cfcbc6"))))))
 
   ;; Replace the all-the-icons package with nerd-icons
   ;; all-the-icons is broken in doomemacs, see
@@ -1086,24 +1113,24 @@ These variables are already set in our configuration, shown here for reference:
 * Claude Code
 ** Reference
 *** Basic Commands
-- ~C-c c c~ - Start Claude in the current project root
-- ~C-c c d~ - Start Claude in the current directory
-- ~C-c c t~ - Toggle Claude window
-- ~C-c c b~ - Switch to the Claude buffer
-- ~C-c c k~ - Kill Claude session
-- ~C-c c s~ - Send command to Claude
-- ~C-c c x~ - Send command with current file and line context
-- ~C-c c r~ - Send the current region or buffer to Claude
-- ~C-c c e~ - Ask Claude to fix the error at the current point (requires flycheck)
-- ~C-c c /~ - Access Claude slash commands menu
-- ~C-c c m~ - Show all commands (transient menu)
-- ~C-c c y~ - Send return key to Claude (useful for confirming with Claude without switching to the Claude REPL buffer)
-- ~C-c c n~ - Send escape key to Claude (useful for saying "No" when Claude asks for confirmation without switching to the Claude REPL buffer)
+- ~C-c C c~ - Start Claude in the current project root
+- ~C-c C d~ - Start Claude in the current directory
+- ~C-c C t~ - Toggle Claude window
+- ~C-c C b~ - Switch to the Claude buffer
+- ~C-c C k~ - Kill Claude session
+- ~C-c C s~ - Send command to Claude
+- ~C-c C x~ - Send command with current file and line context
+- ~C-c C r~ - Send the current region or buffer to Claude
+- ~C-c C e~ - Ask Claude to fix the error at the current point (requires flycheck)
+- ~C-c C /~ - Access Claude slash commands menu
+- ~C-c C m~ - Show all commands (transient menu)
+- ~C-c C y~ - Send return key to Claude (useful for confirming with Claude without switching to the Claude REPL buffer)
+- ~C-c C n~ - Send escape key to Claude (useful for saying "No" when Claude asks for confirmation without switching to the Claude REPL buffer)
 
 *** Usage Notes
 - With a prefix arg, ~claude-code~, ~claude-code-current-directory~, ~claude-code-send-command~ and ~claude-code-send-command-with-context~ will switch to the Claude terminal buffer after sending the command.
-- Use the transient menu with ~C-c c m~ to access all commands.
-- For quick access to Claude slash commands like ~/help~, ~/clear~, or ~/compact~, use ~C-c c /~ to open the slash commands menu.
+- Use the transient menu with ~C-c C m~ to access all commands.
+- For quick access to Claude slash commands like ~/help~, ~/clear~, or ~/compact~, use ~C-c C /~ to open the slash commands menu.
 
 ** Code
 #+begin_src emacs-lisp
@@ -1111,10 +1138,14 @@ These variables are already set in our configuration, shown here for reference:
     :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
                      :files ("*.el" (:exclude "demo.gif")))
     :bind-keymap
-    ("C-c c" . claude-code-command-map)
+    ("C-c C" . claude-code-command-map)
     :hook ((claude-code--start . sm-setup-claude-faces))
     :config
     (claude-code-mode))
+  (setq claude-code-program "/Users/rod/.claude/local/claude")
+  (setq claude-code-startup-delay 0.2)
+  (custom-set-faces
+     '(claude-code-repl-face ((t (:family "JuliaMono")))))
 #+end_src
 
 * Yasnippet
@@ -1537,6 +1568,22 @@ target-version = "py38"
     (flymake-ruff-program (car (efs/get-venv-program "ruff")))
     :hook ((python-ts-mode . flymake-ruff-load)
            (python-mode . flymake-ruff-load)))
+#+end_src
+
+*** DAP Debug
+#+begin_src emacs-lisp
+  ;; DAP Mode for debugging
+  (use-package dap-mode
+    :after lsp-mode
+    :config
+    (dap-auto-configure-mode)
+    (require 'dap-python)
+    ;; Use debugpy for Python debugging
+    (setq dap-python-debugger 'debugpy)
+    ;; Get debugpy executable from virtualenv
+    (setq dap-python-executable (car (efs/get-venv-program "python")))
+    ;; Default to a fixed port
+    (setq dap-python-default-debug-port 5678))
 #+end_src
 
 * SQL Mode
