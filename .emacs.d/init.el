@@ -38,7 +38,7 @@
   "Upgrade a specific PACKAGE."
   (interactive
    (list (completing-read "Upgrade package: "
-                         (straight--installed-packages)
+                         (hash-table-keys straight--recipe-cache)
                          nil t)))
   (message "Upgrading %s..." package)
   (straight-pull-package package)
@@ -718,14 +718,20 @@
       (treesit-install-language-grammar (car grammar))))
 
   ;; Use tree-sitter modes when available
-  (with-eval-after-load 'sql  ;; Only remap sql-mode after it's loaded
-    (setq major-mode-remap-alist
-          '((python-mode . python-ts-mode)
-            (typescript-mode . typescript-ts-mode)
-            (js-mode . js-ts-mode)
-            (js2-mode . js-ts-mode)
-            (go-mode . go-ts-mode)
-            (sql-mode . sql-ts-mode))))
+  ;; Set up remappings for modes that are commonly available
+  (setq major-mode-remap-alist
+        '((python-mode . python-ts-mode)
+          (typescript-mode . typescript-ts-mode)
+          (js-mode . js-ts-mode)
+          (js2-mode . js-ts-mode)
+          (go-mode . go-ts-mode)))
+  
+  ;; For SQL mode, we need to ensure sql-mode is loaded before remapping
+  ;; Otherwise we get "Ignoring unknown mode 'sql-mode'" errors
+  (with-eval-after-load 'sql
+    (when (and (treesit-language-available-p 'sql)
+               (fboundp 'sql-ts-mode))
+      (add-to-list 'major-mode-remap-alist '(sql-mode . sql-ts-mode))))
 
   ;; Ensure font-lock works well
   (setq treesit-font-lock-level 4))
@@ -791,6 +797,7 @@
   (claude-code-mode))
 (setq claude-code-program "/Users/rod/.claude/local/claude")
 (setq claude-code-startup-delay 0.2)
+(setq claude-code-newline-keybinding-style 'shift-return-to-send)
 (custom-set-faces
    '(claude-code-repl-face ((t (:family "JuliaMono")))))
 
@@ -992,23 +999,24 @@ otherwise returns a list with just the program name."
 ;; # For MacOS
 ;; brew install pgformatter
 
-;; Try to load sql-ts-mode, don't error if not found
-(require 'sql-ts-mode nil t)
-
-;; Then check status again
-(message "After require: SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
-         (and (fboundp 'treesit-language-available-p)
-              (treesit-language-available-p 'sql))
-         (fboundp 'sql-ts-mode))
-
 ;; Basic SQL Mode
 (use-package sql
   :straight (:type built-in)
   :mode ("\\.sql\\'" . sql-mode)  ;; Regular mapping, tree-sitter handled by remap
+  :init
+  ;; Ensure sql-ts-mode is available before use
+  (when (and (fboundp 'treesit-language-available-p)
+             (treesit-language-available-p 'sql))
+    (require 'sql-ts-mode nil t))
   :custom
   (sql-product 'postgres)  ; Default to PostgreSQL
   (sql-indent-offset 2)
   :config
+  ;; Log SQL tree-sitter status
+  (message "SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
+           (and (fboundp 'treesit-language-available-p)
+                (treesit-language-available-p 'sql))
+           (fboundp 'sql-ts-mode))
   ;; Load connection configuration if it exists
   (when (file-exists-p (expand-file-name "sql-connections.el" user-emacs-directory))
     (load (expand-file-name "sql-connections.el" user-emacs-directory)))
@@ -1098,13 +1106,6 @@ otherwise returns a list with just the program name."
   :hook
   ((sql-mode sql-ts-mode) . (lambda ()
                             (add-hook 'before-save-hook 'sqlformat-buffer nil t))))
-
-;; Add debug info to help diagnose tree-sitter status
-(with-eval-after-load 'sql
-  (message "SQL tree-sitter status: language-available=%s, sql-ts-mode-defined=%s"
-           (and (fboundp 'treesit-language-available-p)
-                (treesit-language-available-p 'sql))
-           (fboundp 'sql-ts-mode)))
 
 (use-package dotenv-mode
   :mode ("\\.env\\(\\..*\\)?\\'" . dotenv-mode))
