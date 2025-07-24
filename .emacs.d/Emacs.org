@@ -1179,7 +1179,68 @@ For markdown style checking and linting:
     :hook (prog-mode . git-gutter-mode)
     :config
     (setq git-gutter:update-interval 0.02))
+
+  ;; Git Time Machine - Step through historic versions of git controlled files
+  (use-package git-timemachine
+    :bind ("C-c g t" . git-timemachine)
+    :custom
+    ;; Show commit info when switching revisions
+    (git-timemachine-show-minibuffer-details t))
 #+end_src
+
+** Git Time Machine Reference
+Git Time Machine lets you step through historic revisions of any git-controlled file, seeing how the file changed over time.
+
+*** Key Features
+- Browse through git history of a file without checking out different commits
+- See commit messages and metadata for each revision
+- Copy content from historical versions
+- Compare changes between revisions
+- Works seamlessly with git-controlled files
+
+*** Key Bindings (when git-timemachine is active)
+| Key     | Command                                      | Description                          |
+|---------+----------------------------------------------+--------------------------------------|
+| ~p~     | git-timemachine-show-previous-revision      | Show previous revision               |
+| ~n~     | git-timemachine-show-next-revision          | Show next revision                   |
+| ~g~     | git-timemachine-show-nth-revision           | Go to nth revision                   |
+| ~t~     | git-timemachine-show-revision               | Go to specific revision by hash      |
+| ~q~     | git-timemachine-quit                        | Exit git time machine                |
+| ~w~     | git-timemachine-kill-abbreviated-revision   | Copy abbreviated revision hash       |
+| ~W~     | git-timemachine-kill-revision               | Copy full revision hash              |
+| ~b~     | git-timemachine-blame                       | Show git blame for current revision  |
+| ~c~     | git-timemachine-show-commit                 | Show commit information              |
+| ~?~     | git-timemachine-help                        | Show help                            |
+
+*** Usage Workflow
+1. Open any git-controlled file
+2. Run ~C-c g t~ (or ~M-x git-timemachine~)
+3. Use ~p~ and ~n~ to navigate through history
+4. The mode line shows: [Git Timemachine: <revision info>]
+5. Edit operations are disabled while browsing history
+6. Press ~q~ to return to the current version
+
+*** Advanced Features
+**** Copy Historical Content
+While viewing a historical revision:
+- Select text and copy as normal
+- Use ~w~ to copy the abbreviated commit hash
+- Use ~W~ to copy the full commit hash
+
+**** Integration with Magit
+- Press ~c~ while in time machine to view full commit details
+- Press ~b~ to see git blame for the historical version
+
+**** Finding Specific Changes
+1. Use ~g~ to jump to a specific revision number
+2. Use ~t~ to go to a revision by commit hash
+3. The minibuffer shows commit details when ~git-timemachine-show-minibuffer-details~ is enabled
+
+*** Tips
+- Git Time Machine creates a read-only buffer, so you can't accidentally modify historical content
+- The original buffer remains unchanged while browsing history
+- You can have multiple files open in git-timemachine mode simultaneously
+- Works with any VCS backend that git supports (including worktrees and submodules)
 
 * Tree-sitter Support
 Configures tree-sitter for enhanced syntax parsing and highlighting.
@@ -1345,21 +1406,21 @@ These variables are already set in our configuration, shown here for reference:
 
 ** Code
 #+begin_src emacs-lisp
-    (use-package claude-code
-      :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
-                       :files ("*.el" (:exclude "demo.gif")))
-      :bind-keymap
-      ("C-c C" . claude-code-command-map)
-      :hook ((claude-code--start . sm-setup-claude-faces))
-      :custom
-      (claude-code-program "/Users/rod/.claude/local/claude")
-      (claude-code-startup-delay 0.2)
-      ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
-      :custom-face
-      (claude-code-repl-face ((t (:family "JuliaMono"))))
-      :config
-      ;; (setq claude-code-terminal-backend 'vterm)
-      (claude-code-mode))
+  (use-package claude-code
+    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                     :files ("*.el" (:exclude "demo.gif")))
+    :bind-keymap
+    ("C-c C" . claude-code-command-map)
+    :hook ((claude-code--start . sm-setup-claude-faces))
+    :custom
+    (claude-code-program "/Users/rod/.claude/local/claude")
+    (claude-code-startup-delay 0.2)
+    ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
+    :custom-face
+    (claude-code-repl-face ((t (:family "JuliaMono"))))
+    :config
+    (setq claude-code-terminal-backend 'vterm)
+    (claude-code-mode))
 #+end_src
 
 * Yasnippet

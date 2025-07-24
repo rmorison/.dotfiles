@@ -391,25 +391,25 @@
   (vterm-max-scrollback 10000)
   (vterm-kill-buffer-on-exit t)
   (vterm-clear-scrollback-when-clearing t)
-  
+
   ;; Shell settings
   (vterm-shell (getenv "SHELL"))
-  
+
   ;; Display settings
   (vterm-term-environment-variable "xterm-256color")
-  
+
   ;; Performance tuning
   (vterm-timer-delay 0.01)
-  
+
   ;; Disable automatic shell configuration to prevent prompt issues
   (vterm-environment '("INSIDE_EMACS=vterm"))
-  
+
   :config
   ;; Set up vterm buffer display
   (add-to-list 'display-buffer-alist
                '("\\*vterm\\*"
                  (display-buffer-reuse-window display-buffer-same-window)))
-  
+
   ;; Project-specific vterm launcher
   (defun efs/vterm-project ()
     "Open vterm in the current project root directory."
@@ -423,20 +423,20 @@
           (let ((default-directory root))
             (vterm buffer-name)))
       (user-error "Not in a project")))
-  
+
   ;; Helper function to send text to vterm
   (defun efs/vterm-send-string (string)
     "Send STRING to current vterm buffer."
     (interactive "sText to send: ")
     (vterm-send-string string))
-  
+
   ;; Helper to clear scrollback
   (defun efs/vterm-clear-scrollback ()
     "Clear vterm buffer and scrollback."
     (interactive)
     (vterm-clear)
     (vterm-clear-scrollback))
-  
+
   :bind
   (("C-c v" . vterm)
    ("C-c V" . efs/vterm-project)
@@ -715,7 +715,7 @@
   (add-hook 'markdown-mode-hook (lambda ()
                                   (setq visual-fill-column-width efs/default-fill-column)
                                   (visual-fill-column-mode 1)))
-  
+
   ;; Key bindings
   :bind (:map markdown-mode-map
          ("C-c C-s a" . markdown-table-align)  ;; Align tables
@@ -811,7 +811,7 @@
           (js-mode . js-ts-mode)
           (js2-mode . js-ts-mode)
           (go-mode . go-ts-mode)))
-  
+
   ;; For SQL mode, we need to ensure sql-mode is loaded before remapping
   ;; Otherwise we get "Ignoring unknown mode 'sql-mode'" errors
   (with-eval-after-load 'sql
@@ -886,7 +886,7 @@
   :custom-face
   (claude-code-repl-face ((t (:family "JuliaMono"))))
   :config
-  ;; (setq claude-code-terminal-backend 'vterm)
+  (setq claude-code-terminal-backend 'vterm)
   (claude-code-mode))
 
 (use-package yasnippet
