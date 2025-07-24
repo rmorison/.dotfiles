@@ -383,6 +383,92 @@
 
 (global-set-key (kbd "C-c T") #'efs/eat-project)
 
+;; Vterm - Fully-featured terminal emulator
+(use-package vterm
+  :commands vterm
+  :custom
+  ;; Terminal behavior
+  (vterm-max-scrollback 10000)
+  (vterm-kill-buffer-on-exit t)
+  (vterm-clear-scrollback-when-clearing t)
+  
+  ;; Shell settings
+  (vterm-shell (getenv "SHELL"))
+  
+  ;; Display settings
+  (vterm-term-environment-variable "xterm-256color")
+  
+  ;; Performance tuning
+  (vterm-timer-delay 0.01)
+  
+  ;; Disable automatic shell configuration to prevent prompt issues
+  (vterm-environment '("INSIDE_EMACS=vterm"))
+  
+  :config
+  ;; Set up vterm buffer display
+  (add-to-list 'display-buffer-alist
+               '("\\*vterm\\*"
+                 (display-buffer-reuse-window display-buffer-same-window)))
+  
+  ;; Project-specific vterm launcher
+  (defun efs/vterm-project ()
+    "Open vterm in the current project root directory."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project))
+              (project-name (project-name project))
+              (buffer-name (format "*%s-vterm*" project-name)))
+        (if (get-buffer buffer-name)
+            (pop-to-buffer buffer-name)
+          (let ((default-directory root))
+            (vterm buffer-name)))
+      (user-error "Not in a project")))
+  
+  ;; Helper function to send text to vterm
+  (defun efs/vterm-send-string (string)
+    "Send STRING to current vterm buffer."
+    (interactive "sText to send: ")
+    (vterm-send-string string))
+  
+  ;; Helper to clear scrollback
+  (defun efs/vterm-clear-scrollback ()
+    "Clear vterm buffer and scrollback."
+    (interactive)
+    (vterm-clear)
+    (vterm-clear-scrollback))
+  
+  :bind
+  (("C-c v" . vterm)
+   ("C-c V" . efs/vterm-project)
+   :map vterm-mode-map
+   ("C-c C-l" . efs/vterm-clear-scrollback)
+   ("C-q" . vterm-send-next-key)
+   ;; Make sure these don't interfere with terminal programs
+   ("M-1" . nil)
+   ("M-2" . nil)
+   ("M-3" . nil)
+   ("M-4" . nil)
+   ("M-5" . nil)
+   ("M-6" . nil)
+   ("M-7" . nil)
+   ("M-8" . nil)
+   ("M-9" . nil)
+   ("M-0" . nil)))
+
+;; Optional: vterm-toggle for quick terminal access
+(use-package vterm-toggle
+  :after vterm
+  :bind
+  (("C-c `" . vterm-toggle)
+   ("C-c ~" . vterm-toggle-cd)
+   :map vterm-mode-map
+   ("s-n" . vterm-toggle-forward)
+   ("s-p" . vterm-toggle-backward))
+  :custom
+  (vterm-toggle-scope 'project)
+  (vterm-toggle-fullscreen-p nil)
+  (vterm-toggle-reset-window-configration-after-exit t))
+
 ;; org mode
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
@@ -793,13 +879,15 @@
   :bind-keymap
   ("C-c C" . claude-code-command-map)
   :hook ((claude-code--start . sm-setup-claude-faces))
+  :custom
+  (claude-code-program "/Users/rod/.claude/local/claude")
+  (claude-code-startup-delay 0.2)
+  ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
+  :custom-face
+  (claude-code-repl-face ((t (:family "JuliaMono"))))
   :config
+  ;; (setq claude-code-terminal-backend 'vterm)
   (claude-code-mode))
-(setq claude-code-program "/Users/rod/.claude/local/claude")
-(setq claude-code-startup-delay 0.2)
-(setq claude-code-newline-keybinding-style 'shift-return-to-send)
-(custom-set-faces
-   '(claude-code-repl-face ((t (:family "JuliaMono")))))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)

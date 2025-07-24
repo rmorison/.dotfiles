@@ -525,7 +525,7 @@ Similar to Comint, Shell mode and Term line mode. Terminal input is sent one lin
 - ~C-c C-e~ - Switch to "emacs" input mode
 - ~C-c C-j~ - Switch to "semi-char" input mode
 - ~C-c M-d~ - Switch to "char" input mode
-  
+
 ** Code
 #+begin_src emacs-lisp
   ;; Install and configure eat
@@ -567,6 +567,211 @@ Similar to Comint, Shell mode and Term line mode. Terminal input is sent one lin
       (eat)))
 
   (global-set-key (kbd "C-c T") #'efs/eat-project)
+#+end_src
+
+* Vterm Terminal
+** Reference
+*** Overview
+Vterm is a fully-featured terminal emulator inside GNU Emacs based on libvterm, offering near-native terminal performance and compatibility. It provides better performance and compatibility than built-in alternatives like term-mode or ansi-term.
+
+*** Prerequisites
+**** System Requirements
+- Emacs compiled with module support (check with ~(module-file-p "test")~)
+- CMake (for building the module)
+- libtool
+- C compiler (gcc or clang)
+
+**** Installation on Different Systems
+***** MacOS
+#+begin_example
+brew install cmake libtool
+#+end_example
+
+***** Ubuntu/Debian
+#+begin_example
+sudo apt install cmake libtool-bin
+#+end_example
+
+***** Arch Linux
+#+begin_example
+sudo pacman -S cmake libtool
+#+end_example
+
+*** Key Features
+- Full terminal emulation with excellent compatibility
+- Native compilation for superior performance
+- Shell-side integration for directory tracking
+- Automatic shell configuration for zsh, bash, and fish
+- Copy mode for terminal text selection
+- Seamless integration with Emacs keybindings
+
+*** Key Bindings
+**** Normal Mode
+- ~C-c C-t~ - Toggle between char mode and copy mode
+- ~C-c C-n~ - Next prompt
+- ~C-c C-p~ - Previous prompt
+- ~C-c C-c~ - Send C-c to terminal
+- ~C-c C-z~ - Send C-z to terminal
+- ~C-c C-g~ - Send C-g to terminal
+- ~C-c C-u~ - Send C-u to terminal
+- ~C-c C-d~ - Send EOF to terminal
+- ~C-c C-l~ - Clear screen and scrollback
+- ~C-c C-\~ - Send quit signal
+- ~C-y~ - Yank (paste) in terminal
+
+**** Copy Mode
+Enter copy mode with ~C-c C-t~:
+- ~C-n/C-p~ - Move up/down
+- ~C-f/C-b~ - Move forward/backward
+- ~M-f/M-b~ - Move by word
+- ~C-a/C-e~ - Beginning/end of line
+- ~C-v/M-v~ - Page down/up
+- ~C-SPC~ - Set mark
+- ~C-w~ - Copy region
+- ~M-w~ - Copy region and exit copy mode
+- ~C-g~ - Exit copy mode
+- ~RET~ - Copy line and exit copy mode
+
+*** Configuration Options
+**** Terminal Settings
+- ~vterm-max-scrollback~ - Maximum scrollback lines (default: 1000)
+- ~vterm-kill-buffer-on-exit~ - Kill buffer when process exits
+- ~vterm-clear-scrollback-when-clearing~ - Clear scrollback with terminal clear
+
+**** Shell Integration
+- ~vterm-shell~ - Shell to use (defaults to ~$SHELL~)
+- ~vterm-always-compile-module~ - Always recompile the module
+
+**** Display Settings
+- ~vterm-term-environment-variable~ - Terminal type to report (default: "xterm-256color")
+- ~vterm-disable-underline~ - Disable underline
+- ~vterm-disable-inverse-video~ - Disable inverse video
+
+*** Advanced Features
+**** Directory Tracking
+Vterm automatically tracks the current directory using shell integration. This enables:
+- Opening files relative to the terminal's working directory
+- Syncing Emacs' default-directory with the shell
+
+**** Multiple Vterm Buffers
+Use ~vterm-other-window~ to create vterm buffers in other windows. Each vterm buffer is independent with its own shell process.
+
+**** Integration with project.el
+The configuration includes ~efs/vterm-project~ function that opens vterm in the project root directory, similar to the eat terminal integration.
+
+*** Tips and Tricks
+1. **Performance**: Vterm is significantly faster than other Emacs terminal emulators for operations like:
+   - Large output streams
+   - Full-screen terminal applications (htop, vim, etc.)
+   - Colored output and ANSI escape sequences
+
+2. **Copy Mode**: Use copy mode (~C-c C-t~) to select and copy text with familiar Emacs keybindings
+
+3. **Shell Configuration**: Vterm automatically configures your shell with enhanced features:
+   - Directory tracking
+   - Prompt detection
+   - Clear command integration
+
+4. **Compilation**: The vterm module will be compiled automatically on first use. If you encounter issues, you can manually compile with ~M-x vterm-module-compile~
+
+*** Troubleshooting
+1. **Module compilation fails**: Ensure you have all prerequisites installed (cmake, libtool, compiler)
+
+2. **Performance issues**: Check ~vterm-timer-delay~ (default: 0.1) - lower values mean more responsive but higher CPU usage
+
+3. **Display issues**: Try toggling ~vterm-disable-underline~ or ~vterm-disable-inverse-video~
+
+4. **Shell integration not working**: Vterm automatically installs shell configuration files. Check ~/.emacs_vterm_* files exist
+
+5. **Custom shell configuration**: See [[file:vterm-shell-config.org][Vterm Shell Configuration]] for detailed setup of prompt and git integration in your shell
+
+** Code
+#+begin_src emacs-lisp
+  ;; Vterm - Fully-featured terminal emulator
+  (use-package vterm
+    :commands vterm
+    :custom
+    ;; Terminal behavior
+    (vterm-max-scrollback 10000)
+    (vterm-kill-buffer-on-exit t)
+    (vterm-clear-scrollback-when-clearing t)
+
+    ;; Shell settings
+    (vterm-shell (getenv "SHELL"))
+
+    ;; Display settings
+    (vterm-term-environment-variable "xterm-256color")
+
+    ;; Performance tuning
+    (vterm-timer-delay 0.01)
+
+    ;; Disable automatic shell configuration to prevent prompt issues
+    (vterm-environment '("INSIDE_EMACS=vterm"))
+
+    :config
+    ;; Set up vterm buffer display
+    (add-to-list 'display-buffer-alist
+                 '("\\*vterm\\*"
+                   (display-buffer-reuse-window display-buffer-same-window)))
+
+    ;; Project-specific vterm launcher
+    (defun efs/vterm-project ()
+      "Open vterm in the current project root directory."
+      (interactive)
+      (if-let* ((project (project-current))
+                (root (project-root project))
+                (project-name (project-name project))
+                (buffer-name (format "*%s-vterm*" project-name)))
+          (if (get-buffer buffer-name)
+              (pop-to-buffer buffer-name)
+            (let ((default-directory root))
+              (vterm buffer-name)))
+        (user-error "Not in a project")))
+
+    ;; Helper function to send text to vterm
+    (defun efs/vterm-send-string (string)
+      "Send STRING to current vterm buffer."
+      (interactive "sText to send: ")
+      (vterm-send-string string))
+
+    ;; Helper to clear scrollback
+    (defun efs/vterm-clear-scrollback ()
+      "Clear vterm buffer and scrollback."
+      (interactive)
+      (vterm-clear)
+      (vterm-clear-scrollback))
+
+    :bind
+    (("C-c v" . vterm)
+     ("C-c V" . efs/vterm-project)
+     :map vterm-mode-map
+     ("C-c C-l" . efs/vterm-clear-scrollback)
+     ("C-q" . vterm-send-next-key)
+     ;; Make sure these don't interfere with terminal programs
+     ("M-1" . nil)
+     ("M-2" . nil)
+     ("M-3" . nil)
+     ("M-4" . nil)
+     ("M-5" . nil)
+     ("M-6" . nil)
+     ("M-7" . nil)
+     ("M-8" . nil)
+     ("M-9" . nil)
+     ("M-0" . nil)))
+
+  ;; Optional: vterm-toggle for quick terminal access
+  (use-package vterm-toggle
+    :after vterm
+    :bind
+    (("C-c `" . vterm-toggle)
+     ("C-c ~" . vterm-toggle-cd)
+     :map vterm-mode-map
+     ("s-n" . vterm-toggle-forward)
+     ("s-p" . vterm-toggle-backward))
+    :custom
+    (vterm-toggle-scope 'project)
+    (vterm-toggle-fullscreen-p nil)
+    (vterm-toggle-reset-window-configration-after-exit t))
 #+end_src
 
 * Org Mode
@@ -901,7 +1106,7 @@ For markdown style checking and linting:
     (add-hook 'markdown-mode-hook (lambda ()
                                     (setq visual-fill-column-width efs/default-fill-column)
                                     (visual-fill-column-mode 1)))
-    
+
     ;; Key bindings
     :bind (:map markdown-mode-map
            ("C-c C-s a" . markdown-table-align)  ;; Align tables
@@ -1005,7 +1210,7 @@ Configures tree-sitter for enhanced syntax parsing and highlighting.
             (js-mode . js-ts-mode)
             (js2-mode . js-ts-mode)
             (go-mode . go-ts-mode)))
-    
+
     ;; For SQL mode, we need to ensure sql-mode is loaded before remapping
     ;; Otherwise we get "Ignoring unknown mode 'sql-mode'" errors
     (with-eval-after-load 'sql
@@ -1140,20 +1345,21 @@ These variables are already set in our configuration, shown here for reference:
 
 ** Code
 #+begin_src emacs-lisp
-  (use-package claude-code
-    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
-                     :files ("*.el" (:exclude "demo.gif")))
-    :bind-keymap
-    ("C-c C" . claude-code-command-map)
-    :hook ((claude-code--start . sm-setup-claude-faces))
-    :custom
-    (claude-code-program "/Users/rod/.claude/local/claude")
-    (claude-code-startup-delay 0.2)
-    (claude-code-newline-keybinding-style 'shift-return-to-send)
-    :custom-face
-    (claude-code-repl-face ((t (:family "JuliaMono"))))
-    :config
-    (claude-code-mode))
+    (use-package claude-code
+      :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                       :files ("*.el" (:exclude "demo.gif")))
+      :bind-keymap
+      ("C-c C" . claude-code-command-map)
+      :hook ((claude-code--start . sm-setup-claude-faces))
+      :custom
+      (claude-code-program "/Users/rod/.claude/local/claude")
+      (claude-code-startup-delay 0.2)
+      ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
+      :custom-face
+      (claude-code-repl-face ((t (:family "JuliaMono"))))
+      :config
+      ;; (setq claude-code-terminal-backend 'vterm)
+      (claude-code-mode))
 #+end_src
 
 * Yasnippet
