@@ -1,0 +1,161 @@
+#+TITLE: Vterm Shell Configuration
+#+AUTHOR: Your Name
+#+DATE: 2025-07-24
+
+* Shell Configuration for Vterm
+
+Vterm requires special shell configuration to work properly. The shell needs to detect when it's running inside vterm and adjust its behavior accordingly.
+
+** Zsh Configuration (.zshrc)
+
+Add this to your ~~/.zshrc~ file:
+
+#+begin_src shell
+# vterm configuration
+if [[ "$INSIDE_EMACS" = 'vterm' ]] || [[ "$INSIDE_EMACS" = *"vterm"* ]]; then
+    # Disable partial line indicators in vterm
+    unsetopt PROMPT_CR
+    unsetopt PROMPT_SP
+
+    # Git prompt function
+    git_prompt_info() {
+        local branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+        if [[ -n $branch ]]; then
+            local git_status=""
+            # Check for uncommitted changes
+            if ! git diff --quiet 2>/dev/null; then
+                git_status="*"
+            fi
+            # Check for staged changes
+            if ! git diff --cached --quiet 2>/dev/null; then
+                git_status="${git_status}+"
+            fi
+            # Check for untracked files
+            if [[ -n $(git ls-files --others --exclude-standard 2>/dev/null) ]]; then
+                git_status="${git_status}?"
+            fi
+            echo " ($branch$git_status)"
+        fi
+    }
+
+    # Use a simple prompt for vterm with git info
+    setopt PROMPT_SUBST
+    PROMPT='%n@%m %~ $(git_prompt_info) %# '
+
+    # Vterm directory tracking function
+    vterm_printf() {
+        if [ -n "$TMUX" ] && { [ "${TERM%%-*}" = "tmux" ] || [ "${TERM%%-*}" = "screen" ]; }; then
+            # Tell tmux to pass the escape sequences through
+            printf "\ePtmux;\e\e]%s\007\e\\" "$1"
+        elif [ "${TERM%%-*}" = "screen" ]; then
+            # GNU screen (screen, screen-256color, screen-256color-bce)
+            printf "\eP\e]%s\007\e\\" "$1"
+        else
+            printf "\e]%s\e\\" "$1"
+        fi
+    }
+
+    # Directory tracking
+    vterm_prompt_end() {
+        vterm_printf "51;A$(whoami)@$(hostname):$(pwd)"
+    }
+    PROMPT=$PROMPT'%{$(vterm_prompt_end)%}'
+else
+    # Load your regular prompt (e.g., starship) when NOT in vterm
+    eval "$(starship init zsh)"
+fi
+#+end_src
+
+** Bash Configuration (.bashrc)
+
+For bash users, add this to your ~~/.bashrc~ file:
+
+#+begin_src shell
+# vterm configuration
+if [[ "$INSIDE_EMACS" = 'vterm' ]] || [[ "$INSIDE_EMACS" = *"vterm"* ]]; then
+    # Git prompt function
+    git_prompt_info() {
+        local branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+        if [[ -n $branch ]]; then
+            local git_status=""
+            # Check for uncommitted changes
+            if ! git diff --quiet 2>/dev/null; then
+                git_status="*"
+            fi
+            # Check for staged changes
+            if ! git diff --cached --quiet 2>/dev/null; then
+                git_status="${git_status}+"
+            fi
+            # Check for untracked files
+            if [[ -n $(git ls-files --others --exclude-standard 2>/dev/null) ]]; then
+                git_status="${git_status}?"
+            fi
+            echo " ($branch$git_status)"
+        fi
+    }
+
+    # Use a simple prompt for vterm with git info
+    export PS1='\u@\h \w $(git_prompt_info) \$ '
+
+    # Vterm directory tracking function
+    vterm_printf() {
+        if [ -n "$TMUX" ] && { [ "${TERM%%-*}" = "tmux" ] || [ "${TERM%%-*}" = "screen" ]; }; then
+            printf "\ePtmux;\e\e]%s\007\e\\" "$1"
+        elif [ "${TERM%%-*}" = "screen" ]; then
+            printf "\eP\e]%s\007\e\\" "$1"
+        else
+            printf "\e]%s\e\\" "$1"
+        fi
+    }
+
+    # Directory tracking
+    vterm_prompt_end() {
+        vterm_printf "51;A$(whoami)@$(hostname):$(pwd)"
+    }
+    PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND; }vterm_prompt_end"
+else
+    # Load your regular prompt when NOT in vterm
+    eval "$(starship init bash)"
+fi
+#+end_src
+
+** Key Features
+
+*** Environment Detection
+The configuration checks ~$INSIDE_EMACS~ to detect when running in vterm. This allows you to have different configurations for vterm vs regular terminal.
+
+*** Prompt Customization
+Uses a simple prompt with git information inside vterm:
+- Shows username, hostname, current directory
+- Displays git branch name when in a repository
+- Shows git status indicators
+
+*** Directory Tracking
+The ~vterm_prompt_end~ function enables Emacs to track the current directory. This allows features like:
+- Opening files relative to the terminal's current directory
+- ~find-file~ starting in the terminal's pwd
+
+*** Git Status Indicators
+- ~*~ indicates uncommitted changes
+- ~+~ indicates staged changes
+- ~?~ indicates untracked files
+
+*** Partial Line Indicators (Zsh only)
+For zsh, ~unsetopt PROMPT_CR~ and ~unsetopt PROMPT_SP~ disable the ~%~ character that appears for incomplete lines.
+
+** Troubleshooting
+
+*** Prompt appears twice
+Make sure you're not sourcing shell configuration files multiple times. Check if vterm is auto-installing its own configuration.
+
+*** Git status not working
+Ensure git is in your PATH and the git commands have proper permissions.
+
+*** Directory tracking not working
+Check that the ~vterm_printf~ function is properly sending escape sequences. You can test with:
+#+begin_src shell
+vterm_printf "test"
+#+end_src
+
+*** Special characters in prompt
+If you see escape sequences in your prompt, your terminal might not support them. Try simplifying the prompt or checking terminal compatibility.
