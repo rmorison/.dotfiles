@@ -141,6 +141,9 @@
 
   ;; Set up the visible bell
   (setq visible-bell t)
+
+  ;; Maximum frame because we love Emacs
+  (add-to-list 'default-frame-alist '(fullscreen . maximized))
 #+end_src
 
 ** Line and Column Numbers
@@ -151,6 +154,8 @@
   ;; Disable line numbers for some modes
   (dolist (mode '(org-mode-hook
                   term-mode-hook
+                  vterm-mode-hook
+                  eat-mode-hook
                   shell-mode-hook
                   treemacs-mode-hook
                   eshell-mode-hook
@@ -692,7 +697,7 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
     :commands vterm
     :custom
     ;; Terminal behavior
-    (vterm-max-scrollback 10000)
+    (vterm-max-scrollback 100000)
     (vterm-kill-buffer-on-exit t)
     (vterm-clear-scrollback-when-clearing t)
 
@@ -1417,6 +1422,16 @@ These variables are already set in our configuration, shown here for reference:
     (claude-code-repl-face ((t (:family "JuliaMono"))))
     :config
     (setq claude-code-terminal-backend 'vterm)
+    
+    ;; Custom function to create Claude buffer and switch to it
+    (defun my/claude-code-and-switch ()
+      "Start Claude Code in project root and switch to the buffer."
+      (interactive)
+      (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+    
+    ;; Override the default C-c C c binding to use our custom function
+    (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+    
     (claude-code-mode))
 #+end_src
 
@@ -1433,7 +1448,7 @@ Claude Code IDE is an Emacs package that provides IDE-like features for Claude C
 
 ** Key Bindings
 All commands use the ~C-x C~ prefix (capital C) for easy left-hand access:
-- ~C-x C m~ - **Main menu** (recommended entry point for all features)
+- ~C-c B m~ - **Main menu** (recommended entry point for all features)
 - ~C-x C e~ - Explain code at point or in region
 - ~C-x C i~ - Improve/optimize selected code
 - ~C-x C d~ - Generate documentation for code
@@ -1441,7 +1456,7 @@ All commands use the ~C-x C~ prefix (capital C) for easy left-hand access:
 - ~C-x C r~ - Refactor selected code
 - ~C-x C f~ - Fix error at point
 
-The menu (~C-x C m~) provides a convenient interface to access all Claude Code IDE features with helpful descriptions.
+The menu (~C-c B m~) provides a convenient interface to access all Claude Code IDE features with helpful descriptions.
 
 ** Configuration
 #+begin_src emacs-lisp
@@ -1452,14 +1467,14 @@ The menu (~C-x C m~) provides a convenient interface to access all Claude Code I
     :config
     (claude-code-ide-mode 1)
     :bind
-    ;; Use C-x C prefix (capital C) for easy left-hand access, close to C-c C
-    (("C-x C m" . claude-code-ide-menu)  ; Main menu entry point
-     ("C-x C e" . claude-code-ide-explain-code)
-     ("C-x C i" . claude-code-ide-improve-code)
-     ("C-x C d" . claude-code-ide-generate-docs)
-     ("C-x C t" . claude-code-ide-generate-tests)
-     ("C-x C r" . claude-code-ide-refactor)
-     ("C-x C f" . claude-code-ide-fix-error)))
+    ;; Use C-c B prefix for easy access
+    (("C-c B m" . claude-code-ide-menu)  ; Main menu entry point
+     ("C-c B e" . claude-code-ide-explain-code)
+     ("C-c B i" . claude-code-ide-improve-code)
+     ("C-c B d" . claude-code-ide-generate-docs)
+     ("C-c B t" . claude-code-ide-generate-tests)
+     ("C-c B r" . claude-code-ide-refactor)
+     ("C-c B f" . claude-code-ide-fix-error)))
 #+end_src
 
 * Yasnippet

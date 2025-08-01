@@ -117,12 +117,17 @@
 ;; Set up the visible bell
 (setq visible-bell t)
 
+;; Maximum frame because we love Emacs
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
+
 ;; line and column numbers
 (column-number-mode)
 (global-display-line-numbers-mode t)
 ;; Disable line numbers for some modes
 (dolist (mode '(org-mode-hook
                 term-mode-hook
+                vterm-mode-hook
+                eat-mode-hook
                 shell-mode-hook
                 treemacs-mode-hook
                 eshell-mode-hook
@@ -388,7 +393,7 @@
   :commands vterm
   :custom
   ;; Terminal behavior
-  (vterm-max-scrollback 10000)
+  (vterm-max-scrollback 100000)
   (vterm-kill-buffer-on-exit t)
   (vterm-clear-scrollback-when-clearing t)
 
@@ -891,6 +896,16 @@
   (claude-code-repl-face ((t (:family "JuliaMono"))))
   :config
   (setq claude-code-terminal-backend 'vterm)
+  
+  ;; Custom function to create Claude buffer and switch to it
+  (defun my/claude-code-and-switch ()
+    "Start Claude Code in project root and switch to the buffer."
+    (interactive)
+    (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+  
+  ;; Override the default C-c C c binding to use our custom function
+  (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+  
   (claude-code-mode))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
@@ -900,14 +915,14 @@
   :config
   (claude-code-ide-mode 1)
   :bind
-  ;; Use C-x C prefix (capital C) for easy left-hand access, close to C-c C
-  (("C-x C m" . claude-code-ide-menu)  ; Main menu entry point
-   ("C-x C e" . claude-code-ide-explain-code)
-   ("C-x C i" . claude-code-ide-improve-code)
-   ("C-x C d" . claude-code-ide-generate-docs)
-   ("C-x C t" . claude-code-ide-generate-tests)
-   ("C-x C r" . claude-code-ide-refactor)
-   ("C-x C f" . claude-code-ide-fix-error)))
+  ;; Use C-c B prefix for easy access
+  (("C-c B m" . claude-code-ide-menu)  ; Main menu entry point
+   ("C-c B e" . claude-code-ide-explain-code)
+   ("C-c B i" . claude-code-ide-improve-code)
+   ("C-c B d" . claude-code-ide-generate-docs)
+   ("C-c B t" . claude-code-ide-generate-tests)
+   ("C-c B r" . claude-code-ide-refactor)
+   ("C-c B f" . claude-code-ide-fix-error)))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
