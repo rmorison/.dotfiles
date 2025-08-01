@@ -117,12 +117,17 @@
 ;; Set up the visible bell
 (setq visible-bell t)
 
+;; Maximum frame because we love Emacs
+(add-to-list 'default-frame-alist '(fullscreen . maximized))
+
 ;; line and column numbers
 (column-number-mode)
 (global-display-line-numbers-mode t)
 ;; Disable line numbers for some modes
 (dolist (mode '(org-mode-hook
                 term-mode-hook
+                vterm-mode-hook
+                eat-mode-hook
                 shell-mode-hook
                 treemacs-mode-hook
                 eshell-mode-hook
@@ -388,7 +393,7 @@
   :commands vterm
   :custom
   ;; Terminal behavior
-  (vterm-max-scrollback 10000)
+  (vterm-max-scrollback 100000)
   (vterm-kill-buffer-on-exit t)
   (vterm-clear-scrollback-when-clearing t)
 
@@ -752,11 +757,8 @@
 ;; Enable flyspell for spell checking in markdown documents
 (add-hook 'markdown-mode-hook 'flyspell-mode)
 
-;; Integrate with markdownlint if available
-(when (executable-find "markdownlint")
-  (use-package flymake-markdownlint
-    :after markdown-mode
-    :hook (markdown-mode . flymake-markdownlint-setup)))
+;; Integrate with markdownlint if available via flycheck
+;; Flycheck has built-in support for markdownlint when executable is present
 
 ;; Magit configuration
 (use-package magit
@@ -785,6 +787,13 @@
   :hook (prog-mode . git-gutter-mode)
   :config
   (setq git-gutter:update-interval 0.02))
+
+;; Git Time Machine - Step through historic versions of git controlled files
+(use-package git-timemachine
+  :bind ("C-c g t" . git-timemachine)
+  :custom
+  ;; Show commit info when switching revisions
+  (git-timemachine-show-minibuffer-details t))
 
 ;; Ensure tree-sitter grammars are installed
 (use-package treesit
@@ -887,7 +896,33 @@
   (claude-code-repl-face ((t (:family "JuliaMono"))))
   :config
   (setq claude-code-terminal-backend 'vterm)
+  
+  ;; Custom function to create Claude buffer and switch to it
+  (defun my/claude-code-and-switch ()
+    "Start Claude Code in project root and switch to the buffer."
+    (interactive)
+    (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+  
+  ;; Override the default C-c C c binding to use our custom function
+  (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+  
   (claude-code-mode))
+
+;; Claude Code IDE - Enhanced IDE features for Claude Code
+(use-package claude-code-ide
+  :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
+  :after claude-code
+  :config
+  (claude-code-ide-mode 1)
+  :bind
+  ;; Use C-c B prefix for easy access
+  (("C-c B m" . claude-code-ide-menu)  ; Main menu entry point
+   ("C-c B e" . claude-code-ide-explain-code)
+   ("C-c B i" . claude-code-ide-improve-code)
+   ("C-c B d" . claude-code-ide-generate-docs)
+   ("C-c B t" . claude-code-ide-generate-tests)
+   ("C-c B r" . claude-code-ide-refactor)
+   ("C-c B f" . claude-code-ide-fix-error)))
 
 (use-package yasnippet
   :hook (prog-mode . yas-minor-mode)
@@ -903,6 +938,38 @@
   :custom
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
+
+;; General Flycheck configuration for all languages
+(use-package flycheck
+  :init (global-flycheck-mode)
+  :custom
+  ;; Check on these events
+  (flycheck-check-syntax-automatically '(save mode-enabled))
+  ;; Delay before checking on idle
+  (flycheck-idle-change-delay 0.8)
+  ;; Limit errors shown
+  (flycheck-display-errors-threshold 10)
+  ;; Show errors in minibuffer quickly
+  (flycheck-display-errors-delay 0.3)
+  :config
+  ;; Nicer fringe indicators
+  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+    (vector #b00000000
+            #b00000000
+            #b00000000
+            #b00000000
+            #b01100110
+            #b00110110
+            #b00011100
+            #b00001000))
+  ;; Optional: Show list of errors with C-c ! l
+  (add-to-list 'display-buffer-alist
+               `(,(rx bos "*Flycheck errors*" eos)
+                 (display-buffer-reuse-window
+                  display-buffer-in-side-window)
+                 (side            . bottom)
+                 (reusable-frames . visible)
+                 (window-height   . 0.2))))
 
 (use-package chatgpt-shell
   :config
@@ -974,7 +1041,7 @@ otherwise returns a list with just the program name."
   :straight (:type built-in)
   :hook ((python-ts-mode . eglot-ensure)
          (python-mode . eglot-ensure))
-  :init (setq eglot-stay-out-of '(flymake))
+  ;; :init (setq eglot-stay-out-of '(flymake))  ; Commented out - now using flycheck
   :custom
   (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
   (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
@@ -1044,28 +1111,45 @@ otherwise returns a list with just the program name."
 (use-package origami
   :hook ((python-ts-mode python-mode) . origami-mode))
 
-;; Python Linting Configuration
-(use-package flymake
-  :straight (:type built-in)
+;; Python Linting Configuration with Flycheck
+(use-package flycheck
+  :hook ((python-ts-mode . flycheck-mode)
+         (python-mode . flycheck-mode))
   :custom
-  (flymake-fringe-indicator-position 'left-fringe)
-  (flymake-suppress-zero-counters t)
-  (flymake-start-on-save-buffer t)
-  (flymake-no-changes-timeout 0.3)
+  ;; Only check on save to avoid too many checks
+  (flycheck-check-syntax-automatically '(save mode-enabled))
+  (flycheck-idle-change-delay 0.8)
+  (flycheck-display-errors-threshold 10)
   :config
-  ;; Show flymake diagnostics first in minibuffer
-  (setq eldoc-documentation-functions
-        (cons #'flymake-eldoc-function
-              (remove #'flymake-eldoc-function eldoc-documentation-functions)))
-  :hook ((python-ts-mode . flymake-mode)
-         (python-mode . flymake-mode)))
+  ;; Use nicer error indicators
+  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+    (vector #b00000000
+            #b00000000
+            #b00000000
+            #b00000000
+            #b01100110
+            #b00110110
+            #b00011100
+            #b00001000)))
 
-(use-package flymake-ruff
-  :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
-  :custom
-  (flymake-ruff-program (car (efs/get-venv-program "ruff")))
-  :hook ((python-ts-mode . flymake-ruff-load)
-         (python-mode . flymake-ruff-load)))
+;; Configure built-in flycheck ruff checker for Python
+;; Flycheck has built-in support for python-ruff, no external package needed
+(with-eval-after-load 'flycheck
+  ;; Function to find and set ruff executable in virtualenv
+  (defun efs/flycheck-python-setup-ruff ()
+    "Set up ruff executable for current buffer."
+    (when-let* ((project (project-current))
+                (root (project-root project))
+                (venv-ruff (expand-file-name ".venv/bin/ruff" root))
+                ((file-executable-p venv-ruff)))
+      ;; Set the executable for this buffer
+      (setq-local flycheck-python-ruff-executable venv-ruff))
+    ;; Select ruff as the checker
+    (flycheck-select-checker 'python-ruff))
+  
+  ;; Add setup to Python mode hooks
+  (add-hook 'python-ts-mode-hook #'efs/flycheck-python-setup-ruff)
+  (add-hook 'python-mode-hook #'efs/flycheck-python-setup-ruff))
 
 ;; DAP Mode for debugging
 (use-package dap-mode

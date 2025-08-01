@@ -141,6 +141,9 @@
 
   ;; Set up the visible bell
   (setq visible-bell t)
+
+  ;; Maximum frame because we love Emacs
+  (add-to-list 'default-frame-alist '(fullscreen . maximized))
 #+end_src
 
 ** Line and Column Numbers
@@ -151,6 +154,8 @@
   ;; Disable line numbers for some modes
   (dolist (mode '(org-mode-hook
                   term-mode-hook
+                  vterm-mode-hook
+                  eat-mode-hook
                   shell-mode-hook
                   treemacs-mode-hook
                   eshell-mode-hook
@@ -692,7 +697,7 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
     :commands vterm
     :custom
     ;; Terminal behavior
-    (vterm-max-scrollback 10000)
+    (vterm-max-scrollback 100000)
     (vterm-kill-buffer-on-exit t)
     (vterm-clear-scrollback-when-clearing t)
 
@@ -1065,7 +1070,7 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
 
 **** markdownlint
 - Style checking based on common Markdown rules
-- Error highlighting with flymake
+- Error highlighting with flycheck (automatic when markdownlint is installed)
 - Configurable via ~.markdownlint.json~ files
 
 *** Installation Requirements
@@ -1143,11 +1148,8 @@ For markdown style checking and linting:
   ;; Enable flyspell for spell checking in markdown documents
   (add-hook 'markdown-mode-hook 'flyspell-mode)
 
-  ;; Integrate with markdownlint if available
-  (when (executable-find "markdownlint")
-    (use-package flymake-markdownlint
-      :after markdown-mode
-      :hook (markdown-mode . flymake-markdownlint-setup)))
+  ;; Integrate with markdownlint if available via flycheck
+  ;; Flycheck has built-in support for markdownlint when executable is present
 #+end_src
 
 * Version Control
@@ -1420,7 +1422,59 @@ These variables are already set in our configuration, shown here for reference:
     (claude-code-repl-face ((t (:family "JuliaMono"))))
     :config
     (setq claude-code-terminal-backend 'vterm)
+    
+    ;; Custom function to create Claude buffer and switch to it
+    (defun my/claude-code-and-switch ()
+      "Start Claude Code in project root and switch to the buffer."
+      (interactive)
+      (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+    
+    ;; Override the default C-c C c binding to use our custom function
+    (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+    
     (claude-code-mode))
+#+end_src
+
+* Claude Code IDE
+** Overview
+Claude Code IDE is an Emacs package that provides IDE-like features for Claude Code, enhancing the coding experience with project awareness, intelligent code suggestions, and streamlined workflows. It acts as a companion to the main claude-code.el package.
+
+** Key Features
+- Project-aware code suggestions and completions
+- Enhanced buffer management for Claude interactions
+- Intelligent context detection for more relevant responses
+- Streamlined code generation and editing workflows
+- Integration with Emacs IDE features like imenu and xref
+
+** Key Bindings
+All commands use the ~C-x C~ prefix (capital C) for easy left-hand access:
+- ~C-c B m~ - **Main menu** (recommended entry point for all features)
+- ~C-x C e~ - Explain code at point or in region
+- ~C-x C i~ - Improve/optimize selected code
+- ~C-x C d~ - Generate documentation for code
+- ~C-x C t~ - Generate tests for code
+- ~C-x C r~ - Refactor selected code
+- ~C-x C f~ - Fix error at point
+
+The menu (~C-c B m~) provides a convenient interface to access all Claude Code IDE features with helpful descriptions.
+
+** Configuration
+#+begin_src emacs-lisp
+  ;; Claude Code IDE - Enhanced IDE features for Claude Code
+  (use-package claude-code-ide
+    :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")
+    :after claude-code
+    :config
+    (claude-code-ide-mode 1)
+    :bind
+    ;; Use C-c B prefix for easy access
+    (("C-c B m" . claude-code-ide-menu)  ; Main menu entry point
+     ("C-c B e" . claude-code-ide-explain-code)
+     ("C-c B i" . claude-code-ide-improve-code)
+     ("C-c B d" . claude-code-ide-generate-docs)
+     ("C-c B t" . claude-code-ide-generate-tests)
+     ("C-c B r" . claude-code-ide-refactor)
+     ("C-c B f" . claude-code-ide-fix-error)))
 #+end_src
 
 * Yasnippet
@@ -1442,6 +1496,62 @@ These variables are already set in our configuration, shown here for reference:
     :custom
     (company-minimum-prefix-length 1)
     (company-idle-delay 0.0))
+#+end_src
+
+* Flycheck
+** Overview
+Flycheck is a modern on-the-fly syntax checking extension for Emacs. It provides automatic syntax checking for over 40 languages with various syntax checkers.
+
+** Key Features
+- Automatic syntax checking while you type
+- Clear error indicators in the fringe
+- Error list navigation
+- Integration with many programming languages and tools
+- Support for chaining multiple checkers
+- Project-aware checker configuration
+
+** Key Bindings
+- ~C-c ! n~ - Jump to next error
+- ~C-c ! p~ - Jump to previous error
+- ~C-c ! l~ - List all errors in buffer
+- ~C-c ! v~ - Verify setup for current buffer
+- ~C-c ! c~ - Clear errors in buffer  
+- ~C-c ! x~ - Disable checker temporarily
+- ~C-c ! s~ - Select checker manually
+
+** Configuration
+#+begin_src emacs-lisp
+  ;; General Flycheck configuration for all languages
+  (use-package flycheck
+    :init (global-flycheck-mode)
+    :custom
+    ;; Check on these events
+    (flycheck-check-syntax-automatically '(save mode-enabled))
+    ;; Delay before checking on idle
+    (flycheck-idle-change-delay 0.8)
+    ;; Limit errors shown
+    (flycheck-display-errors-threshold 10)
+    ;; Show errors in minibuffer quickly
+    (flycheck-display-errors-delay 0.3)
+    :config
+    ;; Nicer fringe indicators
+    (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+      (vector #b00000000
+              #b00000000
+              #b00000000
+              #b00000000
+              #b01100110
+              #b00110110
+              #b00011100
+              #b00001000))
+    ;; Optional: Show list of errors with C-c ! l
+    (add-to-list 'display-buffer-alist
+                 `(,(rx bos "*Flycheck errors*" eos)
+                   (display-buffer-reuse-window
+                    display-buffer-in-side-window)
+                   (side            . bottom)
+                   (reusable-frames . visible)
+                   (window-height   . 0.2))))
 #+end_src
 
 * LLMs
@@ -1601,15 +1711,16 @@ These variables are already set in our configuration, shown here for reference:
 - Import sorting (isort functionality)
 - Configurable through ~pyproject.toml~ or ~ruff.toml~
 
-***** Linting with Flymake
-- Real-time linting using Ruff
+***** Linting with Flycheck
+- Real-time linting using Ruff (built-in Flycheck support)
 - Error navigation:
-  - ~M-n~ or ~C-M-n~: Next error
-  - ~M-p~ or ~C-M-p~: Previous error
-  - ~M-?~ or ~M-g b~: Show diagnostics buffer
+  - ~C-c ! n~: Next error
+  - ~C-c ! p~: Previous error  
+  - ~C-c ! l~: List all errors
+  - ~C-c ! v~: Verify checker setup
 - Visual indicators in fringe
-- Inline diagnostics in minibuffer via eldoc
-- Automatic checking on save and while typing
+- Error messages on hover or in echo area
+- Automatic checking on save
 
 *** Testing
 **** Pytest Integration (~C-c C-x t~)
@@ -1739,7 +1850,7 @@ target-version = "py38"
     :straight (:type built-in)
     :hook ((python-ts-mode . eglot-ensure)
            (python-mode . eglot-ensure))
-    :init (setq eglot-stay-out-of '(flymake))
+    ;; :init (setq eglot-stay-out-of '(flymake))  ; Commented out - now using flycheck
     :custom
     (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
     (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
@@ -1819,30 +1930,47 @@ target-version = "py38"
     :hook ((python-ts-mode python-mode) . origami-mode))
 #+end_src
 
-*** Linting with flymake-ruff
+*** Linting with Flycheck (built-in ruff support)
 #+begin_src emacs-lisp
-  ;; Python Linting Configuration
-  (use-package flymake
-    :straight (:type built-in)
+  ;; Python Linting Configuration with Flycheck
+  (use-package flycheck
+    :hook ((python-ts-mode . flycheck-mode)
+           (python-mode . flycheck-mode))
     :custom
-    (flymake-fringe-indicator-position 'left-fringe)
-    (flymake-suppress-zero-counters t)
-    (flymake-start-on-save-buffer t)
-    (flymake-no-changes-timeout 0.3)
+    ;; Only check on save to avoid too many checks
+    (flycheck-check-syntax-automatically '(save mode-enabled))
+    (flycheck-idle-change-delay 0.8)
+    (flycheck-display-errors-threshold 10)
     :config
-    ;; Show flymake diagnostics first in minibuffer
-    (setq eldoc-documentation-functions
-          (cons #'flymake-eldoc-function
-                (remove #'flymake-eldoc-function eldoc-documentation-functions)))
-    :hook ((python-ts-mode . flymake-mode)
-           (python-mode . flymake-mode)))
+    ;; Use nicer error indicators
+    (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
+      (vector #b00000000
+              #b00000000
+              #b00000000
+              #b00000000
+              #b01100110
+              #b00110110
+              #b00011100
+              #b00001000)))
 
-  (use-package flymake-ruff
-    :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
-    :custom
-    (flymake-ruff-program (car (efs/get-venv-program "ruff")))
-    :hook ((python-ts-mode . flymake-ruff-load)
-           (python-mode . flymake-ruff-load)))
+  ;; Configure built-in flycheck ruff checker for Python
+  ;; Flycheck has built-in support for python-ruff, no external package needed
+  (with-eval-after-load 'flycheck
+    ;; Function to find and set ruff executable in virtualenv
+    (defun efs/flycheck-python-setup-ruff ()
+      "Set up ruff executable for current buffer."
+      (when-let* ((project (project-current))
+                  (root (project-root project))
+                  (venv-ruff (expand-file-name ".venv/bin/ruff" root))
+                  ((file-executable-p venv-ruff)))
+        ;; Set the executable for this buffer
+        (setq-local flycheck-python-ruff-executable venv-ruff))
+      ;; Select ruff as the checker
+      (flycheck-select-checker 'python-ruff))
+    
+    ;; Add setup to Python mode hooks
+    (add-hook 'python-ts-mode-hook #'efs/flycheck-python-setup-ruff)
+    (add-hook 'python-mode-hook #'efs/flycheck-python-setup-ruff))
 #+end_src
 
 *** DAP Debug
