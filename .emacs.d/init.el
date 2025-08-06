@@ -895,7 +895,7 @@
   :custom-face
   (claude-code-repl-face ((t (:family "JuliaMono"))))
   :config
-  (setq claude-code-terminal-backend 'vterm)
+  ;; (setq claude-code-terminal-backend 'vterm)
   
   ;; Custom function to create Claude buffer and switch to it
   (defun my/claude-code-and-switch ()
@@ -905,6 +905,20 @@
   
   ;; Override the default C-c C c binding to use our custom function
   (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+  
+  ;; Override buffer naming to show only directory name, not full path
+  (defun claude-code--buffer-name (&optional instance-name)
+    "Generate the Claude buffer name showing only the directory name.
+  
+  If INSTANCE-NAME is provided, include it in the buffer name.
+  If not in a project and no buffer file, raise an error."
+    (let ((dir (claude-code--directory)))
+      (if dir
+          (let ((dir-name (file-name-nondirectory (directory-file-name dir))))
+            (if instance-name
+                (format "*claude:%s:%s*" dir-name instance-name)
+              (format "*claude:%s*" dir-name)))
+        (error "Cannot determine Claude directory - no `default-directory'!"))))
   
   (claude-code-mode))
 
