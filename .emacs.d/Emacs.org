@@ -1471,6 +1471,36 @@ These variables are already set in our configuration, shown here for reference:
                 (format "*claude:%s*" dir-name)))
           (error "Cannot determine Claude directory - no `default-directory'!"))))
     
+    ;; Fix auto-scrolling in eat terminal buffers used by claude-code
+    (defun my/claude-code-eat-setup ()
+      "Configure eat terminal for proper auto-scrolling in claude-code buffers."
+      (when (and (derived-mode-p 'eat-mode)
+                 (string-match-p "\\*claude:" (buffer-name)))
+        ;; Ensure point follows output
+        (setq-local scroll-conservatively 101)
+        (setq-local scroll-margin 0)
+        ;; Move to end of buffer on new output
+        (goto-char (point-max))))
+    
+    ;; Hook into eat-mode for claude buffers
+    (add-hook 'eat-mode-hook #'my/claude-code-eat-setup)
+    
+    ;; Additional hook to ensure scrolling on process output
+    (defun my/claude-code-scroll-to-bottom (&rest _)
+      "Scroll claude-code eat buffers to bottom on new output."
+      (when (and (derived-mode-p 'eat-mode)
+                 (string-match-p "\\*claude:" (buffer-name)))
+        (let ((windows (get-buffer-window-list (current-buffer) nil t)))
+          (dolist (window windows)
+            (with-selected-window window
+              (goto-char (point-max))
+              (recenter -1))))))
+    
+    ;; Advise eat's process filter to ensure scrolling
+    (with-eval-after-load 'eat
+      (advice-add 'eat-self-input :after #'my/claude-code-scroll-to-bottom)
+      (advice-add 'eat-term-redisplay :after #'my/claude-code-scroll-to-bottom))
+    
     (claude-code-mode))
 #+end_src
 
