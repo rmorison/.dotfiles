@@ -233,8 +233,13 @@
 	   ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
+  ;; Configure ripgrep path
+  (counsel-rg-base-command
+   '("/opt/homebrew/bin/rg" "--no-heading" "--line-number" "--color" "never" "%s"))
   :config
-  (counsel-mode 1))
+  (counsel-mode 1)
+  ;; Configure counsel-rg to start searching after 3 characters
+  (setq ivy-more-chars-alist '((counsel-rg . 3))))
 
 (use-package ivy-rich
   :after ivy
@@ -757,8 +762,11 @@
 ;; Enable flyspell for spell checking in markdown documents
 (add-hook 'markdown-mode-hook 'flyspell-mode)
 
-;; Integrate with markdownlint if available via flycheck
-;; Flycheck has built-in support for markdownlint when executable is present
+;; Integrate with markdownlint if available
+(when (executable-find "markdownlint")
+  (use-package flymake-markdownlint
+    :after markdown-mode
+    :hook (markdown-mode . flymake-markdownlint-setup)))
 
 ;; Magit configuration
 (use-package magit
@@ -852,8 +860,18 @@
   (when (file-directory-p "~/Projects")
     (setq project-switch-commands 'project-dired))
 
-  ;; Bind search to 's' in project keymap
-  (define-key project-prefix-map "s" #'project-find-regexp)
+  ;; Custom function to use counsel-rg for project search
+  (defun efs/project-search-with-counsel-rg ()
+    "Search project using counsel-rg with live results."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project)))
+        (let ((default-directory root))
+          (counsel-rg))
+      (user-error "Not in a project")))
+
+  ;; Bind search to 's' in project keymap to use counsel-rg
+  (define-key project-prefix-map "s" #'efs/project-search-with-counsel-rg)
 
   ;; Add eat terminal in project root
   (defun efs/project-eat ()
@@ -899,9 +917,16 @@
   
   ;; Custom function to create Claude buffer and switch to it
   (defun my/claude-code-and-switch ()
-    "Start Claude Code in project root and switch to the buffer."
+    "Start Claude Code in project root and switch to the buffer.
+  If a Claude instance already exists for this directory, prompt for a new instance name."
     (interactive)
-    (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+    (let* ((dir (claude-code--directory))
+           (existing-buffers (claude-code--find-claude-buffers-for-directory dir)))
+      (if existing-buffers
+          ;; If buffers exist, use claude-code-new-instance to force prompting
+          (claude-code-new-instance '(4))  ; With prefix arg to switch to buffer
+        ;; Otherwise use regular claude-code with switch
+        (claude-code '(4)))))  ; Pass the correct prefix arg format to switch to buffer
   
   ;; Override the default C-c C c binding to use our custom function
   (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
@@ -953,38 +978,6 @@
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
-;; General Flycheck configuration for all languages
-(use-package flycheck
-  :init (global-flycheck-mode)
-  :custom
-  ;; Check on these events
-  (flycheck-check-syntax-automatically '(save mode-enabled))
-  ;; Delay before checking on idle
-  (flycheck-idle-change-delay 0.8)
-  ;; Limit errors shown
-  (flycheck-display-errors-threshold 10)
-  ;; Show errors in minibuffer quickly
-  (flycheck-display-errors-delay 0.3)
-  :config
-  ;; Nicer fringe indicators
-  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
-    (vector #b00000000
-            #b00000000
-            #b00000000
-            #b00000000
-            #b01100110
-            #b00110110
-            #b00011100
-            #b00001000))
-  ;; Optional: Show list of errors with C-c ! l
-  (add-to-list 'display-buffer-alist
-               `(,(rx bos "*Flycheck errors*" eos)
-                 (display-buffer-reuse-window
-                  display-buffer-in-side-window)
-                 (side            . bottom)
-                 (reusable-frames . visible)
-                 (window-height   . 0.2))))
-
 (use-package chatgpt-shell
   :config
   (setq chatgpt-shell-openai-key
@@ -1030,6 +1023,24 @@ otherwise returns a list with just the program name."
         (list venv-program)
       (list program-name))))
 
+;; Function to activate virtualenv for current project
+(defun efs/activate-venv ()
+  "Activate the project's virtual environment by adding it to exec-path and PATH."
+  (interactive)
+  (let* ((project-dir (project-root (project-current t)))
+         (venv-dir (when project-dir
+                     (expand-file-name ".venv" project-dir)))
+         (venv-bin (when venv-dir
+                     (expand-file-name "bin" venv-dir))))
+    (when (and venv-bin (file-directory-p venv-bin))
+      ;; Add to exec-path for Emacs to find executables
+      (setq-local exec-path (cons venv-bin exec-path))
+      ;; Update PATH environment variable for subprocesses
+      (setenv "PATH" (concat venv-bin path-separator (getenv "PATH")))
+      ;; Set VIRTUAL_ENV for tools that check for it
+      (setenv "VIRTUAL_ENV" venv-dir)
+      (message "Activated virtualenv: %s" venv-dir))))
+
 ;; Use treesit-based python mode when available
 (use-package python
   :straight (:type built-in)
@@ -1048,27 +1059,44 @@ otherwise returns a list with just the program name."
     (car (efs/get-venv-program "python")))
 
   ;; Set python shell interpreter dynamically
-  (setq python-shell-interpreter #'efs/get-project-python))
+  (setq python-shell-interpreter #'efs/get-project-python)
+  
+  ;; Auto-activate virtualenv when opening Python files
+  :hook ((python-mode . efs/activate-venv)
+         (python-ts-mode . efs/activate-venv)))
 
 ;; Configure eglot for Python
 (use-package eglot
   :straight (:type built-in)
-  :hook ((python-ts-mode . eglot-ensure)
-         (python-mode . eglot-ensure))
-  ;; :init (setq eglot-stay-out-of '(flymake))  ; Commented out - now using flycheck
+  :hook ((python-ts-mode . (lambda ()
+                             (efs/activate-venv)
+                             (eglot-ensure)))
+         (python-mode . (lambda ()
+                         (efs/activate-venv)
+                         (eglot-ensure))))
+  :init (setq eglot-stay-out-of '(flymake))
   :custom
   (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
   (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
   (eglot-auto-display-help-buffer nil)  ; Don't automatically show help
   :config
   ;; Function to get virtualenv-aware jedi command
-  (defun efs/get-jedi-command ()
-    "Get jedi-language-server command using project's virtualenv."
-    (efs/get-venv-program "jedi-language-server"))
+  (defun efs/get-jedi-command (&rest _ignored)
+    "Get jedi-language-server command using project's virtualenv.
+  Accepts any number of arguments (ignored) for eglot compatibility."
+    ;; First try to find in virtualenv, then fall back to system
+    (let ((venv-jedi (car (efs/get-venv-program "jedi-language-server"))))
+      (if (and venv-jedi (file-executable-p venv-jedi))
+          (list venv-jedi)
+        ;; If not found in venv, try pyls as fallback
+        (let ((venv-pyls (car (efs/get-venv-program "pyls"))))
+          (if (and venv-pyls (file-executable-p venv-pyls))
+              (list venv-pyls)
+            (list "jedi-language-server"))))))
 
-  ;; Register jedi with eglot using dynamic command resolution
+  ;; Register jedi with eglot - provide the actual command list
   (add-to-list 'eglot-server-programs
-               `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
+               `((python-ts-mode python-mode) . ,#'efs/get-jedi-command)))
 
 ;; Format Python code with ruff
 (use-package reformatter
@@ -1125,45 +1153,35 @@ otherwise returns a list with just the program name."
 (use-package origami
   :hook ((python-ts-mode python-mode) . origami-mode))
 
-;; Python Linting Configuration with Flycheck
-(use-package flycheck
-  :hook ((python-ts-mode . flycheck-mode)
-         (python-mode . flycheck-mode))
+;; Python Linting Configuration
+(use-package flymake
+  :straight (:type built-in)
   :custom
-  ;; Only check on save to avoid too many checks
-  (flycheck-check-syntax-automatically '(save mode-enabled))
-  (flycheck-idle-change-delay 0.8)
-  (flycheck-display-errors-threshold 10)
+  (flymake-fringe-indicator-position 'left-fringe)
+  (flymake-suppress-zero-counters t)
+  (flymake-start-on-save-buffer t)
+  (flymake-no-changes-timeout 0.3)
   :config
-  ;; Use nicer error indicators
-  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
-    (vector #b00000000
-            #b00000000
-            #b00000000
-            #b00000000
-            #b01100110
-            #b00110110
-            #b00011100
-            #b00001000)))
+  ;; Show flymake diagnostics first in minibuffer
+  (setq eldoc-documentation-functions
+        (cons #'flymake-eldoc-function
+              (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+  :hook ((python-ts-mode . flymake-mode)
+         (python-mode . flymake-mode)))
 
-;; Configure built-in flycheck ruff checker for Python
-;; Flycheck has built-in support for python-ruff, no external package needed
-(with-eval-after-load 'flycheck
-  ;; Function to find and set ruff executable in virtualenv
-  (defun efs/flycheck-python-setup-ruff ()
-    "Set up ruff executable for current buffer."
-    (when-let* ((project (project-current))
-                (root (project-root project))
-                (venv-ruff (expand-file-name ".venv/bin/ruff" root))
-                ((file-executable-p venv-ruff)))
-      ;; Set the executable for this buffer
-      (setq-local flycheck-python-ruff-executable venv-ruff))
-    ;; Select ruff as the checker
-    (flycheck-select-checker 'python-ruff))
-  
-  ;; Add setup to Python mode hooks
-  (add-hook 'python-ts-mode-hook #'efs/flycheck-python-setup-ruff)
-  (add-hook 'python-mode-hook #'efs/flycheck-python-setup-ruff))
+(use-package flymake-ruff
+  :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+  :config
+  ;; Dynamically set ruff program based on current buffer's project
+  (defun efs/setup-flymake-ruff ()
+    "Setup flymake-ruff with virtualenv-aware ruff path."
+    (setq-local flymake-ruff-program (car (efs/get-venv-program "ruff"))))
+  :hook ((python-ts-mode . (lambda ()
+                             (efs/setup-flymake-ruff)
+                             (flymake-ruff-load)))
+         (python-mode . (lambda ()
+                          (efs/setup-flymake-ruff)
+                          (flymake-ruff-load)))))
 
 ;; DAP Mode for debugging
 (use-package dap-mode
