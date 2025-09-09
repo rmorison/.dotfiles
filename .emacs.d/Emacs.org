@@ -1596,8 +1596,14 @@ These variables are already set in our configuration, shown here for reference:
       (let* ((dir (claude-code--directory))
              (existing-buffers (claude-code--find-claude-buffers-for-directory dir)))
         (if existing-buffers
-            ;; If buffers exist, use claude-code-new-instance to force prompting
-            (claude-code-new-instance '(4))  ; With prefix arg to switch to buffer
+            ;; If buffers exist, prompt for instance name and create new instance
+            (let ((instance-name (read-string "Instance name (leave empty for default): ")))
+              (if (string-empty-p instance-name)
+                  ;; Use claude-code-new-instance without instance name
+                  (claude-code-new-instance '(4))
+                ;; Use claude-code-new-instance with the provided instance name
+                (let ((current-prefix-arg '(4)))
+                  (claude-code-new-instance instance-name))))
           ;; Otherwise use regular claude-code with switch
           (claude-code '(4)))))  ; Pass the correct prefix arg format to switch to buffer
     
