@@ -258,6 +258,135 @@
   ([remap describe-variable] . counsel-describe-variable)
   ([remap describe-key] . helpful-key))
 
+(use-package hydra
+  :defer t)
+
+;; Python/Eglot Navigation Hydra
+(defhydra hydra-python (:color blue :hint nil)
+  "
+^Navigation^        ^Code Actions^       ^Diagnostics^
+^^^^^^^^------------------------------------------------------
+_d_: definition     _r_: rename          _e_: list errors
+_D_: declaration    _f_: format buffer   _n_: next error
+_R_: references     _F_: format region   _p_: prev error
+_i_: implementation _a_: code actions    _q_: quit
+_t_: type def       _h_: hover
+"
+  ("d" xref-find-definitions)
+  ("D" eglot-find-declaration)
+  ("R" xref-find-references)
+  ("i" eglot-find-implementation)
+  ("t" eglot-find-typeDefinition)
+  ("r" eglot-rename)
+  ("f" eglot-format-buffer)
+  ("F" eglot-format)
+  ("a" eglot-code-actions)
+  ("h" eldoc-doc-buffer)
+  ("e" flymake-show-diagnostics-buffer)
+  ("n" flymake-goto-next-error)
+  ("p" flymake-goto-prev-error)
+  ("q" nil))
+
+;; Window Management Hydra
+(defhydra hydra-window (:color red :hint nil)
+  "
+^Move^          ^Split^         ^Resize^          ^Other^
+^^^^^^^^--------------------------------------------------------
+_h_: left       _v_: vertical   _H_: shrink h     _d_: delete
+_j_: down       _x_: horizontal _J_: enlarge v    _D_: delete other
+_k_: up         _z_: undo       _K_: shrink v     _b_: balance
+_l_: right      _Z_: redo       _L_: enlarge h    _f_: new frame
+_o_: other                                        _q_: quit
+"
+  ("h" windmove-left)
+  ("j" windmove-down)
+  ("k" windmove-up)
+  ("l" windmove-right)
+  ("o" other-window)
+  ("v" split-window-right)
+  ("x" split-window-below)
+  ("d" delete-window)
+  ("D" delete-other-windows)
+  ("b" balance-windows)
+  ("f" make-frame-command)
+  ("H" shrink-window-horizontally)
+  ("J" enlarge-window)
+  ("K" shrink-window)
+  ("L" enlarge-window-horizontally)
+  ("z" winner-undo)
+  ("Z" winner-redo)
+  ("q" nil))
+
+;; Text Scaling Hydra
+(defhydra hydra-zoom (:color red :hint nil)
+  "
+Zoom: _+_/_=_ in, _-_ out, _0_ reset, _q_ quit
+"
+  ("+" text-scale-increase)
+  ("=" text-scale-increase)
+  ("-" text-scale-decrease)
+  ("0" (text-scale-set 0))
+  ("q" nil))
+
+;; Git Operations Hydra (for Magit)
+(defhydra hydra-git (:color blue :hint nil)
+  "
+^Status^      ^Changes^        ^History^       ^Actions^
+^^^^^^^^--------------------------------------------------------
+_s_: status   _d_: diff        _l_: log        _c_: commit
+_b_: blame    _D_: diff dwim   _L_: log file   _p_: push
+_t_: timemachine               _r_: reflog     _P_: pull
+_f_: file dispatch             _w_: worktree   _!_: git command
+                                               _q_: quit
+"
+  ("s" magit-status)
+  ("b" magit-blame)
+  ("d" magit-diff)
+  ("D" magit-diff-dwim)
+  ("l" magit-log)
+  ("L" magit-log-buffer-file)
+  ("r" magit-reflog)
+  ("t" git-timemachine)
+  ("f" magit-file-dispatch)
+  ("w" magit-worktree)
+  ("c" magit-commit)
+  ("p" magit-push)
+  ("P" magit-pull)
+  ("!" magit-git-command)
+  ("q" nil))
+
+;; Multiple Cursors Hydra
+(defhydra hydra-multiple-cursors (:color red :hint nil)
+  "
+^Mark^            ^Edit^           ^Other^
+^^^^^^^^-----------------------------------------
+_n_: next         _l_: lines       _q_: quit
+_p_: previous     _a_: all         _Q_: quit & disable
+_N_: skip next    _r_: regexp
+_P_: skip prev    _d_: defun
+"
+  ("n" mc/mark-next-like-this)
+  ("p" mc/mark-previous-like-this)
+  ("N" mc/skip-to-next-like-this)
+  ("P" mc/skip-to-previous-like-this)
+  ("l" mc/edit-lines)
+  ("a" mc/mark-all-like-this)
+  ("r" mc/mark-all-in-region-regexp)
+  ("d" mc/mark-all-like-this-in-defun)
+  ("q" nil)
+  ("Q" mc/keyboard-quit))
+
+;; Global key bindings for hydras
+(global-set-key (kbd "C-c h p") 'hydra-python/body)
+(global-set-key (kbd "C-c h w") 'hydra-window/body)
+(global-set-key (kbd "C-c h z") 'hydra-zoom/body)
+(global-set-key (kbd "C-c h g") 'hydra-git/body)
+(global-set-key (kbd "C-c h m") 'hydra-multiple-cursors/body)
+
+;; Alternative bindings for quick access
+(global-set-key (kbd "C-c w") 'hydra-window/body)
+(global-set-key (kbd "C-c z") 'hydra-zoom/body)
+
 (use-package exec-path-from-shell
   :init (exec-path-from-shell-initialize))
 ;; eshell
