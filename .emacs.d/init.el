@@ -1027,7 +1027,11 @@ _P_: skip prev    _d_: defun
       (user-error "Not in a project")))
 
   ;; Bind eat to 't' in project keymap
-  (define-key project-prefix-map "t" #'efs/project-eat))
+  (define-key project-prefix-map "t" #'efs/project-eat)
+
+  ;; Add project management commands
+  (define-key project-prefix-map "r" #'project-forget-project)
+  (define-key project-prefix-map "z" #'project-forget-zombie-projects))
 
 (use-package claude-code
   :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"

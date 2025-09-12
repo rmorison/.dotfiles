@@ -1453,6 +1453,8 @@ Key bindings and features available through project.el with the =C-c p= prefix.
 *** Project Management
 - =C-c p p= - Switch to another project (=project-switch-project=)
 - =C-c p k= - Kill project buffers (=project-kill-buffers=)
+- =C-c p r= - Remove project from known projects (=project-forget-project=)
+- =C-c p z= - Remove zombie projects (non-existent directories) (=project-forget-zombie-projects=)
 - =C-c p v= - Run VC commands on project (=project-vc-dir=)
 - =C-c p != - Run shell command in project root (=project-shell-command=)
 - =C-c p &= - Run async shell command in project root (=project-async-shell-command=)
@@ -1546,7 +1548,11 @@ These variables are already set in our configuration, shown here for reference:
         (user-error "Not in a project")))
 
     ;; Bind eat to 't' in project keymap
-    (define-key project-prefix-map "t" #'efs/project-eat))
+    (define-key project-prefix-map "t" #'efs/project-eat)
+
+    ;; Add project management commands
+    (define-key project-prefix-map "r" #'project-forget-project)
+    (define-key project-prefix-map "z" #'project-forget-zombie-projects))
 #+end_src
 
 * Claude Code
