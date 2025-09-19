@@ -34,3 +34,6 @@ flycheck_*.el
 /server/
 .projectile
 .dir-locals.el
+
+# Claude Code
+.claude/

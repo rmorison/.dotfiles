@@ -1497,7 +1497,7 @@ These variables are already set in our configuration, shown here for reference:
     ("C-c p" . project-prefix-map)  ;; Similar to projectile's prefix
     :custom
     (project-list-file (locate-user-emacs-file "projects"))
-    (project-vc-extra-root-markers '("pyproject.toml" "package.json"))
+    (project-vc-extra-root-markers '(".git" "pyproject.toml" "package.json"))
     (project-switch-commands 'project-find-file)
     (project-ignored-directories '(".venv" "node_modules" ".git"))
     (project-ignored-globs '("*.pyc" "*.o" "*.elc"))
@@ -1985,13 +1985,26 @@ target-version = "py38"
   ;; Python Development Configuration
 
   ;; Find programs in virtual env bin dir or relay on PATH
+  (defun efs/find-venv-directory (&optional start-dir)
+    "Find .venv directory by traversing up from START-DIR.
+  If START-DIR is not provided, uses the current project root or default-directory."
+    (let ((dir (or start-dir
+                   (when (project-current)
+                     (project-root (project-current)))
+                   default-directory)))
+      (while (and dir
+                  (not (equal dir "/"))
+                  (not (file-exists-p (expand-file-name ".venv" dir))))
+        (setq dir (file-name-directory (directory-file-name dir))))
+      (when (and dir (file-exists-p (expand-file-name ".venv" dir)))
+        (expand-file-name ".venv" dir))))
+
   (defun efs/get-venv-program (program-name)
     "Get command for PROGRAM-NAME using project's virtualenv.
   Returns a list containing the full path if found in virtualenv,
-  otherwise returns a list with just the program name."
-    (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir
-                       (expand-file-name ".venv" project-dir)))
+  otherwise returns a list with just the program name.
+  Traverses up the directory tree to find .venv if not in project root."
+    (let* ((venv-dir (efs/find-venv-directory))
            (venv-program (when venv-dir
                            (expand-file-name (concat "bin/" program-name) venv-dir))))
       (if (and venv-program (file-executable-p venv-program))
@@ -2000,11 +2013,10 @@ target-version = "py38"
   
   ;; Function to activate virtualenv for current project
   (defun efs/activate-venv ()
-    "Activate the project's virtual environment by adding it to exec-path and PATH."
+    "Activate the project's virtual environment by adding it to exec-path and PATH.
+  Traverses up the directory tree to find .venv if not in project root."
     (interactive)
-    (let* ((project-dir (project-root (project-current t)))
-           (venv-dir (when project-dir
-                       (expand-file-name ".venv" project-dir)))
+    (let* ((venv-dir (efs/find-venv-directory))
            (venv-bin (when venv-dir
                        (expand-file-name "bin" venv-dir))))
       (when (and venv-bin (file-directory-p venv-bin))
@@ -2022,11 +2034,8 @@ target-version = "py38"
     :mode ("\\.py\\'" . python-ts-mode)
     :custom
     (python-indent-offset 4)
-    ;; Look for .venv in project root
-    (python-shell-virtualenv-root (lambda ()
-                                    (let ((project-dir (project-root (project-current t))))
-                                      (when project-dir
-                                        (expand-file-name ".venv" project-dir)))))
+    ;; Look for .venv by traversing up the directory tree
+    (python-shell-virtualenv-root #'efs/find-venv-directory)
     :config
     ;; Function to get the project's virtualenv python
     (defun efs/get-project-python ()
@@ -2044,34 +2053,89 @@ target-version = "py38"
   (use-package eglot
     :straight (:type built-in)
     :hook ((python-ts-mode . (lambda ()
+                               (message "[DEBUG] python-ts-mode hook called in: %s" default-directory)
                                (efs/activate-venv)
-                               (eglot-ensure)))
+                               (message "[DEBUG] About to call eglot-ensure")
+                               (eglot-ensure)
+                               (message "[DEBUG] eglot-ensure completed")))
            (python-mode . (lambda ()
+                           (message "[DEBUG] python-mode hook called in: %s" default-directory)
                            (efs/activate-venv)
-                           (eglot-ensure))))
+                           (message "[DEBUG] About to call eglot-ensure")
+                           (eglot-ensure)
+                           (message "[DEBUG] eglot-ensure completed"))))
     :init (setq eglot-stay-out-of '(flymake))
     :custom
     (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
     (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
     (eglot-auto-display-help-buffer nil)  ; Don't automatically show help
+    (eglot-sync-connect 3)  ; Give server 3 seconds to start
+    (eglot-connect-timeout 10)  ; Connection timeout in seconds
     :config
     ;; Function to get virtualenv-aware jedi command
-    (defun efs/get-jedi-command (&rest _ignored)
+    (defun efs/get-jedi-command (&rest args)
       "Get jedi-language-server command using project's virtualenv.
-    Accepts any number of arguments (ignored) for eglot compatibility."
-      ;; First try to find in virtualenv, then fall back to system
-      (let ((venv-jedi (car (efs/get-venv-program "jedi-language-server"))))
-        (if (and venv-jedi (file-executable-p venv-jedi))
-            (list venv-jedi)
-          ;; If not found in venv, try pyls as fallback
-          (let ((venv-pyls (car (efs/get-venv-program "pyls"))))
-            (if (and venv-pyls (file-executable-p venv-pyls))
-                (list venv-pyls)
-              (list "jedi-language-server"))))))
+    Accepts any number of arguments for eglot compatibility."
+      (message "[DEBUG] efs/get-jedi-command called with args: %s" args)
+      (message "[DEBUG] Current directory: %s" default-directory)
+      (message "[DEBUG] Project current: %s" (project-current))
 
-    ;; Register jedi with eglot - provide the actual command list
+      ;; Log venv detection
+      (let ((venv-dir (efs/find-venv-directory)))
+        (message "[DEBUG] Found venv directory: %s" venv-dir))
+
+      ;; First try to find in virtualenv, then fall back to system
+      (let* ((venv-jedi (car (efs/get-venv-program "jedi-language-server")))
+             (result))
+        (message "[DEBUG] efs/get-venv-program returned: %s" venv-jedi)
+        (message "[DEBUG] File executable check: %s" (and venv-jedi (file-executable-p venv-jedi)))
+
+        (setq result
+              (if (and venv-jedi (file-executable-p venv-jedi))
+                  (progn
+                    (message "[DEBUG] Using virtualenv jedi: %s" venv-jedi)
+                    (list venv-jedi))
+                ;; If not found in venv, try pyls or pylsp as fallback
+                (let ((venv-pylsp (car (efs/get-venv-program "pylsp"))))
+                  (if (and venv-pylsp (file-executable-p venv-pylsp))
+                      (progn
+                        (message "[DEBUG] Using virtualenv pylsp: %s" venv-pylsp)
+                        (list venv-pylsp))
+                    (let ((venv-pyls (car (efs/get-venv-program "pyls"))))
+                      (if (and venv-pyls (file-executable-p venv-pyls))
+                          (progn
+                            (message "[DEBUG] Using virtualenv pyls: %s" venv-pyls)
+                            (list venv-pyls))
+                        (progn
+                          (message "[DEBUG] Falling back to system jedi-language-server")
+                          (list "jedi-language-server"))))))))
+
+        (message "[DEBUG] efs/get-jedi-command returning: %s" result)
+        result))
+
+    ;; Remove default Python server programs to avoid conflicts
+    (message "[DEBUG] Before cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
+    (let ((python-entries (cl-count-if (lambda (entry)
+                                         (and (listp (car entry))
+                                              (or (memq 'python-mode (car entry))
+                                                  (memq 'python-ts-mode (car entry)))))
+                                       eglot-server-programs)))
+      (message "[DEBUG] Found %d Python entries to remove" python-entries))
+    
+    (setq eglot-server-programs
+          (cl-remove-if (lambda (entry)
+                          (and (listp (car entry))
+                               (or (memq 'python-mode (car entry))
+                                   (memq 'python-ts-mode (car entry)))))
+                        eglot-server-programs))
+    
+    (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
+    
+    ;; Register our custom jedi command
     (add-to-list 'eglot-server-programs
-                 `((python-ts-mode python-mode) . ,#'efs/get-jedi-command)))
+                 '((python-ts-mode python-mode) . efs/get-jedi-command))
+    
+    (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 #+end_src
 
 *** Python formatting with Ruff
