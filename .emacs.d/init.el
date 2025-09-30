@@ -991,16 +991,28 @@ _P_: skip prev    _d_: defun
 
   ;; Custom function to use counsel-rg for project search
   (defun efs/project-search-with-counsel-rg ()
-    "Search project using counsel-rg with live results."
+    "Search project using counsel-rg with live results (includes hidden files)."
     (interactive)
     (if-let* ((project (project-current))
               (root (project-root project)))
         (let ((default-directory root))
-          (counsel-rg))
+          (counsel-rg nil nil "--hidden"))
+      (user-error "Not in a project")))
+
+  ;; Search with --hidden --no-ignore (search everything including gitignored files)
+  (defun efs/project-search-with-counsel-rg-all ()
+    "Search project using counsel-rg with --hidden --no-ignore (searches all files)."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project)))
+        (let ((default-directory root))
+          (counsel-rg nil nil "--hidden --no-ignore"))
       (user-error "Not in a project")))
 
   ;; Bind search to 's' in project keymap to use counsel-rg
   (define-key project-prefix-map "s" #'efs/project-search-with-counsel-rg)
+  ;; Bind 'S' for search all (including gitignored files)
+  (define-key project-prefix-map "S" #'efs/project-search-with-counsel-rg-all)
 
   ;; Add eat terminal in project root
   (defun efs/project-eat ()
