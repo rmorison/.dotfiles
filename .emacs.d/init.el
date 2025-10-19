@@ -522,6 +522,14 @@ _P_: skip prev    _d_: defun
 
 (global-set-key (kbd "C-c T") #'efs/eat-project)
 
+;; Auto-scroll to bottom when switching to eat buffer
+(defun my-eat-goto-bottom ()
+  "Move point to the end of the buffer in Eat buffers."
+  (when (derived-mode-p 'eat-mode)
+    (goto-char (point-max))))
+
+;; (add-hook 'window-state-change-hook #'my-eat-goto-bottom)
+
 ;; Vterm - Fully-featured terminal emulator
 (use-package vterm
   :commands vterm
@@ -1056,10 +1064,12 @@ _P_: skip prev    _d_: defun
   (claude-code-startup-delay 0.2)
   ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
   :custom-face
-  (claude-code-repl-face ((t (:family "JuliaMono"))))
+  ;; Use the same monospaced font as default to ensure consistent character width
+  ;; This prevents border wrapping issues in the terminal buffer
+  (claude-code-repl-face ((t (:family "Fira Code" :height 160))))
   :config
   ;; (setq claude-code-terminal-backend 'vterm)
-  
+
   ;; Custom function to create Claude buffer and switch to it
   (defun my/claude-code-and-switch ()
     "Start Claude Code in project root and switch to the buffer.
@@ -1096,14 +1106,20 @@ _P_: skip prev    _d_: defun
               (format "*claude:%s*" dir-name)))
         (error "Cannot determine Claude directory - no `default-directory'!"))))
   
-  ;; Fix auto-scrolling in eat terminal buffers used by claude-code
+  ;; Fix auto-scrolling and font handling in eat terminal buffers used by claude-code
   (defun my/claude-code-eat-setup ()
-    "Configure eat terminal for proper auto-scrolling in claude-code buffers."
+    "Configure eat terminal for proper auto-scrolling and display in claude-code buffers."
     (when (and (derived-mode-p 'eat-mode)
                (string-match-p "\\*claude:" (buffer-name)))
       ;; Ensure point follows output
       (setq-local scroll-conservatively 101)
       (setq-local scroll-margin 0)
+      ;; Disable line truncation to prevent display issues
+      (setq-local truncate-lines nil)
+      ;; Ensure proper word wrapping at window edge
+      (setq-local word-wrap nil)
+      ;; Set buffer-local face to use monospace font
+      (buffer-face-set 'claude-code-repl-face)
       ;; Move to end of buffer on new output
       (goto-char (point-max))))
   
