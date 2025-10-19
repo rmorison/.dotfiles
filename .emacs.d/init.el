@@ -233,8 +233,13 @@
 	   ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
+  ;; Configure ripgrep path
+  (counsel-rg-base-command
+   '("/opt/homebrew/bin/rg" "--no-heading" "--line-number" "--color" "never" "%s"))
   :config
-  (counsel-mode 1))
+  (counsel-mode 1)
+  ;; Configure counsel-rg to start searching after 3 characters
+  (setq ivy-more-chars-alist '((counsel-rg . 3))))
 
 (use-package ivy-rich
   :after ivy
@@ -252,6 +257,135 @@
   ([remap describe-command] . helpful-command)
   ([remap describe-variable] . counsel-describe-variable)
   ([remap describe-key] . helpful-key))
+
+(use-package hydra
+  :defer t)
+
+;; Python/Eglot Navigation Hydra
+(defhydra hydra-python (:color blue :hint nil)
+  "
+^Navigation^        ^Code Actions^       ^Diagnostics^
+^^^^^^^^------------------------------------------------------
+_d_: definition     _r_: rename          _e_: list errors
+_D_: declaration    _f_: format buffer   _n_: next error
+_R_: references     _F_: format region   _p_: prev error
+_i_: implementation _a_: code actions    _q_: quit
+_t_: type def       _h_: hover
+"
+  ("d" xref-find-definitions)
+  ("D" eglot-find-declaration)
+  ("R" xref-find-references)
+  ("i" eglot-find-implementation)
+  ("t" eglot-find-typeDefinition)
+  ("r" eglot-rename)
+  ("f" eglot-format-buffer)
+  ("F" eglot-format)
+  ("a" eglot-code-actions)
+  ("h" eldoc-doc-buffer)
+  ("e" flymake-show-diagnostics-buffer)
+  ("n" flymake-goto-next-error)
+  ("p" flymake-goto-prev-error)
+  ("q" nil))
+
+;; Window Management Hydra
+(defhydra hydra-window (:color red :hint nil)
+  "
+^Move^          ^Split^         ^Resize^          ^Other^
+^^^^^^^^--------------------------------------------------------
+_h_: left       _v_: vertical   _H_: shrink h     _d_: delete
+_j_: down       _x_: horizontal _J_: enlarge v    _D_: delete other
+_k_: up         _z_: undo       _K_: shrink v     _b_: balance
+_l_: right      _Z_: redo       _L_: enlarge h    _f_: new frame
+_o_: other                                        _q_: quit
+"
+  ("h" windmove-left)
+  ("j" windmove-down)
+  ("k" windmove-up)
+  ("l" windmove-right)
+  ("o" other-window)
+  ("v" split-window-right)
+  ("x" split-window-below)
+  ("d" delete-window)
+  ("D" delete-other-windows)
+  ("b" balance-windows)
+  ("f" make-frame-command)
+  ("H" shrink-window-horizontally)
+  ("J" enlarge-window)
+  ("K" shrink-window)
+  ("L" enlarge-window-horizontally)
+  ("z" winner-undo)
+  ("Z" winner-redo)
+  ("q" nil))
+
+;; Text Scaling Hydra
+(defhydra hydra-zoom (:color red :hint nil)
+  "
+Zoom: _+_/_=_ in, _-_ out, _0_ reset, _q_ quit
+"
+  ("+" text-scale-increase)
+  ("=" text-scale-increase)
+  ("-" text-scale-decrease)
+  ("0" (text-scale-set 0))
+  ("q" nil))
+
+;; Git Operations Hydra (for Magit)
+(defhydra hydra-git (:color blue :hint nil)
+  "
+^Status^      ^Changes^        ^History^       ^Actions^
+^^^^^^^^--------------------------------------------------------
+_s_: status   _d_: diff        _l_: log        _c_: commit
+_b_: blame    _D_: diff dwim   _L_: log file   _p_: push
+_t_: timemachine               _r_: reflog     _P_: pull
+_f_: file dispatch             _w_: worktree   _!_: git command
+                                               _q_: quit
+"
+  ("s" magit-status)
+  ("b" magit-blame)
+  ("d" magit-diff)
+  ("D" magit-diff-dwim)
+  ("l" magit-log)
+  ("L" magit-log-buffer-file)
+  ("r" magit-reflog)
+  ("t" git-timemachine)
+  ("f" magit-file-dispatch)
+  ("w" magit-worktree)
+  ("c" magit-commit)
+  ("p" magit-push)
+  ("P" magit-pull)
+  ("!" magit-git-command)
+  ("q" nil))
+
+;; Multiple Cursors Hydra
+(defhydra hydra-multiple-cursors (:color red :hint nil)
+  "
+^Mark^            ^Edit^           ^Other^
+^^^^^^^^-----------------------------------------
+_n_: next         _l_: lines       _q_: quit
+_p_: previous     _a_: all         _Q_: quit & disable
+_N_: skip next    _r_: regexp
+_P_: skip prev    _d_: defun
+"
+  ("n" mc/mark-next-like-this)
+  ("p" mc/mark-previous-like-this)
+  ("N" mc/skip-to-next-like-this)
+  ("P" mc/skip-to-previous-like-this)
+  ("l" mc/edit-lines)
+  ("a" mc/mark-all-like-this)
+  ("r" mc/mark-all-in-region-regexp)
+  ("d" mc/mark-all-like-this-in-defun)
+  ("q" nil)
+  ("Q" mc/keyboard-quit))
+
+;; Global key bindings for hydras
+(global-set-key (kbd "C-c h p") 'hydra-python/body)
+(global-set-key (kbd "C-c h w") 'hydra-window/body)
+(global-set-key (kbd "C-c h z") 'hydra-zoom/body)
+(global-set-key (kbd "C-c h g") 'hydra-git/body)
+(global-set-key (kbd "C-c h m") 'hydra-multiple-cursors/body)
+
+;; Alternative bindings for quick access
+(global-set-key (kbd "C-c w") 'hydra-window/body)
+(global-set-key (kbd "C-c z") 'hydra-zoom/body)
 
 (use-package exec-path-from-shell
   :init (exec-path-from-shell-initialize))
@@ -387,6 +521,14 @@
     (eat)))
 
 (global-set-key (kbd "C-c T") #'efs/eat-project)
+
+;; Auto-scroll to bottom when switching to eat buffer
+(defun my-eat-goto-bottom ()
+  "Move point to the end of the buffer in Eat buffers."
+  (when (derived-mode-p 'eat-mode)
+    (goto-char (point-max))))
+
+;; (add-hook 'window-state-change-hook #'my-eat-goto-bottom)
 
 ;; Vterm - Fully-featured terminal emulator
 (use-package vterm
@@ -757,8 +899,11 @@
 ;; Enable flyspell for spell checking in markdown documents
 (add-hook 'markdown-mode-hook 'flyspell-mode)
 
-;; Integrate with markdownlint if available via flycheck
-;; Flycheck has built-in support for markdownlint when executable is present
+;; Integrate with markdownlint if available
+(when (executable-find "markdownlint")
+  (use-package flymake-markdownlint
+    :after markdown-mode
+    :hook (markdown-mode . flymake-markdownlint-setup)))
 
 ;; Magit configuration
 (use-package magit
@@ -839,7 +984,7 @@
   ("C-c p" . project-prefix-map)  ;; Similar to projectile's prefix
   :custom
   (project-list-file (locate-user-emacs-file "projects"))
-  (project-vc-extra-root-markers '("pyproject.toml" "package.json"))
+  (project-vc-extra-root-markers '(".git" "pyproject.toml" "package.json"))
   (project-switch-commands 'project-find-file)
   (project-ignored-directories '(".venv" "node_modules" ".git"))
   (project-ignored-globs '("*.pyc" "*.o" "*.elc"))
@@ -852,8 +997,30 @@
   (when (file-directory-p "~/Projects")
     (setq project-switch-commands 'project-dired))
 
-  ;; Bind search to 's' in project keymap
-  (define-key project-prefix-map "s" #'project-find-regexp)
+  ;; Custom function to use counsel-rg for project search
+  (defun efs/project-search-with-counsel-rg ()
+    "Search project using counsel-rg with live results (includes hidden files)."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project)))
+        (let ((default-directory root))
+          (counsel-rg nil nil "--hidden"))
+      (user-error "Not in a project")))
+
+  ;; Search with --hidden --no-ignore (search everything including gitignored files)
+  (defun efs/project-search-with-counsel-rg-all ()
+    "Search project using counsel-rg with --hidden --no-ignore (searches all files)."
+    (interactive)
+    (if-let* ((project (project-current))
+              (root (project-root project)))
+        (let ((default-directory root))
+          (counsel-rg nil nil "--hidden --no-ignore"))
+      (user-error "Not in a project")))
+
+  ;; Bind search to 's' in project keymap to use counsel-rg
+  (define-key project-prefix-map "s" #'efs/project-search-with-counsel-rg)
+  ;; Bind 'S' for search all (including gitignored files)
+  (define-key project-prefix-map "S" #'efs/project-search-with-counsel-rg-all)
 
   ;; Add eat terminal in project root
   (defun efs/project-eat ()
@@ -880,7 +1047,11 @@
       (user-error "Not in a project")))
 
   ;; Bind eat to 't' in project keymap
-  (define-key project-prefix-map "t" #'efs/project-eat))
+  (define-key project-prefix-map "t" #'efs/project-eat)
+
+  ;; Add project management commands
+  (define-key project-prefix-map "r" #'project-forget-project)
+  (define-key project-prefix-map "z" #'project-forget-zombie-projects))
 
 (use-package claude-code
   :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
@@ -893,18 +1064,83 @@
   (claude-code-startup-delay 0.2)
   ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
   :custom-face
-  (claude-code-repl-face ((t (:family "JuliaMono"))))
+  ;; Use the same monospaced font as default to ensure consistent character width
+  ;; This prevents border wrapping issues in the terminal buffer
+  (claude-code-repl-face ((t (:family "Fira Code" :height 160))))
   :config
-  (setq claude-code-terminal-backend 'vterm)
-  
+  ;; (setq claude-code-terminal-backend 'vterm)
+
   ;; Custom function to create Claude buffer and switch to it
   (defun my/claude-code-and-switch ()
-    "Start Claude Code in project root and switch to the buffer."
+    "Start Claude Code in project root and switch to the buffer.
+  If a Claude instance already exists for this directory, prompt for a new instance name."
     (interactive)
-    (claude-code '(4)))  ; Pass the correct prefix arg format to switch to buffer
+    (let* ((dir (claude-code--directory))
+           (existing-buffers (claude-code--find-claude-buffers-for-directory dir)))
+      (if existing-buffers
+          ;; If buffers exist, prompt for instance name and create new instance
+          (let ((instance-name (read-string "Instance name (leave empty for default): ")))
+            (if (string-empty-p instance-name)
+                ;; Use claude-code-new-instance without instance name
+                (claude-code-new-instance '(4))
+              ;; Use claude-code-new-instance with the provided instance name
+              (let ((current-prefix-arg '(4)))
+                (claude-code-new-instance instance-name))))
+        ;; Otherwise use regular claude-code with switch
+        (claude-code '(4)))))  ; Pass the correct prefix arg format to switch to buffer
   
   ;; Override the default C-c C c binding to use our custom function
   (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
+  
+  ;; Override buffer naming to show only directory name, not full path
+  (defun claude-code--buffer-name (&optional instance-name)
+    "Generate the Claude buffer name showing only the directory name.
+  
+  If INSTANCE-NAME is provided, include it in the buffer name.
+  If not in a project and no buffer file, raise an error."
+    (let ((dir (claude-code--directory)))
+      (if dir
+          (let ((dir-name (file-name-nondirectory (directory-file-name dir))))
+            (if instance-name
+                (format "*claude:%s:%s*" dir-name instance-name)
+              (format "*claude:%s*" dir-name)))
+        (error "Cannot determine Claude directory - no `default-directory'!"))))
+  
+  ;; Fix auto-scrolling and font handling in eat terminal buffers used by claude-code
+  (defun my/claude-code-eat-setup ()
+    "Configure eat terminal for proper auto-scrolling and display in claude-code buffers."
+    (when (and (derived-mode-p 'eat-mode)
+               (string-match-p "\\*claude:" (buffer-name)))
+      ;; Ensure point follows output
+      (setq-local scroll-conservatively 101)
+      (setq-local scroll-margin 0)
+      ;; Disable line truncation to prevent display issues
+      (setq-local truncate-lines nil)
+      ;; Ensure proper word wrapping at window edge
+      (setq-local word-wrap nil)
+      ;; Set buffer-local face to use monospace font
+      (buffer-face-set 'claude-code-repl-face)
+      ;; Move to end of buffer on new output
+      (goto-char (point-max))))
+  
+  ;; Hook into eat-mode for claude buffers
+  (add-hook 'eat-mode-hook #'my/claude-code-eat-setup)
+  
+  ;; Additional hook to ensure scrolling on process output
+  (defun my/claude-code-scroll-to-bottom (&rest _)
+    "Scroll claude-code eat buffers to bottom on new output."
+    (when (and (derived-mode-p 'eat-mode)
+               (string-match-p "\\*claude:" (buffer-name)))
+      (let ((windows (get-buffer-window-list (current-buffer) nil t)))
+        (dolist (window windows)
+          (with-selected-window window
+            (goto-char (point-max))
+            (recenter -1))))))
+  
+  ;; Advise eat's process filter to ensure scrolling
+  (with-eval-after-load 'eat
+    (advice-add 'eat-self-input :after #'my/claude-code-scroll-to-bottom)
+    (advice-add 'eat-term-redisplay :after #'my/claude-code-scroll-to-bottom))
   
   (claude-code-mode))
 
@@ -939,38 +1175,6 @@
   (company-minimum-prefix-length 1)
   (company-idle-delay 0.0))
 
-;; General Flycheck configuration for all languages
-(use-package flycheck
-  :init (global-flycheck-mode)
-  :custom
-  ;; Check on these events
-  (flycheck-check-syntax-automatically '(save mode-enabled))
-  ;; Delay before checking on idle
-  (flycheck-idle-change-delay 0.8)
-  ;; Limit errors shown
-  (flycheck-display-errors-threshold 10)
-  ;; Show errors in minibuffer quickly
-  (flycheck-display-errors-delay 0.3)
-  :config
-  ;; Nicer fringe indicators
-  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
-    (vector #b00000000
-            #b00000000
-            #b00000000
-            #b00000000
-            #b01100110
-            #b00110110
-            #b00011100
-            #b00001000))
-  ;; Optional: Show list of errors with C-c ! l
-  (add-to-list 'display-buffer-alist
-               `(,(rx bos "*Flycheck errors*" eos)
-                 (display-buffer-reuse-window
-                  display-buffer-in-side-window)
-                 (side            . bottom)
-                 (reusable-frames . visible)
-                 (window-height   . 0.2))))
-
 (use-package chatgpt-shell
   :config
   (setq chatgpt-shell-openai-key
@@ -1003,18 +1207,48 @@
 ;; Python Development Configuration
 
 ;; Find programs in virtual env bin dir or relay on PATH
+(defun efs/find-venv-directory (&optional start-dir)
+  "Find .venv directory by traversing up from START-DIR.
+If START-DIR is not provided, uses the current project root or default-directory."
+  (let ((dir (or start-dir
+                 (when (project-current)
+                   (project-root (project-current)))
+                 default-directory)))
+    (while (and dir
+                (not (equal dir "/"))
+                (not (file-exists-p (expand-file-name ".venv" dir))))
+      (setq dir (file-name-directory (directory-file-name dir))))
+    (when (and dir (file-exists-p (expand-file-name ".venv" dir)))
+      (expand-file-name ".venv" dir))))
+
 (defun efs/get-venv-program (program-name)
   "Get command for PROGRAM-NAME using project's virtualenv.
 Returns a list containing the full path if found in virtualenv,
-otherwise returns a list with just the program name."
-  (let* ((project-dir (project-root (project-current t)))
-         (venv-dir (when project-dir
-                     (expand-file-name ".venv" project-dir)))
+otherwise returns a list with just the program name.
+Traverses up the directory tree to find .venv if not in project root."
+  (let* ((venv-dir (efs/find-venv-directory))
          (venv-program (when venv-dir
                          (expand-file-name (concat "bin/" program-name) venv-dir))))
     (if (and venv-program (file-executable-p venv-program))
         (list venv-program)
       (list program-name))))
+
+;; Function to activate virtualenv for current project
+(defun efs/activate-venv ()
+  "Activate the project's virtual environment by adding it to exec-path and PATH.
+Traverses up the directory tree to find .venv if not in project root."
+  (interactive)
+  (let* ((venv-dir (efs/find-venv-directory))
+         (venv-bin (when venv-dir
+                     (expand-file-name "bin" venv-dir))))
+    (when (and venv-bin (file-directory-p venv-bin))
+      ;; Add to exec-path for Emacs to find executables
+      (setq-local exec-path (cons venv-bin exec-path))
+      ;; Update PATH environment variable for subprocesses
+      (setenv "PATH" (concat venv-bin path-separator (getenv "PATH")))
+      ;; Set VIRTUAL_ENV for tools that check for it
+      (setenv "VIRTUAL_ENV" venv-dir)
+      (message "Activated virtualenv: %s" venv-dir))))
 
 ;; Use treesit-based python mode when available
 (use-package python
@@ -1022,11 +1256,8 @@ otherwise returns a list with just the program name."
   :mode ("\\.py\\'" . python-ts-mode)
   :custom
   (python-indent-offset 4)
-  ;; Look for .venv in project root
-  (python-shell-virtualenv-root (lambda ()
-                                  (let ((project-dir (project-root (project-current t))))
-                                    (when project-dir
-                                      (expand-file-name ".venv" project-dir)))))
+  ;; Look for .venv by traversing up the directory tree
+  (python-shell-virtualenv-root #'efs/find-venv-directory)
   :config
   ;; Function to get the project's virtualenv python
   (defun efs/get-project-python ()
@@ -1034,27 +1265,99 @@ otherwise returns a list with just the program name."
     (car (efs/get-venv-program "python")))
 
   ;; Set python shell interpreter dynamically
-  (setq python-shell-interpreter #'efs/get-project-python))
+  (setq python-shell-interpreter #'efs/get-project-python)
+  
+  ;; Auto-activate virtualenv when opening Python files
+  :hook ((python-mode . efs/activate-venv)
+         (python-ts-mode . efs/activate-venv)))
 
 ;; Configure eglot for Python
 (use-package eglot
   :straight (:type built-in)
-  :hook ((python-ts-mode . eglot-ensure)
-         (python-mode . eglot-ensure))
-  ;; :init (setq eglot-stay-out-of '(flymake))  ; Commented out - now using flycheck
+  :hook ((python-ts-mode . (lambda ()
+                             (message "[DEBUG] python-ts-mode hook called in: %s" default-directory)
+                             (efs/activate-venv)
+                             (message "[DEBUG] About to call eglot-ensure")
+                             (eglot-ensure)
+                             (message "[DEBUG] eglot-ensure completed")))
+         (python-mode . (lambda ()
+                         (message "[DEBUG] python-mode hook called in: %s" default-directory)
+                         (efs/activate-venv)
+                         (message "[DEBUG] About to call eglot-ensure")
+                         (eglot-ensure)
+                         (message "[DEBUG] eglot-ensure completed"))))
+  :init (setq eglot-stay-out-of '(flymake))
   :custom
   (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
   (eglot-send-changes-idle-time 0.1)  ; How quickly to send changes to server
   (eglot-auto-display-help-buffer nil)  ; Don't automatically show help
+  (eglot-sync-connect 3)  ; Give server 3 seconds to start
+  (eglot-connect-timeout 10)  ; Connection timeout in seconds
   :config
   ;; Function to get virtualenv-aware jedi command
-  (defun efs/get-jedi-command ()
-    "Get jedi-language-server command using project's virtualenv."
-    (efs/get-venv-program "jedi-language-server"))
+  (defun efs/get-jedi-command (&rest args)
+    "Get jedi-language-server command using project's virtualenv.
+  Accepts any number of arguments for eglot compatibility."
+    (message "[DEBUG] efs/get-jedi-command called with args: %s" args)
+    (message "[DEBUG] Current directory: %s" default-directory)
+    (message "[DEBUG] Project current: %s" (project-current))
 
-  ;; Register jedi with eglot using dynamic command resolution
+    ;; Log venv detection
+    (let ((venv-dir (efs/find-venv-directory)))
+      (message "[DEBUG] Found venv directory: %s" venv-dir))
+
+    ;; First try to find in virtualenv, then fall back to system
+    (let* ((venv-jedi (car (efs/get-venv-program "jedi-language-server")))
+           (result))
+      (message "[DEBUG] efs/get-venv-program returned: %s" venv-jedi)
+      (message "[DEBUG] File executable check: %s" (and venv-jedi (file-executable-p venv-jedi)))
+
+      (setq result
+            (if (and venv-jedi (file-executable-p venv-jedi))
+                (progn
+                  (message "[DEBUG] Using virtualenv jedi: %s" venv-jedi)
+                  (list venv-jedi))
+              ;; If not found in venv, try pyls or pylsp as fallback
+              (let ((venv-pylsp (car (efs/get-venv-program "pylsp"))))
+                (if (and venv-pylsp (file-executable-p venv-pylsp))
+                    (progn
+                      (message "[DEBUG] Using virtualenv pylsp: %s" venv-pylsp)
+                      (list venv-pylsp))
+                  (let ((venv-pyls (car (efs/get-venv-program "pyls"))))
+                    (if (and venv-pyls (file-executable-p venv-pyls))
+                        (progn
+                          (message "[DEBUG] Using virtualenv pyls: %s" venv-pyls)
+                          (list venv-pyls))
+                      (progn
+                        (message "[DEBUG] Falling back to system jedi-language-server")
+                        (list "jedi-language-server"))))))))
+
+      (message "[DEBUG] efs/get-jedi-command returning: %s" result)
+      result))
+
+  ;; Remove default Python server programs to avoid conflicts
+  (message "[DEBUG] Before cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
+  (let ((python-entries (cl-count-if (lambda (entry)
+                                       (and (listp (car entry))
+                                            (or (memq 'python-mode (car entry))
+                                                (memq 'python-ts-mode (car entry)))))
+                                     eglot-server-programs)))
+    (message "[DEBUG] Found %d Python entries to remove" python-entries))
+  
+  (setq eglot-server-programs
+        (cl-remove-if (lambda (entry)
+                        (and (listp (car entry))
+                             (or (memq 'python-mode (car entry))
+                                 (memq 'python-ts-mode (car entry)))))
+                      eglot-server-programs))
+  
+  (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
+  
+  ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
-               `((python-ts-mode python-mode) . ,(efs/get-jedi-command))))
+               '((python-ts-mode python-mode) . efs/get-jedi-command))
+  
+  (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff
 (use-package reformatter
@@ -1111,45 +1414,35 @@ otherwise returns a list with just the program name."
 (use-package origami
   :hook ((python-ts-mode python-mode) . origami-mode))
 
-;; Python Linting Configuration with Flycheck
-(use-package flycheck
-  :hook ((python-ts-mode . flycheck-mode)
-         (python-mode . flycheck-mode))
+;; Python Linting Configuration
+(use-package flymake
+  :straight (:type built-in)
   :custom
-  ;; Only check on save to avoid too many checks
-  (flycheck-check-syntax-automatically '(save mode-enabled))
-  (flycheck-idle-change-delay 0.8)
-  (flycheck-display-errors-threshold 10)
+  (flymake-fringe-indicator-position 'left-fringe)
+  (flymake-suppress-zero-counters t)
+  (flymake-start-on-save-buffer t)
+  (flymake-no-changes-timeout 0.3)
   :config
-  ;; Use nicer error indicators
-  (define-fringe-bitmap 'flycheck-fringe-bitmap-double-arrow
-    (vector #b00000000
-            #b00000000
-            #b00000000
-            #b00000000
-            #b01100110
-            #b00110110
-            #b00011100
-            #b00001000)))
+  ;; Show flymake diagnostics first in minibuffer
+  (setq eldoc-documentation-functions
+        (cons #'flymake-eldoc-function
+              (remove #'flymake-eldoc-function eldoc-documentation-functions)))
+  :hook ((python-ts-mode . flymake-mode)
+         (python-mode . flymake-mode)))
 
-;; Configure built-in flycheck ruff checker for Python
-;; Flycheck has built-in support for python-ruff, no external package needed
-(with-eval-after-load 'flycheck
-  ;; Function to find and set ruff executable in virtualenv
-  (defun efs/flycheck-python-setup-ruff ()
-    "Set up ruff executable for current buffer."
-    (when-let* ((project (project-current))
-                (root (project-root project))
-                (venv-ruff (expand-file-name ".venv/bin/ruff" root))
-                ((file-executable-p venv-ruff)))
-      ;; Set the executable for this buffer
-      (setq-local flycheck-python-ruff-executable venv-ruff))
-    ;; Select ruff as the checker
-    (flycheck-select-checker 'python-ruff))
-  
-  ;; Add setup to Python mode hooks
-  (add-hook 'python-ts-mode-hook #'efs/flycheck-python-setup-ruff)
-  (add-hook 'python-mode-hook #'efs/flycheck-python-setup-ruff))
+(use-package flymake-ruff
+  :straight (flymake-ruff :type git :host github :repo "erickgnavar/flymake-ruff")
+  :config
+  ;; Dynamically set ruff program based on current buffer's project
+  (defun efs/setup-flymake-ruff ()
+    "Setup flymake-ruff with virtualenv-aware ruff path."
+    (setq-local flymake-ruff-program (car (efs/get-venv-program "ruff"))))
+  :hook ((python-ts-mode . (lambda ()
+                             (efs/setup-flymake-ruff)
+                             (flymake-ruff-load)))
+         (python-mode . (lambda ()
+                          (efs/setup-flymake-ruff)
+                          (flymake-ruff-load)))))
 
 ;; DAP Mode for debugging
 (use-package dap-mode
