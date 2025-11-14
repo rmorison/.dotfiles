@@ -142,8 +142,39 @@
   ;; Set up the visible bell
   (setq visible-bell t)
 
-  ;; Maximum frame because we love Emacs
-  (add-to-list 'default-frame-alist '(fullscreen . maximized))
+  ;; Intelligent frame setup based on display width
+  (defun my/setup-frames ()
+    "Setup frames intelligently based on display width.
+  For displays <= 1920px wide: maximize single frame.
+  For displays > 1920px wide: create two side-by-side frames on the widest display."
+    (let* ((monitors (display-monitor-attributes-list))
+           (widest-monitor (car (sort monitors
+                                     (lambda (a b)
+                                       (> (nth 3 (assoc 'geometry a))
+                                          (nth 3 (assoc 'geometry b)))))))
+           (geometry (assoc 'geometry widest-monitor))
+           (monitor-x (nth 1 geometry))
+           (monitor-y (nth 2 geometry))
+           (monitor-width (nth 3 geometry))
+           (monitor-height (nth 4 geometry)))
+      (if (<= monitor-width 1920)
+          ;; Standard display: maximize single frame
+          (set-frame-parameter nil 'fullscreen 'maximized)
+        ;; Wide display: create two side-by-side frames on the widest monitor
+        (let* ((frame-width (/ monitor-width 2))
+               (frame-height monitor-height)
+               (left-frame (selected-frame))
+               (right-frame (make-frame)))
+          ;; Position left frame on widest monitor
+          (set-frame-parameter left-frame 'fullscreen nil)
+          (set-frame-position left-frame monitor-x monitor-y)
+          (set-frame-size left-frame frame-width frame-height t)
+          ;; Position right frame on widest monitor
+          (set-frame-position right-frame (+ monitor-x frame-width) monitor-y)
+          (set-frame-size right-frame frame-width frame-height t)))))
+
+  ;; Apply frame setup after initialization
+  (add-hook 'after-init-hook #'my/setup-frames)
 #+end_src
 
 ** Line and Column Numbers
@@ -1471,6 +1502,7 @@ Key bindings and features available through project.el with the =C-c p= prefix.
 *** Shell Integration
 - =C-c p e= - Run eshell in project root (=project-eshell=)
 - =C-c p t= - Start eat terminal in project root (=efs/project-eat=)
+- =C-c p v= - Start vterm terminal in project root (=efs/vterm-project=)
 
 *** Buffer Management
 - =C-c p b= - Switch to project buffer
@@ -1570,6 +1602,9 @@ These variables are already set in our configuration, shown here for reference:
     ;; Bind eat to 't' in project keymap
     (define-key project-prefix-map "t" #'efs/project-eat)
 
+    ;; Bind vterm to 'v' in project keymap
+    (define-key project-prefix-map "v" #'efs/vterm-project)
+
     ;; Add project management commands
     (define-key project-prefix-map "r" #'project-forget-project)
     (define-key project-prefix-map "z" #'project-forget-zombie-projects))
@@ -1604,90 +1639,39 @@ These variables are already set in our configuration, shown here for reference:
                      :files ("*.el" (:exclude "demo.gif")))
     :bind-keymap
     ("C-c C" . claude-code-command-map)
-    :hook ((claude-code--start . sm-setup-claude-faces))
     :custom
     (claude-code-program "/Users/rod/.claude/local/claude")
-    (claude-code-startup-delay 0.2)
-    ;; (claude-code-newline-keybinding-style 'shift-return-to-send)
+    (claude-code-startup-delay 0.5)
     :custom-face
-    ;; Use the same monospaced font as default to ensure consistent character width
-    ;; This prevents border wrapping issues in the terminal buffer
     (claude-code-repl-face ((t (:family "Fira Code" :height 160))))
     :config
-    ;; (setq claude-code-terminal-backend 'vterm)
+    (setq claude-code-terminal-backend 'vterm)
 
-    ;; Custom function to create Claude buffer and switch to it
-    (defun my/claude-code-and-switch ()
-      "Start Claude Code in project root and switch to the buffer.
-    If a Claude instance already exists for this directory, prompt for a new instance name."
+    ;; Fix vterm width by adjusting terminal size when buffer is displayed
+    (defun my/claude-code-adjust-vterm-width (&optional _frame)
+      "Adjust vterm terminal width for visible claude-code buffers."
+      (dolist (window (window-list))
+        (with-current-buffer (window-buffer window)
+          (when (and (derived-mode-p 'vterm-mode)
+                     (string-match-p "\\*claude:" (buffer-name)))
+            (when-let ((proc (get-buffer-process (current-buffer))))
+              (ignore-errors
+                (vterm--window-adjust-process-window-size proc window)))))))
+
+    ;; Use window-state-change-hook which runs when windows change
+    (add-hook 'window-state-change-hook #'my/claude-code-adjust-vterm-width)
+
+    ;; Manual command to fix width if automatic adjustment doesn't work
+    (defun my/claude-code-fix-width ()
+      "Manually adjust the vterm width for the current claude-code buffer."
       (interactive)
-      (let* ((dir (claude-code--directory))
-             (existing-buffers (claude-code--find-claude-buffers-for-directory dir)))
-        (if existing-buffers
-            ;; If buffers exist, prompt for instance name and create new instance
-            (let ((instance-name (read-string "Instance name (leave empty for default): ")))
-              (if (string-empty-p instance-name)
-                  ;; Use claude-code-new-instance without instance name
-                  (claude-code-new-instance '(4))
-                ;; Use claude-code-new-instance with the provided instance name
-                (let ((current-prefix-arg '(4)))
-                  (claude-code-new-instance instance-name))))
-          ;; Otherwise use regular claude-code with switch
-          (claude-code '(4)))))  ; Pass the correct prefix arg format to switch to buffer
-    
-    ;; Override the default C-c C c binding to use our custom function
-    (define-key claude-code-command-map "c" #'my/claude-code-and-switch)
-    
-    ;; Override buffer naming to show only directory name, not full path
-    (defun claude-code--buffer-name (&optional instance-name)
-      "Generate the Claude buffer name showing only the directory name.
-    
-    If INSTANCE-NAME is provided, include it in the buffer name.
-    If not in a project and no buffer file, raise an error."
-      (let ((dir (claude-code--directory)))
-        (if dir
-            (let ((dir-name (file-name-nondirectory (directory-file-name dir))))
-              (if instance-name
-                  (format "*claude:%s:%s*" dir-name instance-name)
-                (format "*claude:%s*" dir-name)))
-          (error "Cannot determine Claude directory - no `default-directory'!"))))
-    
-    ;; Fix auto-scrolling and font handling in eat terminal buffers used by claude-code
-    (defun my/claude-code-eat-setup ()
-      "Configure eat terminal for proper auto-scrolling and display in claude-code buffers."
-      (when (and (derived-mode-p 'eat-mode)
+      (when (and (derived-mode-p 'vterm-mode)
                  (string-match-p "\\*claude:" (buffer-name)))
-        ;; Ensure point follows output
-        (setq-local scroll-conservatively 101)
-        (setq-local scroll-margin 0)
-        ;; Disable line truncation to prevent display issues
-        (setq-local truncate-lines nil)
-        ;; Ensure proper word wrapping at window edge
-        (setq-local word-wrap nil)
-        ;; Set buffer-local face to use monospace font
-        (buffer-face-set 'claude-code-repl-face)
-        ;; Move to end of buffer on new output
-        (goto-char (point-max))))
-    
-    ;; Hook into eat-mode for claude buffers
-    (add-hook 'eat-mode-hook #'my/claude-code-eat-setup)
-    
-    ;; Additional hook to ensure scrolling on process output
-    (defun my/claude-code-scroll-to-bottom (&rest _)
-      "Scroll claude-code eat buffers to bottom on new output."
-      (when (and (derived-mode-p 'eat-mode)
-                 (string-match-p "\\*claude:" (buffer-name)))
-        (let ((windows (get-buffer-window-list (current-buffer) nil t)))
-          (dolist (window windows)
-            (with-selected-window window
-              (goto-char (point-max))
-              (recenter -1))))))
-    
-    ;; Advise eat's process filter to ensure scrolling
-    (with-eval-after-load 'eat
-      (advice-add 'eat-self-input :after #'my/claude-code-scroll-to-bottom)
-      (advice-add 'eat-term-redisplay :after #'my/claude-code-scroll-to-bottom))
-    
+        (when-let* ((window (get-buffer-window (current-buffer)))
+                    (proc (get-buffer-process (current-buffer))))
+          (vterm--window-adjust-process-window-size proc window)
+          (message "Adjusted claude-code vterm width"))))
+
     (claude-code-mode))
 #+end_src
 
