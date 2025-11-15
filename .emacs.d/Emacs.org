@@ -955,6 +955,19 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
      ("M-9" . nil)
      ("M-0" . nil)))
 
+  ;; Force consistent monospace font to fix cursor positioning
+  (add-hook 'vterm-mode-hook
+            (lambda ()
+              ;; Set face-remapping-alist to remap default to fixed-pitch
+              (setq-local face-remapping-alist '((default fixed-pitch default)))
+              ;; Also ensure the vterm face uses fixed-pitch with correct size
+              (face-remap-add-relative 'default
+                                       :family efs/fixed-font-family
+                                       :height efs/default-font-size)
+              ;; Disable variable-pitch-mode if it's on
+              (when (bound-and-true-p variable-pitch-mode)
+                (variable-pitch-mode -1))))
+
   ;; Optional: vterm-toggle for quick terminal access
   (use-package vterm-toggle
     :after vterm
@@ -1640,12 +1653,15 @@ These variables are already set in our configuration, shown here for reference:
     :bind-keymap
     ("C-c C" . claude-code-command-map)
     :custom
-    (claude-code-program "/Users/rod/.claude/local/claude")
+    (claude-code-program (expand-file-name "~/.claude/local/claude"))
     (claude-code-startup-delay 0.5)
-    :custom-face
-    (claude-code-repl-face ((t (:family "Fira Code" :height 160))))
     :config
     (setq claude-code-terminal-backend 'vterm)
+
+    ;; Set claude-code face to use the same font settings as default
+    (set-face-attribute 'claude-code-repl-face nil
+                        :family efs/fixed-font-family
+                        :height efs/default-font-size)
 
     ;; Fix vterm width by adjusting terminal size when buffer is displayed
     (defun my/claude-code-adjust-vterm-width (&optional _frame)
@@ -1739,21 +1755,6 @@ The menu (~C-c B m~) provides a convenient interface to access all Claude Code I
 #+end_src
 
 
-* LLMs
-#+begin_src emacs-lisp
-  (use-package chatgpt-shell
-    :config
-    (setq chatgpt-shell-openai-key
-          (auth-source-pick-first-password :host "api.openai.com"))
-    (setq chatgpt-shell-anthropic-key
-          (auth-source-pick-first-password :host "api.anthropic.com"))
-    (setq chatgpt-shell-model-version "claude-3-7-sonnet-latest"))
-
-  ;; Key bindings for ChatGPT shell commands
-  (global-set-key (kbd "C-c s") 'chatgpt-shell)
-  (global-set-key (kbd "C-c e") 'chatgpt-shell-prompt-compose)
-  (global-set-key (kbd "C-c m") 'chatgpt-shell-swap-model)
-#+end_src
 
 * Docker
 
