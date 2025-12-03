@@ -596,11 +596,12 @@ _P_: skip prev    _d_: defun
                '("\\*vterm\\*"
                  (display-buffer-reuse-window display-buffer-same-window)))
 
-  ;; Fix cursor visibility in vterm copy-mode
+  ;; Fix cursor visibility in vterm copy-mode when using claude-code
   ;; https://github.com/stevemolitor/claude-code.el/issues/118
   (add-hook 'vterm-copy-mode-hook
             (lambda ()
-              (setq-local cursor-type (if vterm-copy-mode t nil))))
+              (when (bound-and-true-p claude-code-mode)
+                (setq-local cursor-type (if vterm-copy-mode t nil)))))
 
   ;; Project-specific vterm launcher
   (defun efs/vterm-project ()
