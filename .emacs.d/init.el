@@ -271,9 +271,9 @@ For displays > 1920px wide: create two side-by-side frames on the widest display
          ("C-r" . 'counsel-minibuffer-history))
   :custom
   (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
-  ;; Configure ripgrep path
+  ;; Configure ripgrep path - works on both macOS and Linux
   (counsel-rg-base-command
-   '("/opt/homebrew/bin/rg" "--no-heading" "--line-number" "--color" "never" "%s"))
+   `(,(or (executable-find "rg") "rg") "--no-heading" "--line-number" "--color" "never" "%s"))
   :config
   (counsel-mode 1)
   ;; Configure counsel-rg to start searching after 3 characters
