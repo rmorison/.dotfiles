@@ -1208,6 +1208,51 @@ _P_: skip prev    _d_: defun
           (lambda ()
             (setq indent-tabs-mode nil)))
 
+;; Go Development Configuration
+
+;; Use treesit-based go mode when available
+(use-package go-mode
+  :mode "\\.go\\'"
+  :hook (go-mode . eglot-ensure)
+  :config
+  (add-hook 'go-mode-hook
+            (lambda ()
+              (setq tab-width 4))))
+
+;; Configure Eglot for Go
+(with-eval-after-load 'eglot
+  ;; Configure gopls settings
+  (setq-default eglot-workspace-configuration
+                '((:gopls .
+                   ((staticcheck . t)           ;; Enable staticcheck linting
+                    (matcher . "CaseSensitive")
+                    (completeUnimported . t)    ;; Complete unimported packages
+                    (usePlaceholders . t)))))   ;; Add parameter placeholders
+
+  ;; Format and organize imports on save
+  (defun my/go-mode-setup ()
+    "Setup Go mode with formatting and import organization."
+    (add-hook 'before-save-hook #'eglot-format-buffer nil t)
+    (add-hook 'before-save-hook
+              (lambda ()
+                (when (eglot-managed-p)
+                  (eglot-code-action-organize-imports (point-min) (point-max))))
+              nil t))
+
+  (add-hook 'go-mode-hook #'my/go-mode-setup))
+
+;; Ensure Go module projects are detected correctly
+(with-eval-after-load 'project
+  (defun project-find-go-module (dir)
+    "Find Go module root by locating go.mod file."
+    (when-let ((root (locate-dominating-file dir "go.mod")))
+      (cons 'go-module root)))
+
+  (cl-defmethod project-root ((project (head go-module)))
+    (cdr project))
+
+  (add-hook 'project-find-functions #'project-find-go-module))
+
 ;; Python Development Configuration
 
 ;; Find programs in virtual env bin dir or relay on PATH

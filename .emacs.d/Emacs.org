@@ -1890,6 +1890,146 @@ The menu (~C-c B m~) provides a convenient interface to access all Claude Code I
               (setq indent-tabs-mode nil)))
 #+end_src
 
+* Go Development
+** Reference
+*** Setup Notes
+**** Installing gopls Language Server
+The Go language server (gopls) must be installed before using Go development features:
+#+begin_example
+go install golang.org/x/tools/gopls@latest
+#+end_example
+
+After installation, ensure gopls is in your PATH:
+#+begin_example
+export PATH="$PATH:$(go env GOPATH)/bin"
+#+end_example
+
+*** Core Go Features
+**** Tree-sitter Mode
+- Modern syntax-aware major mode for Go
+- Automatically activated for .go files
+- Better syntax highlighting and structural editing
+
+**** Language Server (Eglot + gopls)
+- Code completion with unimported packages
+- Go to definition and find references
+- Documentation on hover
+- Signature help
+- Symbol renaming
+- Auto-formatting with gofmt
+- Organize imports automatically
+- Code actions and refactoring
+- Inlay hints for types and parameters
+- Static analysis with staticcheck
+
+*** Code Formatting and Organization
+**** Automatic Formatting (on save)
+- Code formatting with gofmt
+- Import organization (add/remove unused imports)
+- Configurable through gopls settings
+
+**** Linting
+- Real-time linting using gopls + staticcheck
+- Error navigation via Flymake:
+  - ~C-c ! n~: Next error
+  - ~C-c ! p~: Previous error
+  - ~C-c ! l~: List all errors
+- Visual indicators in fringe
+- Error messages on hover or in echo area
+
+*** Go Mode Key Bindings Cheat Sheet
+**** LSP Features (via Eglot)
+- ~M-.~     : Go to definition
+- ~M-,~     : Return from definition
+- ~M-?~     : Find references
+- ~C-h .~   : Show documentation at point
+- ~C-c r~   : Rename symbol
+- ~C-c a~   : Code actions
+- ~C-c f~   : Format buffer (also runs on save)
+
+**** Navigation
+- ~C-M-a~   : Beginning of defun (function)
+- ~C-M-e~   : End of defun
+- ~C-M-h~   : Mark defun
+- ~C-c C-d~ : Go to definition (alternate)
+
+**** Code Editing
+- ~TAB~     : Indent line or region
+- ~C-M-\~   : Indent region
+
+*** Display Settings
+- Tab width set to 4 columns (Go uses tabs for indentation)
+- Tabs are displayed as 4 spaces wide for better readability
+
+*** Project Structure Recognition
+- Automatically detects Go modules (go.mod files)
+- Properly sets LSP workspace root to module directory
+- Multi-module workspace support
+
+*** gopls Configuration Options
+The configuration enables:
+- *staticcheck*: Additional static analysis checks
+- *completeUnimported*: Suggest completions from unimported packages
+- *usePlaceholders*: Add parameter placeholders in completions
+- *matcher*: Case-sensitive completion matching
+
+*** Configuration Files
+**** Example .dir-locals.el for project-specific settings
+#+begin_example
+((go-mode . ((eglot-workspace-configuration .
+              ((gopls . ((staticcheck . t)
+                        (matcher . "CaseSensitive"))))))))
+#+end_example
+
+** Code
+*** Go mode with Eglot and gopls
+#+begin_src emacs-lisp
+  ;; Go Development Configuration
+
+  ;; Use treesit-based go mode when available
+  (use-package go-mode
+    :mode "\\.go\\'"
+    :hook (go-mode . eglot-ensure)
+    :config
+    (add-hook 'go-mode-hook
+              (lambda ()
+                (setq tab-width 4))))
+
+  ;; Configure Eglot for Go
+  (with-eval-after-load 'eglot
+    ;; Configure gopls settings
+    (setq-default eglot-workspace-configuration
+                  '((:gopls .
+                     ((staticcheck . t)           ;; Enable staticcheck linting
+                      (matcher . "CaseSensitive")
+                      (completeUnimported . t)    ;; Complete unimported packages
+                      (usePlaceholders . t)))))   ;; Add parameter placeholders
+
+    ;; Format and organize imports on save
+    (defun my/go-mode-setup ()
+      "Setup Go mode with formatting and import organization."
+      (add-hook 'before-save-hook #'eglot-format-buffer nil t)
+      (add-hook 'before-save-hook
+                (lambda ()
+                  (when (eglot-managed-p)
+                    (eglot-code-action-organize-imports (point-min) (point-max))))
+                nil t))
+
+    (add-hook 'go-mode-hook #'my/go-mode-setup))
+
+  ;; Ensure Go module projects are detected correctly
+  (with-eval-after-load 'project
+    (defun project-find-go-module (dir)
+      "Find Go module root by locating go.mod file."
+      (when-let ((root (locate-dominating-file dir "go.mod")))
+        (cons 'go-module root)))
+
+    (cl-defmethod project-root ((project (head go-module)))
+      (cdr project))
+
+    (add-hook 'project-find-functions #'project-find-go-module))
+#+end_src
+
 * Python
 ** Reference
 *Note*: Not all key bindings are test or mapped. That is a work in progress.
