@@ -18,15 +18,15 @@
 #+begin_src emacs-lisp
   (defvar bootstrap-version)
   (let ((bootstrap-file
-	 (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
-	(bootstrap-version 6))
+         (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+        (bootstrap-version 6))
     (unless (file-exists-p bootstrap-file)
       (with-current-buffer
-	  (url-retrieve-synchronously
-	   "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
-	   'silent 'inhibit-cookies)
-	(goto-char (point-max))
-	(eval-print-last-sexp)))
+          (url-retrieve-synchronously
+           "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+           'silent 'inhibit-cookies)
+        (goto-char (point-max))
+        (eval-print-last-sexp)))
     (load bootstrap-file nil 'nomessage))
   (setq straight-use-package-by-default t) ;; Automatically use `straight.el` with `use-package`
 
@@ -287,15 +287,15 @@
   (use-package ivy
     :diminish
     :bind (("C-s" . swiper)
-	   ("C-c i" . imenu)
-	   :map ivy-minibuffer-map
-	   ("TAB" . ivy-alt-done)
-	   ("C-l" . ivy-partial)
-	   :map ivy-switch-buffer-map
-	   ("C-l" . ivy-partial)
-	   ("C-d" . ivy-switch-buffer-kill)
-	   :map ivy-reverse-i-search-map
-	   ("C-d" . ivy-reverse-i-search-kill))
+           ("C-c i" . imenu)
+           :map ivy-minibuffer-map
+           ("TAB" . ivy-alt-done)
+           ("C-l" . ivy-partial)
+           :map ivy-switch-buffer-map
+           ("C-l" . ivy-partial)
+           ("C-d" . ivy-switch-buffer-kill)
+           :map ivy-reverse-i-search-map
+           ("C-d" . ivy-reverse-i-search-kill))
     :config
     (ivy-mode 1))
 
@@ -304,8 +304,8 @@
 
   (use-package counsel
     :bind (("C-M-j" . 'counsel-switch-buffer)
-	   :map minibuffer-local-map
-	   ("C-r" . 'counsel-minibuffer-history))
+           :map minibuffer-local-map
+           ("C-r" . 'counsel-minibuffer-history))
     :custom
     (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
     ;; Configure ripgrep path
@@ -1864,6 +1864,19 @@ The menu (~C-c B m~) provides a convenient interface to access all Claude Code I
   ;; docker compose mode
   (use-package docker-compose-mode
     :ensure t)
+#+end_src
+
+* Emacs Lisp Mode
+#+begin_src emacs-lisp
+  ;; Configure Emacs Lisp mode to use spaces instead of tabs
+  (add-hook 'emacs-lisp-mode-hook
+            (lambda ()
+              (setq indent-tabs-mode nil)))
+
+  ;; Also apply to lisp-interaction-mode (used in *scratch* buffer)
+  (add-hook 'lisp-interaction-mode-hook
+            (lambda ()
+              (setq indent-tabs-mode nil)))
 #+end_src
 
 * Python
