@@ -54,13 +54,20 @@
 ;; sudo apt install fonts-firacode fonts-cantarell
 (defvar efs/default-font-size 120)
 (defvar efs/default-variable-font-size 120)
-(defvar efs/default-font-family "Fira Code")
-(defvar efs/fixed-font-family "Fira Code")
+(defvar efs/default-font-family "FiraCode Nerd Font Mono")
+(defvar efs/fixed-font-family "FiraCode Nerd Font Mono")
 (defvar efs/variable-font-family "Cantarell")
 (defvar efs/default-fill-column 112)
 
 ;; Make frame transparency overridable
 (defvar efs/frame-transparency '(90 . 90))
+
+;; Set UTF-8 encoding everywhere for proper unicode support
+(prefer-coding-system 'utf-8)
+(set-default-coding-systems 'utf-8)
+(set-terminal-coding-system 'utf-8)
+(set-keyboard-coding-system 'utf-8)
+(setq default-buffer-file-coding-system 'utf-8)
 
 ;; MacOS key bindings
 (when (eq system-type 'darwin) ;; mac specific settings
@@ -580,7 +587,8 @@ _P_: skip prev    _d_: defun
   (vterm-timer-delay 0.01)
 
   ;; Disable automatic shell configuration to prevent prompt issues
-  (vterm-environment '("INSIDE_EMACS=vterm"))
+  ;; Ensure UTF-8 locale for proper unicode rendering
+  (vterm-environment '("INSIDE_EMACS=vterm" "LANG=en_US.UTF-8" "LC_ALL=en_US.UTF-8"))
 
   :config
   ;; Set up vterm buffer display
