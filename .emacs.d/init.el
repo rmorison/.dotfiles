@@ -596,6 +596,12 @@ _P_: skip prev    _d_: defun
                '("\\*vterm\\*"
                  (display-buffer-reuse-window display-buffer-same-window)))
 
+  ;; Fix cursor visibility in vterm copy-mode
+  ;; https://github.com/stevemolitor/claude-code.el/issues/118
+  (add-hook 'vterm-copy-mode-hook
+            (lambda ()
+              (setq-local cursor-type (if vterm-copy-mode t nil))))
+
   ;; Project-specific vterm launcher
   (defun efs/vterm-project ()
     "Open vterm in the current project root directory."
