@@ -726,8 +726,8 @@ _P_: skip prev    _d_: defun
 
   (setq org-directory "~/org")
   (setq org-agenda-files '("~/org"))
-  (when (file-exists-p "~/Blogs/rmorison.github.io/org")
-    (add-to-list 'org-agenda-files "~/Blogs/rmorison.github.io/org"))
+  (when (file-exists-p "~/Projects/github.com/rmorison/rmorison.github.io/org")
+    (add-to-list 'org-agenda-files "~/Projects/github.com/rmorison/rmorison.github.io/org"))
 
   (setq org-agenda-compact-blocks t)
 
@@ -889,6 +889,27 @@ _P_: skip prev    _d_: defun
    (shell . t)
    (python . t)
    (go . t)))
+
+;; ox-hugo - Export Org to Hugo-compatible Markdown
+(use-package ox-hugo
+  :after ox
+  :config
+  ;; Hugo blog base directory
+  (setq org-hugo-base-dir "/home/rod/Projects/github.com/rmorison/rmorison.github.io")
+
+  ;; Automatically export when saving org files in the blog directory
+  (defun efs/org-hugo-export-on-save ()
+    "Export the current org file to Hugo markdown when saving."
+    (when (and (eq major-mode 'org-mode)
+               (string-match-p "/rmorison\\.github\\.io/org/" (buffer-file-name)))
+      (org-hugo-export-wim-to-md t)))
+
+  ;; Optional: Enable auto-export on save (uncomment to activate)
+  ;; (add-hook 'after-save-hook #'efs/org-hugo-export-on-save)
+
+  :bind
+  (:map org-mode-map
+        ("C-c h" . org-hugo-export-wim-to-md)))
 
 ;; YAML Mode Configuration
 (use-package yaml-mode
@@ -1322,7 +1343,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-
+  
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1399,20 +1420,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-
+  
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-
+  
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-
+  
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-
+  
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff

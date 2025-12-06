@@ -1054,8 +1054,8 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
 
     (setq org-directory "~/org")
     (setq org-agenda-files '("~/org"))
-    (when (file-exists-p "~/Blogs/rmorison.github.io/org")
-      (add-to-list 'org-agenda-files "~/Blogs/rmorison.github.io/org"))
+    (when (file-exists-p "~/Projects/github.com/rmorison/rmorison.github.io/org")
+      (add-to-list 'org-agenda-files "~/Projects/github.com/rmorison/rmorison.github.io/org"))
 
     (setq org-agenda-compact-blocks t)
 
@@ -1220,6 +1220,30 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
      (shell . t)
      (python . t)
      (go . t)))
+#+end_src
+
+** Ox-Hugo - Export Org to Hugo Markdown
+#+begin_src emacs-lisp
+  ;; ox-hugo - Export Org to Hugo-compatible Markdown
+  (use-package ox-hugo
+    :after ox
+    :config
+    ;; Hugo blog base directory
+    (setq org-hugo-base-dir "/home/rod/Projects/github.com/rmorison/rmorison.github.io")
+
+    ;; Automatically export when saving org files in the blog directory
+    (defun efs/org-hugo-export-on-save ()
+      "Export the current org file to Hugo markdown when saving."
+      (when (and (eq major-mode 'org-mode)
+                 (string-match-p "/rmorison\\.github\\.io/org/" (buffer-file-name)))
+        (org-hugo-export-wim-to-md t)))
+
+    ;; Optional: Enable auto-export on save (uncomment to activate)
+    ;; (add-hook 'after-save-hook #'efs/org-hugo-export-on-save)
+
+    :bind
+    (:map org-mode-map
+          ("C-c h" . org-hugo-export-wim-to-md)))
 #+end_src
 
 * Yaml Mode
