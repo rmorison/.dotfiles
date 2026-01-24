@@ -52,12 +52,12 @@
 ;; You will most likely need to adjust this font size for your system!
 ;; If fonts are missing
 ;; sudo apt install fonts-firacode fonts-cantarell
-(defvar efs/default-font-size 120)
-(defvar efs/default-variable-font-size 120)
+(defvar efs/default-font-size 100)
+(defvar efs/default-variable-font-size 100)
 (defvar efs/default-font-family "FiraCode Nerd Font Mono")
 (defvar efs/fixed-font-family "FiraCode Nerd Font Mono")
 (defvar efs/variable-font-family "Cantarell")
-(defvar efs/default-fill-column 112)
+(defvar efs/default-fill-column 96)
 
 ;; Make frame transparency overridable
 (defvar efs/frame-transparency '(90 . 90))
@@ -1142,7 +1142,7 @@ _P_: skip prev    _d_: defun
   :bind-keymap
   ("C-c C" . claude-code-command-map)
   :custom
-  (claude-code-program (expand-file-name "~/.claude/local/claude"))
+  (claude-code-program (expand-file-name "~/.local/bin/claude"))
   (claude-code-startup-delay 0.5)
   :config
   (setq claude-code-terminal-backend 'vterm)
