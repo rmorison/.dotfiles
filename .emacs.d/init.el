@@ -238,6 +238,52 @@ For displays > 1920px wide: create two side-by-side frames on the widest display
 ;; Comment toggle
 (global-set-key (kbd "C-c C-/") 'comment-or-uncomment-region)
 
+(defcustom rod/screenshot-directory
+  (cond
+   ((eq system-type 'darwin) "~/Pictures/Screenshots")
+   ((eq system-type 'gnu/linux) "~/Pictures/Screenshots")
+   ((eq system-type 'windows-nt) "~/Pictures/Screenshots")
+   (t "~/Pictures/Screenshots"))
+  "Directory where screenshots are saved."
+  :type 'directory
+  :group 'convenience)
+
+(defun rod/yank-latest-screenshot ()
+  "Copy the full path of the most recent PNG in `rod/screenshot-directory' to the kill ring."
+  (interactive)
+  (let* ((dir (expand-file-name rod/screenshot-directory))
+         (files (directory-files dir t "\\.png\\'" nil))
+         (sorted (sort files (lambda (a b)
+                               (time-less-p (file-attribute-modification-time (file-attributes b))
+                                            (file-attribute-modification-time (file-attributes a))))))
+         (latest (car sorted)))
+    (if latest
+        (progn
+          (kill-new latest)
+          (message "Copied: %s" latest))
+      (message "No PNG files found in %s" dir))))
+
+(global-set-key (kbd "C-c s") 'rod/yank-latest-screenshot)
+
+(defun rod/yank-latest-download ()
+  "Copy the full path of the most recent non-directory file in ~/Downloads to the kill ring."
+  (interactive)
+  (let* ((dir (expand-file-name "~/Downloads"))
+         (files (cl-remove-if
+                 #'file-directory-p
+                 (directory-files dir t "\\`[^.]" nil)))
+         (sorted (sort files (lambda (a b)
+                               (time-less-p (file-attribute-modification-time (file-attributes b))
+                                            (file-attribute-modification-time (file-attributes a))))))
+         (latest (car sorted)))
+    (if latest
+        (progn
+          (kill-new latest)
+          (message "Copied: %s" latest))
+      (message "No files found in %s" dir))))
+
+(global-set-key (kbd "C-c d") 'rod/yank-latest-download)
+
 (use-package general)
 
 (use-package which-key
@@ -1147,10 +1193,25 @@ _P_: skip prev    _d_: defun
   :config
   (setq claude-code-terminal-backend 'vterm)
 
-  ;; Set claude-code face to use the same font settings as default
+  ;; Set claude-code face to use the same font settings as default with readable colors
   (set-face-attribute 'claude-code-repl-face nil
                       :family efs/fixed-font-family
-                      :height efs/default-font-size)
+                      :height efs/default-font-size
+                      :foreground "#073642"  ; Solarized Light dark base02
+                      :background "#fdf6e3") ; Solarized Light base3
+
+  ;; Shorten claude buffer names to just the project directory name
+  (defun my/claude-code-short-buffer-name (orig-fun &optional instance-name)
+    "Use short project name instead of full path in claude buffer names."
+    (let ((dir (claude-code--directory)))
+      (if dir
+          (let ((short-name (file-name-nondirectory
+                             (directory-file-name (file-truename dir)))))
+            (if instance-name
+                (format "*claude:%s:%s*" short-name instance-name)
+              (format "*claude:%s*" short-name)))
+        (funcall orig-fun instance-name))))
+  (advice-add 'claude-code--buffer-name :around #'my/claude-code-short-buffer-name)
 
   ;; Fix vterm width by adjusting terminal size when buffer is displayed
   (defun my/claude-code-adjust-vterm-width (&optional _frame)
