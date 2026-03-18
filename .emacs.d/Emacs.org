@@ -333,7 +333,7 @@
             (message "Copied: %s" latest))
         (message "No files found in %s" dir))))
 
-  (global-set-key (kbd "C-c d") 'rod/yank-latest-download)
+  (global-set-key (kbd "C-c D") 'rod/yank-latest-download)
 #+end_src
 
 * General, Ivy, Counsel
@@ -1761,17 +1761,50 @@ These variables are already set in our configuration, shown here for reference:
                         :background "#fdf6e3") ; Solarized Light base3
 
     ;; Shorten claude buffer names to just the project directory name
+    (defvar my/claude-code-short-name-to-dir (make-hash-table :test 'equal)
+      "Map short project names back to full directory paths.")
+
     (defun my/claude-code-short-buffer-name (orig-fun &optional instance-name)
       "Use short project name instead of full path in claude buffer names."
       (let ((dir (claude-code--directory)))
         (if dir
             (let ((short-name (file-name-nondirectory
                                (directory-file-name (file-truename dir)))))
+              (puthash short-name (abbreviate-file-name (file-truename dir))
+                       my/claude-code-short-name-to-dir)
               (if instance-name
                   (format "*claude:%s:%s*" short-name instance-name)
                 (format "*claude:%s*" short-name)))
           (funcall orig-fun instance-name))))
     (advice-add 'claude-code--buffer-name :around #'my/claude-code-short-buffer-name)
+
+    (defun my/claude-code-extract-dir-short-name (orig-fun buffer-name)
+      "Resolve short project names back to full directory paths.
+The upstream extract function returns the first capture group from
+the buffer name, which is the short name (e.g. \".dotfiles\") rather
+than a real directory path.  We must always resolve it through the
+hash table so that callers like `claude-code--find-claude-buffers-for-directory'
+can match it against real paths."
+      (or (when (string-match "^\\*claude:\\([^:]+\\)\\(?::\\([^*]+\\)\\)?\\*$" buffer-name)
+            (let ((short-name (match-string 1 buffer-name)))
+              (gethash short-name my/claude-code-short-name-to-dir)))
+          (funcall orig-fun buffer-name)))
+    (advice-add 'claude-code--extract-directory-from-buffer-name
+                :around #'my/claude-code-extract-dir-short-name)
+
+    ;; Prevent "You cannot change major mode in vterm buffers" error when
+    ;; starting a second claude-code instance in the same project.
+    ;; The upstream code calls vterm-mode unconditionally on get-buffer-create,
+    ;; which fails if the buffer already exists in vterm-mode.
+    (defun my/claude-code-skip-vterm-mode-if-active (orig-fun &rest args)
+      "Skip vterm-mode call if buffer is already in vterm-mode."
+      (cl-letf* ((orig-vterm-mode (symbol-function 'vterm-mode))
+                 ((symbol-function 'vterm-mode)
+                  (lambda (&rest mode-args)
+                    (unless (derived-mode-p 'vterm-mode)
+                      (apply orig-vterm-mode mode-args)))))
+        (apply orig-fun args)))
+    (advice-add 'claude-code--term-make :around #'my/claude-code-skip-vterm-mode-if-active)
 
     ;; Fix vterm width by adjusting terminal size when buffer is displayed
     (defun my/claude-code-adjust-vterm-width (&optional _frame)

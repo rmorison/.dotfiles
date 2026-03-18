@@ -283,7 +283,7 @@ For displays > 1920px wide: create two side-by-side frames on the widest display
           (message "Copied: %s" latest))
       (message "No files found in %s" dir))))
 
-(global-set-key (kbd "C-c d") 'rod/yank-latest-download)
+(global-set-key (kbd "C-c D") 'rod/yank-latest-download)
 
 (use-package general)
 
@@ -1184,62 +1184,95 @@ _P_: skip prev    _d_: defun
   (define-key project-prefix-map "z" #'project-forget-zombie-projects))
 
 (use-package claude-code
-  :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
-                   :files ("*.el" (:exclude "demo.gif")))
-  :bind-keymap
-  ("C-c C" . claude-code-command-map)
-  :custom
-  (claude-code-program (expand-file-name "~/.local/bin/claude"))
-  (claude-code-startup-delay 0.5)
-  :config
-  (setq claude-code-terminal-backend 'vterm)
+    :straight (:type git :host github :repo "stevemolitor/claude-code.el" :branch "main"
+                     :files ("*.el" (:exclude "demo.gif")))
+    :bind-keymap
+    ("C-c C" . claude-code-command-map)
+    :custom
+    (claude-code-program (expand-file-name "~/.local/bin/claude"))
+    (claude-code-startup-delay 0.5)
+    :config
+    (setq claude-code-terminal-backend 'vterm)
 
-  ;; Set claude-code face to use the same font settings as default with readable colors
-  (set-face-attribute 'claude-code-repl-face nil
-                      :family efs/fixed-font-family
-                      :height efs/default-font-size
-                      :foreground "#073642"  ; Solarized Light dark base02
-                      :background "#fdf6e3") ; Solarized Light base3
+    ;; Set claude-code face to use the same font settings as default with readable colors
+    (set-face-attribute 'claude-code-repl-face nil
+                        :family efs/fixed-font-family
+                        :height efs/default-font-size
+                        :foreground "#073642"  ; Solarized Light dark base02
+                        :background "#fdf6e3") ; Solarized Light base3
 
-  ;; Shorten claude buffer names to just the project directory name
-  (defun my/claude-code-short-buffer-name (orig-fun &optional instance-name)
-    "Use short project name instead of full path in claude buffer names."
-    (let ((dir (claude-code--directory)))
-      (if dir
-          (let ((short-name (file-name-nondirectory
-                             (directory-file-name (file-truename dir)))))
-            (if instance-name
-                (format "*claude:%s:%s*" short-name instance-name)
-              (format "*claude:%s*" short-name)))
-        (funcall orig-fun instance-name))))
-  (advice-add 'claude-code--buffer-name :around #'my/claude-code-short-buffer-name)
+    ;; Shorten claude buffer names to just the project directory name
+    (defvar my/claude-code-short-name-to-dir (make-hash-table :test 'equal)
+      "Map short project names back to full directory paths.")
 
-  ;; Fix vterm width by adjusting terminal size when buffer is displayed
-  (defun my/claude-code-adjust-vterm-width (&optional _frame)
-    "Adjust vterm terminal width for visible claude-code buffers."
-    (dolist (window (window-list))
-      (with-current-buffer (window-buffer window)
-        (when (and (derived-mode-p 'vterm-mode)
-                   (string-match-p "\\*claude:" (buffer-name)))
-          (when-let ((proc (get-buffer-process (current-buffer))))
-            (ignore-errors
-              (vterm--window-adjust-process-window-size proc window)))))))
+    (defun my/claude-code-short-buffer-name (orig-fun &optional instance-name)
+      "Use short project name instead of full path in claude buffer names."
+      (let ((dir (claude-code--directory)))
+        (if dir
+            (let ((short-name (file-name-nondirectory
+                               (directory-file-name (file-truename dir)))))
+              (puthash short-name (abbreviate-file-name (file-truename dir))
+                       my/claude-code-short-name-to-dir)
+              (if instance-name
+                  (format "*claude:%s:%s*" short-name instance-name)
+                (format "*claude:%s*" short-name)))
+          (funcall orig-fun instance-name))))
+    (advice-add 'claude-code--buffer-name :around #'my/claude-code-short-buffer-name)
 
-  ;; Use window-state-change-hook which runs when windows change
-  (add-hook 'window-state-change-hook #'my/claude-code-adjust-vterm-width)
+    (defun my/claude-code-extract-dir-short-name (orig-fun buffer-name)
+      "Resolve short project names back to full directory paths.
+The upstream extract function returns the first capture group from
+the buffer name, which is the short name (e.g. \".dotfiles\") rather
+than a real directory path.  We must always resolve it through the
+hash table so that callers like `claude-code--find-claude-buffers-for-directory'
+can match it against real paths."
+      (or (when (string-match "^\\*claude:\\([^:]+\\)\\(?::\\([^*]+\\)\\)?\\*$" buffer-name)
+            (let ((short-name (match-string 1 buffer-name)))
+              (gethash short-name my/claude-code-short-name-to-dir)))
+          (funcall orig-fun buffer-name)))
+    (advice-add 'claude-code--extract-directory-from-buffer-name
+                :around #'my/claude-code-extract-dir-short-name)
 
-  ;; Manual command to fix width if automatic adjustment doesn't work
-  (defun my/claude-code-fix-width ()
-    "Manually adjust the vterm width for the current claude-code buffer."
-    (interactive)
-    (when (and (derived-mode-p 'vterm-mode)
-               (string-match-p "\\*claude:" (buffer-name)))
-      (when-let* ((window (get-buffer-window (current-buffer)))
-                  (proc (get-buffer-process (current-buffer))))
-        (vterm--window-adjust-process-window-size proc window)
-        (message "Adjusted claude-code vterm width"))))
+    ;; Prevent "You cannot change major mode in vterm buffers" error when
+    ;; starting a second claude-code instance in the same project.
+    ;; The upstream code calls vterm-mode unconditionally on get-buffer-create,
+    ;; which fails if the buffer already exists in vterm-mode.
+    (defun my/claude-code-skip-vterm-mode-if-active (orig-fun &rest args)
+      "Skip vterm-mode call if buffer is already in vterm-mode."
+      (cl-letf* ((orig-vterm-mode (symbol-function 'vterm-mode))
+                 ((symbol-function 'vterm-mode)
+                  (lambda (&rest mode-args)
+                    (unless (derived-mode-p 'vterm-mode)
+                      (apply orig-vterm-mode mode-args)))))
+        (apply orig-fun args)))
+    (advice-add 'claude-code--term-make :around #'my/claude-code-skip-vterm-mode-if-active)
 
-  (claude-code-mode))
+    ;; Fix vterm width by adjusting terminal size when buffer is displayed
+    (defun my/claude-code-adjust-vterm-width (&optional _frame)
+      "Adjust vterm terminal width for visible claude-code buffers."
+      (dolist (window (window-list))
+        (with-current-buffer (window-buffer window)
+          (when (and (derived-mode-p 'vterm-mode)
+                     (string-match-p "\\*claude:" (buffer-name)))
+            (when-let ((proc (get-buffer-process (current-buffer))))
+              (ignore-errors
+                (vterm--window-adjust-process-window-size proc window)))))))
+
+    ;; Use window-state-change-hook which runs when windows change
+    (add-hook 'window-state-change-hook #'my/claude-code-adjust-vterm-width)
+
+    ;; Manual command to fix width if automatic adjustment doesn't work
+    (defun my/claude-code-fix-width ()
+      "Manually adjust the vterm width for the current claude-code buffer."
+      (interactive)
+      (when (and (derived-mode-p 'vterm-mode)
+                 (string-match-p "\\*claude:" (buffer-name)))
+        (when-let* ((window (get-buffer-window (current-buffer)))
+                    (proc (get-buffer-process (current-buffer))))
+          (vterm--window-adjust-process-window-size proc window)
+          (message "Adjusted claude-code vterm width"))))
+
+    (claude-code-mode))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
 (use-package claude-code-ide
@@ -1405,7 +1438,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-  
+
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1482,20 +1515,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-  
+
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-  
+
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-  
+
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-  
+
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff
