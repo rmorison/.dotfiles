@@ -1237,15 +1237,11 @@ can match it against real paths."
     ;; starting a second claude-code instance in the same project.
     ;; The upstream code calls vterm-mode unconditionally on get-buffer-create,
     ;; which fails if the buffer already exists in vterm-mode.
-    (defun my/claude-code-skip-vterm-mode-if-active (orig-fun &rest args)
-      "Skip vterm-mode call if buffer is already in vterm-mode."
-      (cl-letf* ((orig-vterm-mode (symbol-function 'vterm-mode))
-                 ((symbol-function 'vterm-mode)
-                  (lambda (&rest mode-args)
-                    (unless (derived-mode-p 'vterm-mode)
-                      (apply orig-vterm-mode mode-args)))))
+    (defun my/vterm-mode-skip-if-active (orig-fun &rest args)
+      "Skip vterm-mode if buffer is already in vterm-mode."
+      (unless (derived-mode-p 'vterm-mode)
         (apply orig-fun args)))
-    (advice-add 'claude-code--term-make :around #'my/claude-code-skip-vterm-mode-if-active)
+    (advice-add 'vterm-mode :around #'my/vterm-mode-skip-if-active)
 
     ;; Fix vterm width by adjusting terminal size when buffer is displayed
     (defun my/claude-code-adjust-vterm-width (&optional _frame)
