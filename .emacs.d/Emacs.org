@@ -974,6 +974,14 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
                  '("\\*vterm\\*"
                    (display-buffer-reuse-window display-buffer-same-window)))
 
+    ;; Fix cursor disappearing after buffer switches
+    (add-hook 'window-buffer-change-functions
+              (lambda (_)
+                (when (derived-mode-p 'vterm-mode)
+                  (when-let ((proc (get-buffer-process (current-buffer))))
+                    (when (process-live-p proc)
+                      (vterm--invalidate))))))
+
     ;; Fix cursor visibility in vterm copy-mode when using claude-code
     ;; https://github.com/stevemolitor/claude-code.el/issues/118
     (add-hook 'vterm-copy-mode-hook
