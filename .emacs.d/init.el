@@ -126,6 +126,9 @@
 (setq visible-bell t)
 
 ;; Intelligent frame setup based on display configuration
+(defvar my/setup-frames-done nil
+  "Non-nil if `my/setup-frames' has already run.")
+
 (defun my/setup-frames ()
   "Setup frames intelligently based on display configuration.
 For 2+ monitors: create one frame per monitor — maximize on the smaller
@@ -133,73 +136,75 @@ display, and size the frame on the larger display to match the smaller
 display's dimensions.
 For 1 wide display (>1920px): create two side-by-side frames.
 For 1 standard display (<=1920px): maximize single frame."
-  (let* ((monitors (display-monitor-attributes-list))
-         (num-monitors (length monitors)))
-    (cond
-     ;; Multi-monitor: one frame per monitor, sized to the smaller display
-     ((>= num-monitors 2)
-      (let* ((sorted (sort (copy-sequence monitors)
-                           (lambda (a b)
-                             (< (nth 3 (assoc 'geometry a))
-                                (nth 3 (assoc 'geometry b))))))
-             (smaller (car sorted))
-             (larger (cadr sorted))
-             (sm-geom (assoc 'geometry smaller))
-             (sm-work (or (assoc 'workarea smaller) sm-geom))
-             (sm-x (nth 1 sm-work))
-             (sm-y (nth 2 sm-work))
-             (sm-w (nth 3 sm-work))
-             (sm-h (nth 4 sm-work))
-             (lg-geom (assoc 'geometry larger))
-             (lg-work (or (assoc 'workarea larger) lg-geom))
-             (lg-x (nth 1 lg-work))
-             (lg-y (nth 2 lg-work))
-             (lg-w (nth 3 lg-work))
-             (lg-h (nth 4 lg-work))
-             (small-frame (selected-frame))
-             (large-frame (make-frame)))
-        ;; Frame on the smaller display — maximize it
-        (set-frame-position small-frame sm-x sm-y)
-        (set-frame-parameter small-frame 'fullscreen 'maximized)
-        ;; Frame on the larger display — match the smaller display's size,
-        ;; but constrained to this display's workarea.  Subtract frame
-        ;; chrome (fringes, borders) so the outer edge stays in bounds.
-        (set-frame-parameter large-frame 'fullscreen nil)
-        (set-frame-position large-frame lg-x lg-y)
-        (let* ((target-w (min sm-w lg-w))
-               (target-h (min sm-h lg-h))
-               (chrome-w (- (frame-outer-width large-frame)
-                            (frame-text-width large-frame)))
-               (chrome-h (- (frame-outer-height large-frame)
-                            (frame-text-height large-frame))))
-          (set-frame-size large-frame
-                          (- target-w chrome-w)
-                          (- target-h chrome-h) t))))
+  (when (and (display-graphic-p) (not my/setup-frames-done))
+    (setq my/setup-frames-done t)
+    (let* ((monitors (display-monitor-attributes-list))
+           (num-monitors (length monitors)))
+      (cond
+       ;; Multi-monitor: one frame per monitor, sized to the smaller display
+       ((>= num-monitors 2)
+        (let* ((sorted (sort (copy-sequence monitors)
+                             (lambda (a b)
+                               (< (nth 3 (assoc 'geometry a))
+                                  (nth 3 (assoc 'geometry b))))))
+               (smaller (car sorted))
+               (larger (cadr sorted))
+               (sm-geom (assoc 'geometry smaller))
+               (sm-work (or (assoc 'workarea smaller) sm-geom))
+               (sm-x (nth 1 sm-work))
+               (sm-y (nth 2 sm-work))
+               (sm-w (nth 3 sm-work))
+               (sm-h (nth 4 sm-work))
+               (lg-geom (assoc 'geometry larger))
+               (lg-work (or (assoc 'workarea larger) lg-geom))
+               (lg-x (nth 1 lg-work))
+               (lg-y (nth 2 lg-work))
+               (lg-w (nth 3 lg-work))
+               (lg-h (nth 4 lg-work))
+               (small-frame (selected-frame))
+               (large-frame (make-frame)))
+          ;; Frame on the smaller display — maximize it
+          (set-frame-position small-frame sm-x sm-y)
+          (set-frame-parameter small-frame 'fullscreen 'maximized)
+          ;; Frame on the larger display — match the smaller display's size,
+          ;; but constrained to this display's workarea.  Subtract frame
+          ;; chrome (fringes, borders) so the outer edge stays in bounds.
+          (set-frame-parameter large-frame 'fullscreen nil)
+          (set-frame-position large-frame lg-x lg-y)
+          (let* ((target-w (min sm-w lg-w))
+                 (target-h (min sm-h lg-h))
+                 (chrome-w (- (frame-outer-width large-frame)
+                              (frame-text-width large-frame)))
+                 (chrome-h (- (frame-outer-height large-frame)
+                              (frame-text-height large-frame))))
+            (set-frame-size large-frame
+                            (- target-w chrome-w)
+                            (- target-h chrome-h) t))))
 
-     ;; Single wide display: two side-by-side frames
-     ((> (nth 3 (assoc 'geometry (car monitors))) 1920)
-      (let* ((work (or (assoc 'workarea (car monitors))
-                       (assoc 'geometry (car monitors))))
-             (monitor-x (nth 1 work))
-             (monitor-y (nth 2 work))
-             (monitor-width (nth 3 work))
-             (monitor-height (nth 4 work))
-             (left-frame (selected-frame))
-             (right-frame (make-frame))
-             (chrome-w (- (frame-outer-width left-frame)
-                          (frame-text-width left-frame)))
-             (chrome-h (- (frame-outer-height left-frame)
-                          (frame-text-height left-frame)))
-             (frame-width (- (/ monitor-width 2) chrome-w))
-             (frame-height (- monitor-height chrome-h)))
-        (set-frame-parameter left-frame 'fullscreen nil)
-        (set-frame-position left-frame monitor-x monitor-y)
-        (set-frame-size left-frame frame-width frame-height t)
-        (set-frame-position right-frame (+ monitor-x (/ monitor-width 2)) monitor-y)
-        (set-frame-size right-frame frame-width frame-height t)))
+       ;; Single wide display: two side-by-side frames
+       ((> (nth 3 (assoc 'geometry (car monitors))) 1920)
+        (let* ((work (or (assoc 'workarea (car monitors))
+                         (assoc 'geometry (car monitors))))
+               (monitor-x (nth 1 work))
+               (monitor-y (nth 2 work))
+               (monitor-width (nth 3 work))
+               (monitor-height (nth 4 work))
+               (left-frame (selected-frame))
+               (right-frame (make-frame))
+               (chrome-w (- (frame-outer-width left-frame)
+                            (frame-text-width left-frame)))
+               (chrome-h (- (frame-outer-height left-frame)
+                            (frame-text-height left-frame)))
+               (frame-width (- (/ monitor-width 2) chrome-w))
+               (frame-height (- monitor-height chrome-h)))
+          (set-frame-parameter left-frame 'fullscreen nil)
+          (set-frame-position left-frame monitor-x monitor-y)
+          (set-frame-size left-frame frame-width frame-height t)
+          (set-frame-position right-frame (+ monitor-x (/ monitor-width 2)) monitor-y)
+          (set-frame-size right-frame frame-width frame-height t)))
 
-     ;; Single standard display: maximize
-     (t (set-frame-parameter nil 'fullscreen 'maximized)))))
+       ;; Single standard display: maximize
+       (t (set-frame-parameter nil 'fullscreen 'maximized))))))
 
 ;; Apply frame setup after initialization
 (add-hook 'after-init-hook #'my/setup-frames)
@@ -687,6 +692,14 @@ _P_: skip prev    _d_: defun
   (add-to-list 'display-buffer-alist
                '("\\*vterm\\*"
                  (display-buffer-reuse-window display-buffer-same-window)))
+
+  ;; Fix cursor disappearing after buffer switches
+  (add-hook 'window-buffer-change-functions
+            (lambda (_)
+              (when (derived-mode-p 'vterm-mode)
+                (when-let ((proc (get-buffer-process (current-buffer))))
+                  (when (process-live-p proc)
+                    (vterm--invalidate))))))
 
   ;; Fix cursor visibility in vterm copy-mode when using claude-code
   ;; https://github.com/stevemolitor/claude-code.el/issues/118
@@ -1479,7 +1492,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-  
+
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1556,20 +1569,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-  
+
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-  
+
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-  
+
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-  
+
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff
