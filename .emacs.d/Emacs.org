@@ -1164,110 +1164,72 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
     (setq org-image-actual-width (list 640))
 
     (setq org-directory "~/org")
+
+    ;; --- GTD config retired (tasks now in Asana/Jira) ---
+    ;; Agenda files, refile targets, and habit tracking commented out.
+    ;; Uncomment to restore if needed.
+    ;;
+    ;; (setq org-agenda-files '("~/org"))
+    ;; (when (file-exists-p "~/Projects/github.com/rmorison/rmorison.github.io/org")
+    ;;   (add-to-list 'org-agenda-files "~/Projects/github.com/rmorison/rmorison.github.io/org"))
+    ;; (setq org-agenda-compact-blocks t)
+    ;; (setq org-refile-use-outline-path 'file)
+    ;; (setq org-outline-path-complete-in-steps nil)
+    ;; (setq org-refile-allow-creating-parent-nodes 'confirm)
+    ;; (setq org-refile-targets '((nil :maxlevel . 9)
+    ;;                            (org-agenda-files :maxlevel . 9)))
+    ;; (advice-add 'org-refile :after 'org-save-all-org-buffers)
+    ;; (require 'org-habit)
+    ;; (add-to-list 'org-modules 'org-habit)
+    ;; (setq org-habit-graph-column 60)
+    ;;
+    ;; (setq org-todo-keywords
+    ;;       '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "|" "DONE(d!)" "WONT-DO(w@)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" )
+    ;;         (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "|" "DONE(d!)" "WONT-DO(w@)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)")))
+    ;;
+    ;; (setq org-todo-keyword-faces
+    ;;       (quote (("TODO" :foreground "orange" :weight bold)
+    ;;               ("BREAKDOWN" :foreground "dark orange" :weight bold)
+    ;;               ("NEXT" :foreground "aqua" :weight bold)
+    ;;               ("READY" :foreground "aqua" :weight bold)
+    ;;               ("IN-PROGRESS" :foreground "forest green" :weight bold)
+    ;;               ("ACTIVE" :foreground "green" :weight bold)
+    ;;               ("HELD-BLOCKED" :foreground "red" :weight bold)
+    ;;               ("DELEGATED" :foreground "purple" :weight bold)
+    ;;               ("WATCHING" :foreground "purple" :weight bold)
+    ;;               ("DONE" :foreground "white" :weight bold)
+    ;;               ("WONT-DO" :foreground "grey" :weight bold))))
+
     (setq org-agenda-files '("~/org"))
-    (when (file-exists-p "~/Projects/github.com/rmorison/rmorison.github.io/org")
-      (add-to-list 'org-agenda-files "~/Projects/github.com/rmorison/rmorison.github.io/org"))
-
-    (setq org-agenda-compact-blocks t)
-
-    (setq org-refile-use-outline-path 'file)
-    (setq org-outline-path-complete-in-steps nil)
-    (setq org-refile-allow-creating-parent-nodes 'confirm)
-    (setq org-refile-targets '((nil :maxlevel . 9)
-                               (org-agenda-files :maxlevel . 9)))
-
-    ;; Save Org buffers after refiling!
-    (advice-add 'org-refile :after 'org-save-all-org-buffers)
-
-    (require 'org-habit)
-    (add-to-list 'org-modules 'org-habit)
-    (setq org-habit-graph-column 60)
-
-    (setq org-todo-keywords
-          '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "|" "DONE(d!)" "WONT-DO(w@)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" )
-            (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "|" "DONE(d!)" "WONT-DO(w@)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)")))
-
-    (setq org-todo-keyword-faces
-          (quote (("TODO" :foreground "orange" :weight bold)
-                  ("BREAKDOWN" :foreground "dark orange" :weight bold)
-                  ("NEXT" :foreground "aqua" :weight bold)
-                  ("READY" :foreground "aqua" :weight bold)
-                  ("IN-PROGRESS" :foreground "forest green" :weight bold)
-                  ("ACTIVE" :foreground "green" :weight bold)
-                  ("HELD-BLOCKED" :foreground "red" :weight bold)
-                  ("DELEGATED" :foreground "purple" :weight bold)
-                  ("WATCHING" :foreground "purple" :weight bold)
-                  ("DONE" :foreground "white" :weight bold)
-                  ("WONT-DO" :foreground "grey" :weight bold))))
 
     (setq org-tag-alist
-          '((:startgroup)
-                                          ; Put mutually exclusive tags here
-            (:endgroup)
-            ("project" . ?p)
-            ("agenda" . ?a)
-            ("meeting" . ?m)
+          '(("runbook" . ?r)
             ("reference" . ?n)
-            ("idea" . ?i)
-            ("research" . ?r)
-            ("goal" . ?g)))
+            ("meeting" . ?m)
+            ("adr" . ?a)
+            ("investigation" . ?i)
+            ("aws" . ?w)
+            ("data" . ?d)))
     (setq org-fast-tag-selection-single-key t)
 
-    ;; Configure custom agenda views
-    (setq org-agenda-custom-commands
-          '(("d" "Dashboard"
-             ((agenda "" ((org-deadline-warning-days 7)))
-              (todo "IN-PROGRESS" ((org-agenda-overriding-header "Tasks working on now")))
-              (todo "ACTIVE" ((org-agenda-overriding-header "Projects that are active")))
-              (todo "NEXT" ((org-agenda-overriding-header "Tasks next up")))
-              (todo "DELEGATED" ((org-agenda-overriding-header "Tasks that are delegated")))
-              (todo "WATCHING" ((org-agenda-overriding-header "Projects that I'm watching")))
-              (todo "HELD-BLOCKED" ((org-agenda-overriding-header "Blocked projects and tasks")))))
+    ;; --- GTD agenda views retired ---
+    ;; (setq org-agenda-custom-commands ...)
+    ;; (setq org-agenda-sorting-strategy ...)
 
-            ("b" "Task backlog & project planning triage"
-             ((todo "TODO" ((org-agenda-overriding-header "Task backlog")))
-              (todo "BREAKDOWN" ((org-agenda-overriding-header "Projects that need planning")))))
-
-            ("c" "Completed, planned, and wont-do tasks and projects"
-             ((todo "DONE"
-                    ((org-agenda-overriding-header "Tasks done"))))
-             ((todo "WONT-DO"
-                    ((org-agenda-overriding-header "Tasks optioned to the minors")))))))
-
-    ;; Agenda sort
-    (setq org-agenda-sorting-strategy
-          '((agenda habit-down todo-state-down time-up priority-down category-keep)
-            (todo priority-down category-keep)
-            (tags priority-down category-keep)
-            (search category-keep)))
-
-    ;; Define capture templates
+    ;; Capture templates — simplified for knowledge base use
+    ;; Note: denote-based capture is the primary workflow (C-c d n).
+    ;; These org-capture templates are kept for meeting notes in meetings.org.
     (setq org-capture-templates
-          `(("t" "Task" entry (file+headline "inbox.org" "Tasks")
-             (file "templates/task.org"))
-
-            ("h" "Habit" entry (file "habits.org")
-             (file "templates/habit.org"))
-
-            ("p" "Project" entry (file+headline "projects.org" "New Projects")
-             (file "templates/project.org"))
-
-            ("n" "Note" entry (file+headline "reference.org" "Notes")
-             (file "templates/note.org"))
-
-            ("N" "Private note" entry (file "private.org")
-             (file "templates/note.org"))
-
-            ("j" "Journal" entry (file+olp+datetree "journal.org")
-             (file "templates/journal.org")
-             :tree-type week)
-
-            ("m" "Meeting" entry (file+olp+datetree "meetings.org")
+          `(("m" "Meeting" entry (file+olp+datetree "meetings.org")
              (file "templates/meeting.org")
              :tree-type week)
 
             ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
              (file "templates/1-1_meeting.org")
+             :tree-type week)
+
+            ("s" "Standup" entry (file+olp+datetree "checkins.org")
+             (file "templates/standup.org")
              :tree-type week)))
 
     (efs/org-font-setup))
@@ -1331,6 +1293,38 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
      (shell . t)
      (python . t)
      (go . t)))
+#+end_src
+
+** Denote - Simple note-taking and knowledge base
+#+begin_src emacs-lisp
+  ;; denote - file-naming-based knowledge management (no database)
+  (use-package denote
+    :config
+    (setq denote-directory (expand-file-name "~/org/notes/"))
+    (make-directory denote-directory t)
+    (setq denote-file-type 'org)
+    (setq denote-known-keywords '("runbook" "reference" "meeting" "adr"
+                                  "investigation" "aws" "data" "cnote"
+                                  "pim" "vendor" "ai" "roadmap"))
+    (setq denote-sort-keywords t)
+    (setq denote-prompts '(title keywords))
+
+    ;; Denote key bindings under C-c d prefix
+    (define-prefix-command 'denote-prefix-map)
+    (global-set-key (kbd "C-c d") 'denote-prefix-map)
+    (define-key denote-prefix-map (kbd "n") #'denote)
+    (define-key denote-prefix-map (kbd "f") #'denote-open-or-create)
+    (define-key denote-prefix-map (kbd "i") #'denote-link)
+    (define-key denote-prefix-map (kbd "b") #'denote-backlinks)
+    (define-key denote-prefix-map (kbd "r") #'denote-rename-file-using-front-matter)
+    (define-key denote-prefix-map (kbd "k") #'denote-keywords-add)
+    (define-key denote-prefix-map (kbd "K") #'denote-keywords-remove))
+
+  ;; consult-denote for enhanced search (optional, requires consult)
+  (use-package consult-denote
+    :after (consult denote)
+    :config
+    (consult-denote-mode 1))
 #+end_src
 
 ** Ox-Hugo - Export Org to Hugo Markdown
