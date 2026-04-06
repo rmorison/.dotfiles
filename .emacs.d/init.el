@@ -289,6 +289,9 @@ For 1 standard display (<=1920px): maximize single frame."
 ;; Comment toggle
 (global-set-key (kbd "C-c C-/") 'comment-or-uncomment-region)
 
+;; Confirm before exiting Emacs (C-x C-c fat-finger protection)
+(setq confirm-kill-emacs 'y-or-n-p)
+
 (defcustom rod/screenshot-directory
   (cond
    ((eq system-type 'darwin) "~/Pictures/Screenshots")
@@ -314,7 +317,7 @@ For 1 standard display (<=1920px): maximize single frame."
           (message "Copied: %s" latest))
       (message "No PNG files found in %s" dir))))
 
-(global-set-key (kbd "C-c s") 'rod/yank-latest-screenshot)
+(global-set-key (kbd "C-c y s") 'rod/yank-latest-screenshot)
 
 (defun rod/yank-latest-download ()
   "Copy the full path of the most recent non-directory file in ~/Downloads to the kill ring."
@@ -333,7 +336,7 @@ For 1 standard display (<=1920px): maximize single frame."
           (message "Copied: %s" latest))
       (message "No files found in %s" dir))))
 
-(global-set-key (kbd "C-c D") 'rod/yank-latest-download)
+(global-set-key (kbd "C-c y d") 'rod/yank-latest-download)
 
 (use-package general)
 
@@ -693,13 +696,17 @@ _P_: skip prev    _d_: defun
                '("\\*vterm\\*"
                  (display-buffer-reuse-window display-buffer-same-window)))
 
-  ;; Fix cursor disappearing after buffer switches
+  ;; Fix cursor disappearing and width after buffer switches
   (add-hook 'window-buffer-change-functions
-            (lambda (_)
+            (lambda (window)
               (when (derived-mode-p 'vterm-mode)
                 (when-let ((proc (get-buffer-process (current-buffer))))
                   (when (process-live-p proc)
-                    (vterm--invalidate))))))
+                    (vterm--invalidate)
+                    (when (and (string-match-p "\\*claude:" (buffer-name))
+                               (my/vterm-ready-p proc window))
+                      (ignore-errors
+                        (my/claude-code-resize-vterm proc window))))))))
 
   ;; Fix cursor visibility in vterm copy-mode when using claude-code
   ;; https://github.com/stevemolitor/claude-code.el/issues/118
@@ -1014,7 +1021,7 @@ _P_: skip prev    _d_: defun
 
   :bind
   (:map org-mode-map
-        ("C-c h" . org-hugo-export-wim-to-md)))
+        ("C-c H" . org-hugo-export-wim-to-md)))
 
 ;; YAML Mode Configuration
 (use-package yaml-mode
@@ -1301,30 +1308,63 @@ can match it against real paths."
         (apply orig-fun args)))
     (advice-add 'vterm-mode :around #'my/vterm-mode-skip-if-active)
 
-    ;; Fix vterm width by adjusting terminal size when window is resized
-    (defun my/claude-code-adjust-vterm-width (&optional frame)
-      "Adjust vterm terminal width for visible claude-code buffers."
-      (dolist (window (window-list frame))
+    (defun my/vterm-ready-p (proc window)
+      "Return non-nil when PROC and WINDOW are safe for vterm resize."
+      (and proc
+           (process-live-p proc)
+           (buffer-live-p (process-buffer proc))
+           (window-live-p window)
+           (> (window-body-width window t) 0)
+           (> (window-body-height window t) 0)
+           (boundp 'vterm--term)
+           (buffer-local-value 'vterm--term (process-buffer proc))))
+
+    (defun my/claude-code-resize-vterm (proc window)
+      "Resize vterm for PROC to match WINDOW dimensions.
+    Subtracts 1 from height to prevent content falling below the fold.
+    Caches dimensions to skip no-op resizes."
+      (let ((target-width (window-body-width window))
+            (target-height (1- (window-body-height window))))
+        (unless (and (local-variable-p 'my/vterm--last-width)
+                     (eql my/vterm--last-width target-width)
+                     (local-variable-p 'my/vterm--last-height)
+                     (eql my/vterm--last-height target-height))
+          (let ((inhibit-read-only t))
+            (vterm--set-size vterm--term target-height target-width)
+            (set-process-window-size proc target-height target-width)
+            (setq-local my/vterm--last-width target-width)
+            (setq-local my/vterm--last-height target-height)))))
+
+    ;; Adjust vterm terminal size for visible claude-code buffers on window resize
+    (defun my/claude-code-adjust-vterm-size (&optional frame)
+      "Adjust vterm terminal size for visible claude-code buffers."
+      (interactive)
+      (dolist (window (if (and (called-interactively-p 'any)
+                               (derived-mode-p 'vterm-mode)
+                               (string-match-p "\\*claude:" (buffer-name)))
+                          (list (selected-window))
+                        (window-list frame)))
         (with-current-buffer (window-buffer window)
           (when (and (derived-mode-p 'vterm-mode)
                      (string-match-p "\\*claude:" (buffer-name)))
-            (when-let ((proc (get-buffer-process (current-buffer))))
-              (ignore-errors
-                (vterm--window-adjust-process-window-size proc (list window))))))))
+            (let ((proc (get-buffer-process (current-buffer))))
+              (when (my/vterm-ready-p proc window)
+                (ignore-errors
+                  (my/claude-code-resize-vterm proc window))
+                (when (called-interactively-p 'any)
+                  (message "Resized vterm to %dx%d"
+                           (window-body-width window)
+                           (1- (window-body-height window))))))))))
 
-    ;; Use window-size-change-functions which only runs on actual size changes
-    (add-hook 'window-size-change-functions #'my/claude-code-adjust-vterm-width)
+    (add-hook 'window-size-change-functions #'my/claude-code-adjust-vterm-size)
 
-    ;; Manual command to fix width if automatic adjustment doesn't work
-    (defun my/claude-code-fix-width ()
-      "Manually adjust the vterm width for the current claude-code buffer."
-      (interactive)
-      (when (and (derived-mode-p 'vterm-mode)
-                 (string-match-p "\\*claude:" (buffer-name)))
-        (when-let* ((window (get-buffer-window (current-buffer)))
-                    (proc (get-buffer-process (current-buffer))))
-          (vterm--window-adjust-process-window-size proc (list window))
-          (message "Adjusted claude-code vterm width"))))
+    ;; One-shot resize after startup — the window-change hook often fires
+    ;; before vterm--term is initialised.
+    (add-hook 'claude-code-start-hook
+              (lambda () (run-with-idle-timer
+                          1.0 nil #'my/claude-code-adjust-vterm-size)))
+
+    (define-key claude-code-command-map (kbd "w") #'my/claude-code-adjust-vterm-size)
 
     (claude-code-mode))
 
@@ -1367,7 +1407,7 @@ can match it against real paths."
 ;; Docker management from Emacs
 (use-package docker
   :ensure t
-  :bind ("C-c d" . docker)
+  :bind ("C-c D" . docker)
   :config
   (setq docker-command "docker"))
 
