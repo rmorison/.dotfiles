@@ -289,6 +289,9 @@ For 1 standard display (<=1920px): maximize single frame."
 ;; Comment toggle
 (global-set-key (kbd "C-c C-/") 'comment-or-uncomment-region)
 
+;; Confirm before exiting Emacs (C-x C-c fat-finger protection)
+(setq confirm-kill-emacs 'y-or-n-p)
+
 (defcustom rod/screenshot-directory
   (cond
    ((eq system-type 'darwin) "~/Pictures/Screenshots")
@@ -1309,6 +1312,7 @@ can match it against real paths."
       "Return non-nil when PROC and WINDOW are safe for vterm resize."
       (and proc
            (process-live-p proc)
+           (buffer-live-p (process-buffer proc))
            (window-live-p window)
            (> (window-body-width window t) 0)
            (> (window-body-height window t) 0)
@@ -1326,10 +1330,10 @@ can match it against real paths."
                      (local-variable-p 'my/vterm--last-height)
                      (eql my/vterm--last-height target-height))
           (let ((inhibit-read-only t))
-            (setq-local my/vterm--last-width target-width)
-            (setq-local my/vterm--last-height target-height)
             (vterm--set-size vterm--term target-height target-width)
-            (set-process-window-size proc target-height target-width)))))
+            (set-process-window-size proc target-height target-width)
+            (setq-local my/vterm--last-width target-width)
+            (setq-local my/vterm--last-height target-height)))))
 
     ;; Adjust vterm terminal size for visible claude-code buffers on window resize
     (defun my/claude-code-adjust-vterm-size (&optional frame)
