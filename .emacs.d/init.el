@@ -212,17 +212,26 @@ For 1 standard display (<=1920px): maximize single frame."
 ;; line and column numbers
 (column-number-mode)
 (global-display-line-numbers-mode t)
-;; Disable line numbers for some modes
-(dolist (mode '(org-mode-hook
-                term-mode-hook
-                vterm-mode-hook
-                eat-mode-hook
-                shell-mode-hook
-                treemacs-mode-hook
-                eshell-mode-hook
-                dired-mode-hook
-                org-agenda-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+;; Disable line numbers for some modes.
+;; Must run on `after-change-major-mode-hook' (not the mode's own hook),
+;; because `global-display-line-numbers-mode' enables line numbers via
+;; `after-change-major-mode-hook', which runs AFTER the mode hook —
+;; so a mode-hook-based disable is a no-op and line numbers end up on.
+;; Using DEPTH 90 ensures we run after the globalized enable.
+(defun my/disable-line-numbers-in-some-modes ()
+  "Disable `display-line-numbers-mode' in modes where line numbers are noise."
+  (when (derived-mode-p 'org-mode
+                        'term-mode
+                        'vterm-mode
+                        'eat-mode
+                        'shell-mode
+                        'treemacs-mode
+                        'eshell-mode
+                        'dired-mode
+                        'org-agenda-mode)
+    (display-line-numbers-mode -1)))
+(add-hook 'after-change-major-mode-hook
+          #'my/disable-line-numbers-in-some-modes 90)
 
 ;; default face
 (set-face-attribute 'default nil
@@ -838,43 +847,6 @@ _P_: skip prev    _d_: defun
 
   (setq org-directory "~/org")
 
-  ;; --- GTD config retired (tasks now in Asana/Jira) ---
-  ;; Agenda files, refile targets, and habit tracking commented out.
-  ;; Uncomment to restore if needed.
-  ;;
-  ;; (setq org-agenda-files '("~/org"))
-  ;; (when (file-exists-p "~/Projects/github.com/rmorison/rmorison.github.io/org")
-  ;;   (add-to-list 'org-agenda-files "~/Projects/github.com/rmorison/rmorison.github.io/org"))
-  ;; (setq org-agenda-compact-blocks t)
-  ;; (setq org-refile-use-outline-path 'file)
-  ;; (setq org-outline-path-complete-in-steps nil)
-  ;; (setq org-refile-allow-creating-parent-nodes 'confirm)
-  ;; (setq org-refile-targets '((nil :maxlevel . 9)
-  ;;                            (org-agenda-files :maxlevel . 9)))
-  ;; (advice-add 'org-refile :after 'org-save-all-org-buffers)
-  ;; (require 'org-habit)
-  ;; (add-to-list 'org-modules 'org-habit)
-  ;; (setq org-habit-graph-column 60)
-  ;;
-  ;; (setq org-todo-keywords
-  ;;       '((sequence "TODO(t)" "NEXT(n)" "IN-PROGRESS(i!)" "|" "DONE(d!)" "WONT-DO(w@)" "DELEGATED(D@)" "HELD-BLOCKED(h@/!)" )
-  ;;         (sequence "BREAKDOWN(b)" "READY(r)" "ACTIVE(a!)" "|" "DONE(d!)" "WONT-DO(w@)" "WATCHING(W@)" "HELD-BLOCKED(h@/!)")))
-  ;;
-  ;; (setq org-todo-keyword-faces
-  ;;       (quote (("TODO" :foreground "orange" :weight bold)
-  ;;               ("BREAKDOWN" :foreground "dark orange" :weight bold)
-  ;;               ("NEXT" :foreground "aqua" :weight bold)
-  ;;               ("READY" :foreground "aqua" :weight bold)
-  ;;               ("IN-PROGRESS" :foreground "forest green" :weight bold)
-  ;;               ("ACTIVE" :foreground "green" :weight bold)
-  ;;               ("HELD-BLOCKED" :foreground "red" :weight bold)
-  ;;               ("DELEGATED" :foreground "purple" :weight bold)
-  ;;               ("WATCHING" :foreground "purple" :weight bold)
-  ;;               ("DONE" :foreground "white" :weight bold)
-  ;;               ("WONT-DO" :foreground "grey" :weight bold))))
-
-  (setq org-agenda-files '("~/org"))
-
   (setq org-tag-alist
         '(("runbook" . ?r)
           ("reference" . ?n)
@@ -885,13 +857,8 @@ _P_: skip prev    _d_: defun
           ("data" . ?d)))
   (setq org-fast-tag-selection-single-key t)
 
-  ;; --- GTD agenda views retired ---
-  ;; (setq org-agenda-custom-commands ...)
-  ;; (setq org-agenda-sorting-strategy ...)
-
-  ;; Capture templates — simplified for knowledge base use
-  ;; Note: denote-based capture is the primary workflow (C-c d n).
-  ;; These org-capture templates are kept for meeting notes in meetings.org.
+  ;; Capture templates — meeting notes only.
+  ;; Knowledge-base capture is handled by denote (C-c n n).
   (setq org-capture-templates
         `(("m" "Meeting" entry (file+olp+datetree "meetings.org")
            (file "templates/meeting.org")
@@ -899,10 +866,6 @@ _P_: skip prev    _d_: defun
 
           ("1" "1-1 Meeting" entry (file+olp+datetree "meetings.org")
            (file "templates/1-1_meeting.org")
-           :tree-type week)
-
-          ("s" "Standup" entry (file+olp+datetree "checkins.org")
-           (file "templates/standup.org")
            :tree-type week)))
 
   (efs/org-font-setup))
@@ -929,7 +892,6 @@ _P_: skip prev    _d_: defun
   (lambda () (interactive) (org-capture nil)))
 ;;(global-set-key (kbd "\C-cc") 'org-capture)
 (define-key global-map (kbd "C-c l") 'org-store-link)
-(define-key global-map (kbd "C-c a") 'org-agenda)
 
 (use-package org-bullets
   :defer t
@@ -966,26 +928,26 @@ _P_: skip prev    _d_: defun
 
 ;; denote - file-naming-based knowledge management (no database)
 (use-package denote
+  :hook ((dired-mode . denote-dired-mode)
+         (text-mode  . denote-fontify-links-mode))
+  :bind (:map global-map
+         ("C-c n n" . denote)
+         ("C-c n f" . denote-open-or-create)
+         ("C-c n i" . denote-link)
+         ("C-c n b" . denote-backlinks)
+         ("C-c n g" . denote-grep)
+         ("C-c n r" . denote-rename-file-using-front-matter)
+         ("C-c n k" . denote-keywords-add)
+         ("C-c n K" . denote-keywords-remove))
   :config
   (setq denote-directory (expand-file-name "~/org/notes/"))
-  (make-directory denote-directory t)
   (setq denote-file-type 'org)
   (setq denote-known-keywords '("runbook" "reference" "meeting" "adr"
                                 "investigation" "aws" "data" "cnote"
                                 "pim" "vendor" "ai" "roadmap"))
   (setq denote-sort-keywords t)
   (setq denote-prompts '(title keywords))
-
-  ;; Denote key bindings under C-c d prefix
-  (define-prefix-command 'denote-prefix-map)
-  (global-set-key (kbd "C-c d") 'denote-prefix-map)
-  (define-key denote-prefix-map (kbd "n") #'denote)
-  (define-key denote-prefix-map (kbd "f") #'denote-open-or-create)
-  (define-key denote-prefix-map (kbd "i") #'denote-link)
-  (define-key denote-prefix-map (kbd "b") #'denote-backlinks)
-  (define-key denote-prefix-map (kbd "r") #'denote-rename-file-using-front-matter)
-  (define-key denote-prefix-map (kbd "k") #'denote-keywords-add)
-  (define-key denote-prefix-map (kbd "K") #'denote-keywords-remove))
+  (denote-rename-buffer-mode 1))
 
 ;; consult-denote for enhanced search (optional, requires consult)
 (use-package consult-denote
@@ -1523,7 +1485,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-  
+
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1600,20 +1562,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-  
+
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-  
+
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-  
+
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-  
+
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff
