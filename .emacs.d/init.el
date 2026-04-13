@@ -982,6 +982,11 @@ _P_: skip prev    _d_: defun
   :hook (yaml-mode . (lambda ()
                       (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 
+;; Terraform Mode Configuration
+(use-package terraform-mode
+  :mode ("\\.tf\\'" "\\.tfvars\\'")
+  :hook (terraform-mode . terraform-format-on-save-mode))
+
 ;; Markdown Mode for composing, editing, and reviewing markdown documents
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
@@ -1485,7 +1490,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-
+  
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1562,20 +1567,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-
+  
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-
+  
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-
+  
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-
+  
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff

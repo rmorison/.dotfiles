@@ -1329,6 +1329,14 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
                         (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 #+end_src
 
+* Terraform Mode
+#+begin_src emacs-lisp
+  ;; Terraform Mode Configuration
+  (use-package terraform-mode
+    :mode ("\\.tf\\'" "\\.tfvars\\'")
+    :hook (terraform-mode . terraform-format-on-save-mode))
+#+end_src
+
 * Markdown Mode
 ** Reference
 *** Core Features
