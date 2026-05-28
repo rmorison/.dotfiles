@@ -709,6 +709,9 @@ _P_: skip prev    _d_: defun
   (add-hook 'window-buffer-change-functions
             (lambda (window)
               (when (derived-mode-p 'vterm-mode)
+                ;; Force cursor visible when switching to a vterm buffer
+                (setq-local cursor-type t)
+                (internal-show-cursor window t)
                 (when-let ((proc (get-buffer-process (current-buffer))))
                   (when (process-live-p proc)
                     (vterm--invalidate)
