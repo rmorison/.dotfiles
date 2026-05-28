@@ -982,6 +982,11 @@ _P_: skip prev    _d_: defun
   :hook (yaml-mode . (lambda ()
                       (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
 
+;; Terraform Mode Configuration
+(use-package terraform-mode
+  :mode ("\\.tf\\'" "\\.tfvars\\'")
+  :hook (terraform-mode . terraform-format-on-save-mode))
+
 ;; Markdown Mode for composing, editing, and reviewing markdown documents
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
@@ -998,15 +1003,23 @@ _P_: skip prev    _d_: defun
   (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
   (markdown-header-scaling t)  ;; Scale headers
   (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
-  (markdown-hide-urls nil)  ;; Show URLs
+  (markdown-hide-urls t)  ;; Hide URL part of [text](url); show just the label
   (markdown-indent-on-enter t)  ;; Automatically indent new lines
   (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+  (markdown-fontify-whole-heading-line t)  ;; Extend heading face to end of line
   :config
-  ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+  ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping,
+  ;; with the column centered for a GitHub-reader feel.
   (add-hook 'markdown-mode-hook #'visual-line-mode)
   (add-hook 'markdown-mode-hook (lambda ()
-                                  (setq visual-fill-column-width efs/default-fill-column)
+                                  (setq visual-fill-column-width efs/default-fill-column
+                                        visual-fill-column-center-text t)
                                   (visual-fill-column-mode 1)))
+  ;; Variable-pitch body text, fixed-pitch code blocks (handled by mixed-pitch).
+  (add-hook 'markdown-mode-hook #'mixed-pitch-mode)
+  ;; Pixel-accurate GFM table alignment, which also fixes table layout under
+  ;; mixed-pitch where columns would otherwise drift.
+  (add-hook 'markdown-mode-hook #'valign-mode)
 
   ;; Key bindings
   :bind (:map markdown-mode-map
@@ -1014,7 +1027,21 @@ _P_: skip prev    _d_: defun
          ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
          ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
          ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+         ("C-c C-s u" . markdown-toggle-url-hiding)  ;; Toggle URL hiding
          ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+;; Variable-pitch body text with fixed-pitch for code, inline-code, tables, etc.
+;; Gives markdown buffers a proportional-font "reader" look without breaking code.
+(use-package mixed-pitch
+  :defer t
+  :custom
+  (mixed-pitch-set-height nil))
+
+;; Pixel-accurate alignment for org/markdown tables (works under mixed-pitch).
+(use-package valign
+  :defer t
+  :custom
+  (valign-fancy-bar t))
 
 ;; Live preview of Markdown
 (use-package markdown-preview-mode
@@ -1485,7 +1512,7 @@ Traverses up the directory tree to find .venv if not in project root."
 
   ;; Set python shell interpreter dynamically
   (setq python-shell-interpreter #'efs/get-project-python)
-
+  
   ;; Auto-activate virtualenv when opening Python files
   :hook ((python-mode . efs/activate-venv)
          (python-ts-mode . efs/activate-venv)))
@@ -1562,20 +1589,20 @@ Traverses up the directory tree to find .venv if not in project root."
                                                 (memq 'python-ts-mode (car entry)))))
                                      eglot-server-programs)))
     (message "[DEBUG] Found %d Python entries to remove" python-entries))
-
+  
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-
+  
   (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-
+  
   ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
                '((python-ts-mode python-mode) . efs/get-jedi-command))
-
+  
   (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
 
 ;; Format Python code with ruff
