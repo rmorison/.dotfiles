@@ -1366,6 +1366,15 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
 - ~C-c C-x u~ - Insert URI
 - ~C-c C-s P~ - Pre-formatted text
 - ~C-c C-s [~ - Reference link
+- ~C-c C-s u~ - Toggle URL hiding (collapse ~[text](url)~ to just ~text~)
+- ~C-c C-s m~ - Toggle markup hiding (hide ~**~, ~_~, etc.)
+
+**** Reading Aesthetics
+URLs are hidden by default so links read like plain prose. Combined with
+~mixed-pitch-mode~ (variable-pitch body, fixed-pitch code) and ~valign-mode~
+(pixel-accurate GFM tables), markdown buffers get a GitHub-reader feel
+without leaving Emacs. Toggle URL/markup visibility back on with the bindings
+above when editing raw markdown.
 
 **** Tables & Lists
 - ~C-c C-s t~ - Generate table of contents
@@ -1430,15 +1439,23 @@ For markdown style checking and linting:
     (markdown-gfm-additional-languages '("shell" "bash" "python" "sql" "go" "typescript"))
     (markdown-header-scaling t)  ;; Scale headers
     (markdown-header-scaling-values '(1.5 1.3 1.1 1.0 1.0 1.0))  ;; Header scaling factors
-    (markdown-hide-urls nil)  ;; Show URLs
+    (markdown-hide-urls t)  ;; Hide URL part of [text](url); show just the label
     (markdown-indent-on-enter t)  ;; Automatically indent new lines
     (markdown-make-gfm-checkboxes-buttons t)  ;; Make checkboxes clickable
+    (markdown-fontify-whole-heading-line t)  ;; Extend heading face to end of line
     :config
-    ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping
+    ;; Use visual-line-mode and visual-fill-column-mode for better text wrapping,
+    ;; with the column centered for a GitHub-reader feel.
     (add-hook 'markdown-mode-hook #'visual-line-mode)
     (add-hook 'markdown-mode-hook (lambda ()
-                                    (setq visual-fill-column-width efs/default-fill-column)
+                                    (setq visual-fill-column-width efs/default-fill-column
+                                          visual-fill-column-center-text t)
                                     (visual-fill-column-mode 1)))
+    ;; Variable-pitch body text, fixed-pitch code blocks (handled by mixed-pitch).
+    (add-hook 'markdown-mode-hook #'mixed-pitch-mode)
+    ;; Pixel-accurate GFM table alignment, which also fixes table layout under
+    ;; mixed-pitch where columns would otherwise drift.
+    (add-hook 'markdown-mode-hook #'valign-mode)
 
     ;; Key bindings
     :bind (:map markdown-mode-map
@@ -1446,7 +1463,21 @@ For markdown style checking and linting:
            ("C-c C-s t" . markdown-toc-generate-toc)  ;; Generate TOC
            ("C-c C-s p" . markdown-live-preview-mode)  ;; Toggle preview
            ("C-c C-s m" . markdown-toggle-markup-hiding)  ;; Toggle markup hiding
+           ("C-c C-s u" . markdown-toggle-url-hiding)  ;; Toggle URL hiding
            ("C-c C-x i" . markdown-insert-image)))  ;; Insert image
+
+  ;; Variable-pitch body text with fixed-pitch for code, inline-code, tables, etc.
+  ;; Gives markdown buffers a proportional-font "reader" look without breaking code.
+  (use-package mixed-pitch
+    :defer t
+    :custom
+    (mixed-pitch-set-height nil))
+
+  ;; Pixel-accurate alignment for org/markdown tables (works under mixed-pitch).
+  (use-package valign
+    :defer t
+    :custom
+    (valign-fancy-bar t))
 
   ;; Live preview of Markdown
   (use-package markdown-preview-mode
