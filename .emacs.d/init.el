@@ -1242,6 +1242,14 @@ _P_: skip prev    _d_: defun
     :config
     (setq claude-code-terminal-backend 'vterm)
 
+    ;; Force Claude Code's classic (native-scrollback) renderer under vterm.
+    ;; Fullscreen rendering (settings.json "tui": "fullscreen") draws on the
+    ;; terminal's alternate screen buffer, which vterm never saves to
+    ;; scrollback — so the buffer can only scroll one page. This env var
+    ;; overrides the saved tui setting for Emacs-launched Claude only, leaving
+    ;; fullscreen active in standalone terminals like iTerm.
+    (setenv "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN" "1")
+
     ;; Set claude-code face to use the same font settings as default with readable colors
     (set-face-attribute 'claude-code-repl-face nil
                         :family efs/fixed-font-family
