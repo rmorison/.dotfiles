@@ -1,8 +1,12 @@
+;;; init.el --- Tangled from Emacs.org -*- lexical-binding: t -*-
+
 ;; Automatically tangle our Emacs.org config file when we save it
 (defun efs/org-babel-tangle-config ()
   (when (string-equal (buffer-file-name)
                       (expand-file-name "~/.dotfiles/.emacs.d/Emacs.org"))
-    ;; Dyname scoping to the rescue
+    ;; Dynamic scoping to the rescue: without the defvar, lexical-binding
+    ;; would make this `let' a local that org never sees.
+    (defvar org-confirm-babel-evaluate)
     (let ((org-confirm-babel-evaluate nil))
       (org-babel-tangle))))
 
