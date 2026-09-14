@@ -823,6 +823,7 @@ they cannot abort the rest of `emacs-startup-hook'."
 ;; Follow URLs printed in terminal output.
   (require 'goto-addr)
   (defvar vterm-mode-map)
+  (defvar vterm-copy-mode-map)
 
   (defun my/vterm-copy-mode-goto-address ()
     "Highlight URLs while `vterm-copy-mode' is active, and only then.
@@ -834,13 +835,19 @@ on the way out removes the overlays it added."
 
   (with-eval-after-load 'vterm
     (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
-    ;; Reads the URL from the raw text at point, so it needs no overlay and
-    ;; works in a live terminal. `vterm-copy-mode-map' does not shadow it, and
-    ;; claude-code.el parents its own keymap to this one, so both inherit it.
-    (if (lookup-key vterm-mode-map (kbd "C-c C-o"))
-        (warn "Not binding C-c C-o in vterm-mode-map; already bound to %s"
-              (lookup-key vterm-mode-map (kbd "C-c C-o")))
-      (define-key vterm-mode-map (kbd "C-c C-o") #'browse-url-at-point)))
+    ;; Rejoin lines the terminal wrapped, so a split URL is whole while copy
+    ;; mode is active. Symmetric: the breaks are restored on the way out.
+    (setopt vterm-copy-mode-remove-fake-newlines t)
+    ;; Bound in both maps. `vterm--enter-copy-mode' does `(use-local-map nil)',
+    ;; so while copy mode is active `vterm-mode-map' is not consulted at all and
+    ;; a binding there alone would be undefined exactly where it is most wanted.
+    ;; Outside copy mode, claude-code.el parents its keymap to `vterm-mode-map',
+    ;; so Claude buffers inherit it.
+    (dolist (map (list vterm-mode-map vterm-copy-mode-map))
+      (if (lookup-key map (kbd "C-c C-o"))
+          (warn "Not binding C-c C-o; already bound to %s"
+                (lookup-key map (kbd "C-c C-o")))
+        (define-key map (kbd "C-c C-o") #'browse-url-at-point))))
 
 ;; org mode
 (defun efs/org-font-setup ()
