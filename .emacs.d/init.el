@@ -1619,9 +1619,18 @@ uses: the directory part holds no colon and the instance no asterisk.")
     "Return BUFFER-NAME with its instance portion replaced by INSTANCE.
 Substituting into the existing name rather than rebuilding it from the
 directory keeps whatever naming convention is in force."
-    (if (string-match my/claude-code--buffer-name-regexp buffer-name)
-        (format "*claude:%s:%s*" (match-string 1 buffer-name) instance)
-      (error "Not a Claude buffer name: %s" buffer-name)))
+    (unless (string-match my/claude-code--buffer-name-regexp buffer-name)
+      (user-error "Not a Claude buffer name: %s" buffer-name))
+    (let ((dir (match-string 1 buffer-name))
+          (rest (match-string 2 buffer-name)))
+      ;; `[^:]+' for the directory is upstream's own pattern, and it cannot
+      ;; split a name whose directory contains a colon -- a TRAMP
+      ;; `default-directory', say, parses as "/ssh" plus an instance holding
+      ;; the rest. Rewriting that would silently truncate the directory and
+      ;; leave a name that no longer resolves, so refuse instead.
+      (when (and rest (string-match-p ":" rest))
+        (user-error "Cannot tell directory from instance in %s" buffer-name))
+      (format "*claude:%s:%s*" dir instance)))
 
   (defun my/claude-code--check-instance-name (name)
     "Signal unless NAME is usable as both a buffer name and a slash argument."
@@ -1662,20 +1671,41 @@ is one and otherwise prompts, defaulting to the current instance name."
         (unless (eq clash buffer)
           (user-error "A Claude buffer named %s already exists" new-name)))
       (with-current-buffer buffer
+        ;; Rename first: it is the half that can fail detectably, and doing it
+        ;; before the send means a failure leaves both names untouched rather
+        ;; than renaming the session and not the buffer.
+        (rename-buffer new-name)
+        ;; `claude-code--term-send-string' appends to whatever is already in
+        ;; Claude's input line, so a half-typed prompt would turn the slash
+        ;; command into ordinary text and submit it. Clear the line first.
+        (claude-code--term-send-string claude-code-terminal-backend (kbd "ESC"))
+        (sit-for 0.1)
         ;; Same shape as `claude-code--do-send-command', sent to this buffer
         ;; rather than re-prompting for one.
         (claude-code--term-send-string claude-code-terminal-backend
                                        (concat "/rename " name))
         (sit-for 0.1)
-        (claude-code--term-send-string claude-code-terminal-backend (kbd "RET"))
-        (rename-buffer new-name))
+        (claude-code--term-send-string claude-code-terminal-backend (kbd "RET")))
       (message "Renamed to %s (sent /rename %s)" new-name name)
       new-name))
 
   (with-eval-after-load 'claude-code
-    (if (fboundp 'claude-code--term-send-string)
-        (define-key claude-code-command-map (kbd "N") #'my/claude-code-rename)
-      (warn "claude-code--term-send-string is missing; session rename unavailable")))
+    ;; Guard every private function the command calls, not just one: a key that
+    ;; stays bound after an upstream rename fails with a void-function backtrace,
+    ;; which is the outcome this check exists to avoid.
+    (let ((missing (seq-remove #'fboundp
+                               '(claude-code--term-send-string
+                                 claude-code--buffer-p
+                                 claude-code--get-or-prompt-for-buffer
+                                 claude-code--extract-instance-name-from-buffer-name))))
+      (cond
+       (missing
+        (warn "Claude session rename unavailable; missing: %s"
+              (mapconcat #'symbol-name missing ", ")))
+       (t
+        (when (lookup-key claude-code-command-map (kbd "N"))
+          (warn "Claude session rename is shadowing an existing N binding"))
+        (define-key claude-code-command-map (kbd "N") #'my/claude-code-rename)))))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
 (use-package claude-code-ide
