@@ -1246,6 +1246,72 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
     (vterm-toggle-reset-window-configration-after-exit t))
 #+end_src
 
+** Following URLs
+*** Reference
+Terminal output is plain text, so a URL in it is not a link. Two things make it
+one:
+
+| Key       | Action                                                     |
+|-----------+------------------------------------------------------------|
+| ~C-c C-o~ | Open the URL at point, whether or not copy mode is on      |
+| ~C-c C-t~ | Enter copy mode, which also highlights every URL on screen |
+| ~C-c RET~ | Open a highlighted URL (from ~goto-address-mode~)          |
+| ~mouse-2~ | Open a highlighted URL by clicking                         |
+
+~C-c C-o~ needs nothing highlighted — it reads the URL out of the raw text at
+point — so it works in a live, scrolling terminal. The highlighting is for
+finding links you have not already put point on.
+
+*** Why highlighting is limited to copy mode
+~goto-address-mode~ attaches overlays through ~jit-lock~, which works in vterm.
+The problem is that vterm rewrites the buffer on every redraw, destroying those
+overlays and making continuous refontification wasted work on a busy terminal.
+Copy mode freezes the buffer, so the overlays survive — and that is where you
+are when hunting for a link anyway. Leaving copy mode turns the mode back off,
+which removes the overlays it added.
+
+This reaches Claude Code buffers too: ~claude-code.el~ builds its vterm keymap
+with ~vterm-mode-map~ as the parent, so bindings added there are inherited.
+
+*** Caveat: wrapped URLs
+A URL long enough to wrap is broken by a real newline before Emacs ever sees it,
+and nothing here reassembles it:
+
+#+begin_example
+  https://github.com/rmorison/.dotfiles/
+  pull/35
+#+end_example
+
+Point on that yields ~https://github.com/rmorison/.dotfiles/~ — a truncated link
+that looks like it worked, which is worse than no link at all. Both ~C-c C-o~ and
+the highlighting share the limitation, since neither crosses a line break.
+Widening the window before the output arrives is the only real workaround.
+
+*** Code
+#+begin_src emacs-lisp
+  ;; Follow URLs printed in terminal output.
+  (require 'goto-addr)
+  (defvar vterm-mode-map)
+
+  (defun my/vterm-copy-mode-goto-address ()
+    "Highlight URLs while `vterm-copy-mode' is active, and only then.
+vterm rewrites its buffer on every redraw, which destroys the overlays
+`goto-address-mode' adds and makes refontifying a busy terminal wasted
+work.  Copy mode freezes the buffer, so they survive.  Disabling the mode
+on the way out removes the overlays it added."
+    (goto-address-mode (if (bound-and-true-p vterm-copy-mode) 1 -1)))
+
+  (with-eval-after-load 'vterm
+    (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
+    ;; Reads the URL from the raw text at point, so it needs no overlay and
+    ;; works in a live terminal. `vterm-copy-mode-map' does not shadow it, and
+    ;; claude-code.el parents its own keymap to this one, so both inherit it.
+    (if (lookup-key vterm-mode-map (kbd "C-c C-o"))
+        (warn "Not binding C-c C-o in vterm-mode-map; already bound to %s"
+              (lookup-key vterm-mode-map (kbd "C-c C-o")))
+      (define-key vterm-mode-map (kbd "C-c C-o") #'browse-url-at-point)))
+#+end_src
+
 * Org Mode
 #+begin_src emacs-lisp
   ;; org mode

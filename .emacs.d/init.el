@@ -820,6 +820,28 @@ they cannot abort the rest of `emacs-startup-hook'."
   (vterm-toggle-fullscreen-p nil)
   (vterm-toggle-reset-window-configration-after-exit t))
 
+;; Follow URLs printed in terminal output.
+  (require 'goto-addr)
+  (defvar vterm-mode-map)
+
+  (defun my/vterm-copy-mode-goto-address ()
+    "Highlight URLs while `vterm-copy-mode' is active, and only then.
+vterm rewrites its buffer on every redraw, which destroys the overlays
+`goto-address-mode' adds and makes refontifying a busy terminal wasted
+work.  Copy mode freezes the buffer, so they survive.  Disabling the mode
+on the way out removes the overlays it added."
+    (goto-address-mode (if (bound-and-true-p vterm-copy-mode) 1 -1)))
+
+  (with-eval-after-load 'vterm
+    (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
+    ;; Reads the URL from the raw text at point, so it needs no overlay and
+    ;; works in a live terminal. `vterm-copy-mode-map' does not shadow it, and
+    ;; claude-code.el parents its own keymap to this one, so both inherit it.
+    (if (lookup-key vterm-mode-map (kbd "C-c C-o"))
+        (warn "Not binding C-c C-o in vterm-mode-map; already bound to %s"
+              (lookup-key vterm-mode-map (kbd "C-c C-o")))
+      (define-key vterm-mode-map (kbd "C-c C-o") #'browse-url-at-point)))
+
 ;; org mode
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
