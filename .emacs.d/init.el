@@ -1707,6 +1707,60 @@ is one and otherwise prompts, defaulting to the current instance name."
           (warn "Claude session rename is shadowing an existing N binding"))
         (define-key claude-code-command-map (kbd "N") #'my/claude-code-rename)))))
 
+;; Give a newly created instance's name to the Claude session as well, so the
+  ;; buffer and the resume picker agree from the start.
+  (defcustom my/claude-code-name-new-sessions t
+    "Whether creating a named instance also renames the Claude session."
+    :type 'boolean
+    :group 'my/claude-account)
+
+  (defcustom my/claude-code-session-ready-timeout 20
+    "Seconds to wait for a new Claude session to become ready before giving up."
+    :type 'number
+    :group 'my/claude-account)
+
+  (defconst my/claude-code--ready-tail 2000
+    "How far back from `point-max' to look for Claude's input box.")
+
+  (defun my/claude-code--session-ready-p (buffer)
+    "Non-nil once BUFFER shows Claude's input box.
+The box border is a run of `─' redrawn at the bottom of the buffer, so
+finding one near `point-max' means typed text will land somewhere."
+    (and (buffer-live-p buffer)
+         (with-current-buffer buffer
+           (save-excursion
+             (goto-char (point-max))
+             (search-backward "─" (max (point-min) (- (point-max) my/claude-code--ready-tail)) t)))))
+
+  (defun my/claude-code--name-session-when-ready (buffer deadline)
+    "Rename the Claude session in BUFFER to its instance name once it is ready.
+Re-reads the name each time, so renaming the buffer by hand while waiting
+wins.  Gives up at DEADLINE rather than typing into a terminal that never
+came up."
+    (when (buffer-live-p buffer)
+      (let ((name (claude-code--extract-instance-name-from-buffer-name
+                   (buffer-name buffer))))
+        (cond
+         ((or (null name) (equal name "default")) nil)
+         ((my/claude-code--session-ready-p buffer)
+          (my/claude-code-rename name buffer))
+         ((> (float-time) deadline)
+          (message "Claude session in %s never became ready; not renaming to %s"
+                   (buffer-name buffer) name))
+         (t
+          (run-at-time 0.5 nil
+                       #'my/claude-code--name-session-when-ready buffer deadline))))))
+
+  (defun my/claude-code--name-new-session ()
+    "From `claude-code-start-hook', name the session after its instance."
+    (when my/claude-code-name-new-sessions
+      (my/claude-code--name-session-when-ready
+       (current-buffer)
+       (+ (float-time) my/claude-code-session-ready-timeout))))
+
+  (with-eval-after-load 'claude-code
+    (add-hook 'claude-code-start-hook #'my/claude-code--name-new-session))
+
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
 (use-package claude-code-ide
   :straight (:type git :host github :repo "manzaltu/claude-code-ide.el")

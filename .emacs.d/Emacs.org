@@ -2720,6 +2720,88 @@ is one and otherwise prompts, defaulting to the current instance name."
         (define-key claude-code-command-map (kbd "N") #'my/claude-code-rename)))))
 #+end_src
 
+*** Naming a session at creation
+Starting a second instance in a project prompts for a name — =Instances already
+running for ~/foo/ (existing: default), new instance name:= — and that name has
+only ever been an Emacs one. The session itself kept whatever Claude called it,
+so the buffer and the resume picker disagreed from birth, and ~C-c C N~ had to
+be run immediately afterwards to reconcile them.
+
+That name is now given to the session too, automatically. It applies to any
+instance whose name is not the unprompted default, so ~C-c C c~ on a second
+instance and ~C-c C i~ both take effect, while a project's first session — named
+=default= without asking — is left alone.
+
+*** Waiting for the session to be ready
+~claude-code-start-hook~ runs immediately after the process is spawned, long
+before Claude has drawn its interface, so sending at that point would put the
+command nowhere. Rather than guess a delay, this waits for evidence: Claude
+renders an input box whose border is a run of ~─~, redrawn at the bottom of the
+buffer, so its presence near ~point-max~ means the interface is up and typed
+text will land.
+
+Polling stops after ~my/claude-code-session-ready-timeout~ and reports rather
+than sending into a terminal that never became ready. A session renamed by hand
+while waiting is left as it is.
+
+*** Code
+#+begin_src emacs-lisp
+  ;; Give a newly created instance's name to the Claude session as well, so the
+  ;; buffer and the resume picker agree from the start.
+  (defcustom my/claude-code-name-new-sessions t
+    "Whether creating a named instance also renames the Claude session."
+    :type 'boolean
+    :group 'my/claude-account)
+
+  (defcustom my/claude-code-session-ready-timeout 20
+    "Seconds to wait for a new Claude session to become ready before giving up."
+    :type 'number
+    :group 'my/claude-account)
+
+  (defconst my/claude-code--ready-tail 2000
+    "How far back from `point-max' to look for Claude's input box.")
+
+  (defun my/claude-code--session-ready-p (buffer)
+    "Non-nil once BUFFER shows Claude's input box.
+The box border is a run of `─' redrawn at the bottom of the buffer, so
+finding one near `point-max' means typed text will land somewhere."
+    (and (buffer-live-p buffer)
+         (with-current-buffer buffer
+           (save-excursion
+             (goto-char (point-max))
+             (search-backward "─" (max (point-min) (- (point-max) my/claude-code--ready-tail)) t)))))
+
+  (defun my/claude-code--name-session-when-ready (buffer deadline)
+    "Rename the Claude session in BUFFER to its instance name once it is ready.
+Re-reads the name each time, so renaming the buffer by hand while waiting
+wins.  Gives up at DEADLINE rather than typing into a terminal that never
+came up."
+    (when (buffer-live-p buffer)
+      (let ((name (claude-code--extract-instance-name-from-buffer-name
+                   (buffer-name buffer))))
+        (cond
+         ((or (null name) (equal name "default")) nil)
+         ((my/claude-code--session-ready-p buffer)
+          (my/claude-code-rename name buffer))
+         ((> (float-time) deadline)
+          (message "Claude session in %s never became ready; not renaming to %s"
+                   (buffer-name buffer) name))
+         (t
+          (run-at-time 0.5 nil
+                       #'my/claude-code--name-session-when-ready buffer deadline))))))
+
+  (defun my/claude-code--name-new-session ()
+    "From `claude-code-start-hook', name the session after its instance."
+    (when my/claude-code-name-new-sessions
+      (my/claude-code--name-session-when-ready
+       (current-buffer)
+       (+ (float-time) my/claude-code-session-ready-timeout))))
+
+  (with-eval-after-load 'claude-code
+    (add-hook 'claude-code-start-hook #'my/claude-code--name-new-session))
+#+end_src
+
+
 * Claude Code IDE
 ** Overview
 Claude Code IDE is an Emacs package that provides IDE-like features for Claude Code, enhancing the coding experience with project awareness, intelligent code suggestions, and streamlined workflows. It acts as a companion to the main claude-code.el package.
