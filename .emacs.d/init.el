@@ -1751,14 +1751,34 @@ came up."
           (run-at-time 0.5 nil
                        #'my/claude-code--name-session-when-ready buffer deadline))))))
 
+  (defvar my/claude-code--start-switches nil
+    "Extra switches of the `claude-code--start' call in progress.
+`claude-code-start-hook' is not told how the session was started, and a
+resumed one must be left alone.")
+
+  (defun my/claude-code--record-start-switches (orig arg extra-switches &rest rest)
+    "Make EXTRA-SWITCHES visible to `claude-code-start-hook'."
+    (let ((my/claude-code--start-switches extra-switches))
+      (apply orig arg extra-switches rest)))
+
+  (defun my/claude-code--resuming-p ()
+    "Non-nil if the session being started continues an existing conversation."
+    (seq-intersection my/claude-code--start-switches '("--resume" "--continue")))
+
   (defun my/claude-code--name-new-session ()
-    "From `claude-code-start-hook', name the session after its instance."
-    (when my/claude-code-name-new-sessions
+    "From `claude-code-start-hook', name the session after its instance.
+Only for genuinely new sessions.  A resumed one already has a name worth
+keeping, and -- more pressingly -- `--resume' opens a picker whose border
+satisfies the readiness check, so sending there types into the list and
+selects an entry nobody chose."
+    (when (and my/claude-code-name-new-sessions
+               (not (my/claude-code--resuming-p)))
       (my/claude-code--name-session-when-ready
        (current-buffer)
        (+ (float-time) my/claude-code-session-ready-timeout))))
 
   (with-eval-after-load 'claude-code
+    (advice-add 'claude-code--start :around #'my/claude-code--record-start-switches)
     (add-hook 'claude-code-start-hook #'my/claude-code--name-new-session))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
