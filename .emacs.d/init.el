@@ -1,12 +1,22 @@
+;;; init.el --- Tangled from Emacs.org -*- lexical-binding: t -*-
+
 ;; Automatically tangle our Emacs.org config file when we save it
 (defun efs/org-babel-tangle-config ()
   (when (string-equal (buffer-file-name)
                       (expand-file-name "~/.dotfiles/.emacs.d/Emacs.org"))
-    ;; Dyname scoping to the rescue
+    ;; Dynamic scoping to the rescue: without the defvar, lexical-binding
+    ;; would make this `let' a local that org never sees.
+    (defvar org-confirm-babel-evaluate)
     (let ((org-confirm-babel-evaluate nil))
       (org-babel-tangle))))
 
 (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'efs/org-babel-tangle-config)))
+
+;; Must precede the first use-package: async native compilation of
+;; packages starts as soon as they load, and warnings emitted before
+;; this is set still pop up.
+(setq native-comp-async-report-warnings-errors 'silent)
+(setq native-comp-async-query-on-exit nil)
 
 (defvar bootstrap-version)
 (let ((bootstrap-file
@@ -356,6 +366,7 @@ For 1 standard display (<=1920px): maximize single frame."
 (use-package general)
 
 (use-package which-key
+  :straight (:type built-in)  ;; built in since Emacs 30
   :defer t
   :init
   (which-key-mode)
@@ -435,7 +446,7 @@ _t_: type def       _h_: hover
   ("F" eglot-format)
   ("a" eglot-code-actions)
   ("h" eldoc-doc-buffer)
-  ("e" flymake-show-diagnostics-buffer)
+  ("e" flymake-show-buffer-diagnostics)
   ("n" flymake-goto-next-error)
   ("p" flymake-goto-prev-error)
   ("q" nil))
@@ -541,6 +552,10 @@ _P_: skip prev    _d_: defun
 (global-set-key (kbd "C-c z") 'hydra-zoom/body)
 
 (use-package exec-path-from-shell
+  :custom
+  ;; Non-interactive login shell: skips the interactive rc and cuts
+  ;; the startup cost from ~900ms to ~100ms.
+  (exec-path-from-shell-arguments '("-l"))
   :init (exec-path-from-shell-initialize))
 ;; eshell
 (defun efs/configure-eshell ()
@@ -660,10 +675,6 @@ they cannot abort the rest of `emacs-startup-hook'."
                ("terminfo/65" "terminfo/65/*")
                ("integration" "integration/*")
                (:exclude ".dir-locals.el" "*-tests.el"))))
-
-;; Compile terminfo
-(with-eval-after-load 'eat
-  (eat-compile-terminfo))
 
 ;; Basic configuration
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
@@ -1142,17 +1153,6 @@ they cannot abort the rest of `emacs-startup-hook'."
   :bind
   ("C-x g" . magit-status)
   ("C-x M-g" . magit-dispatch))
-
-;; Optional: show git changes in the gutter/fringe
-;; Configure native-comp warnings before git-gutter
-(when (and (fboundp 'native-comp-available-p)
-           (native-comp-available-p))
-  (setq native-comp-async-report-warnings-errors 'silent) ; Silence all native-comp warnings
-  ;; Optional: if you want to only silence specific warnings
-  (add-to-list 'native-comp-eln-load-path (expand-file-name "eln-cache/" user-emacs-directory)))
-
-;; This setting is safe regardless of native-comp support
-(setq native-comp-async-query-on-exit nil)
 
 ;; Git Gutter configuration
 (use-package git-gutter
@@ -1740,19 +1740,16 @@ is one and otherwise prompts, defaulting to the current instance name."
 
 ;; Dockerfile mode for editing Dockerfiles
 (use-package dockerfile-mode
-  :ensure t
   :mode ("Dockerfile\\'" . dockerfile-mode))
 
 ;; Docker management from Emacs
 (use-package docker
-  :ensure t
   :bind ("C-c D" . docker)
   :config
   (setq docker-command "docker"))
 
 ;; docker compose mode
-(use-package docker-compose-mode
-  :ensure t)
+(use-package docker-compose-mode)
 
 ;; Configure Emacs Lisp mode to use spaces instead of tabs
 (add-hook 'emacs-lisp-mode-hook
@@ -1766,12 +1763,16 @@ is one and otherwise prompts, defaulting to the current instance name."
 
 ;; Go Development Configuration
 
-;; Use treesit-based go mode when available
-(use-package go-mode
+;; go-ts-mode is built in; .go files are remapped to it via
+;; major-mode-remap-alist, so hooks must target go-ts-mode.
+(use-package go-ts-mode
+  :straight (:type built-in)
   :mode "\\.go\\'"
-  :hook (go-mode . eglot-ensure)
+  :hook (go-ts-mode . eglot-ensure)
+  :custom
+  (go-ts-mode-indent-offset 4)
   :config
-  (add-hook 'go-mode-hook
+  (add-hook 'go-ts-mode-hook
             (lambda ()
               (setq tab-width 4))))
 
@@ -1795,7 +1796,7 @@ is one and otherwise prompts, defaulting to the current instance name."
                   (eglot-code-action-organize-imports (point-min) (point-max))))
               nil t))
 
-  (add-hook 'go-mode-hook #'my/go-mode-setup))
+  (add-hook 'go-ts-mode-hook #'my/go-mode-setup))
 
 ;; Ensure Go module projects are detected correctly
 (with-eval-after-load 'project
@@ -1880,17 +1881,11 @@ Traverses up the directory tree to find .venv if not in project root."
 (use-package eglot
   :straight (:type built-in)
   :hook ((python-ts-mode . (lambda ()
-                             (message "[DEBUG] python-ts-mode hook called in: %s" default-directory)
                              (efs/activate-venv)
-                             (message "[DEBUG] About to call eglot-ensure")
-                             (eglot-ensure)
-                             (message "[DEBUG] eglot-ensure completed")))
+                             (eglot-ensure)))
          (python-mode . (lambda ()
-                         (message "[DEBUG] python-mode hook called in: %s" default-directory)
                          (efs/activate-venv)
-                         (message "[DEBUG] About to call eglot-ensure")
-                         (eglot-ensure)
-                         (message "[DEBUG] eglot-ensure completed"))))
+                         (eglot-ensure))))
   :init (setq eglot-stay-out-of '(flymake))
   :custom
   (eglot-autoshutdown t)  ; Shutdown language server when buffer is closed
@@ -1900,69 +1895,26 @@ Traverses up the directory tree to find .venv if not in project root."
   (eglot-connect-timeout 10)  ; Connection timeout in seconds
   :config
   ;; Function to get virtualenv-aware jedi command
-  (defun efs/get-jedi-command (&rest args)
-    "Get jedi-language-server command using project's virtualenv.
-  Accepts any number of arguments for eglot compatibility."
-    (message "[DEBUG] efs/get-jedi-command called with args: %s" args)
-    (message "[DEBUG] Current directory: %s" default-directory)
-    (message "[DEBUG] Project current: %s" (project-current))
+  (defun efs/get-jedi-command (&rest _args)
+    "Get the Python language server command using the project's virtualenv.
+  Prefers jedi-language-server, then pylsp, then pyls from the venv; falls
+  back to a system jedi-language-server."
+    (or (seq-some (lambda (name)
+                    (let ((prog (car (efs/get-venv-program name))))
+                      (when (and prog (file-executable-p prog))
+                        (list prog))))
+                  '("jedi-language-server" "pylsp" "pyls"))
+        (list "jedi-language-server")))
 
-    ;; Log venv detection
-    (let ((venv-dir (efs/find-venv-directory)))
-      (message "[DEBUG] Found venv directory: %s" venv-dir))
-
-    ;; First try to find in virtualenv, then fall back to system
-    (let* ((venv-jedi (car (efs/get-venv-program "jedi-language-server")))
-           (result))
-      (message "[DEBUG] efs/get-venv-program returned: %s" venv-jedi)
-      (message "[DEBUG] File executable check: %s" (and venv-jedi (file-executable-p venv-jedi)))
-
-      (setq result
-            (if (and venv-jedi (file-executable-p venv-jedi))
-                (progn
-                  (message "[DEBUG] Using virtualenv jedi: %s" venv-jedi)
-                  (list venv-jedi))
-              ;; If not found in venv, try pyls or pylsp as fallback
-              (let ((venv-pylsp (car (efs/get-venv-program "pylsp"))))
-                (if (and venv-pylsp (file-executable-p venv-pylsp))
-                    (progn
-                      (message "[DEBUG] Using virtualenv pylsp: %s" venv-pylsp)
-                      (list venv-pylsp))
-                  (let ((venv-pyls (car (efs/get-venv-program "pyls"))))
-                    (if (and venv-pyls (file-executable-p venv-pyls))
-                        (progn
-                          (message "[DEBUG] Using virtualenv pyls: %s" venv-pyls)
-                          (list venv-pyls))
-                      (progn
-                        (message "[DEBUG] Falling back to system jedi-language-server")
-                        (list "jedi-language-server"))))))))
-
-      (message "[DEBUG] efs/get-jedi-command returning: %s" result)
-      result))
-
-  ;; Remove default Python server programs to avoid conflicts
-  (message "[DEBUG] Before cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-  (let ((python-entries (cl-count-if (lambda (entry)
-                                       (and (listp (car entry))
-                                            (or (memq 'python-mode (car entry))
-                                                (memq 'python-ts-mode (car entry)))))
-                                     eglot-server-programs)))
-    (message "[DEBUG] Found %d Python entries to remove" python-entries))
-  
+  ;; Replace the default Python server entries with ours
   (setq eglot-server-programs
         (cl-remove-if (lambda (entry)
                         (and (listp (car entry))
                              (or (memq 'python-mode (car entry))
                                  (memq 'python-ts-mode (car entry)))))
                       eglot-server-programs))
-  
-  (message "[DEBUG] After cleanup, eglot-server-programs has %d entries" (length eglot-server-programs))
-  
-  ;; Register our custom jedi command
   (add-to-list 'eglot-server-programs
-               '((python-ts-mode python-mode) . efs/get-jedi-command))
-  
-  (message "[DEBUG] Registered custom jedi command. Final count: %d entries" (length eglot-server-programs)))
+               '((python-ts-mode python-mode) . efs/get-jedi-command)))
 
 ;; Format Python code with ruff
 (use-package reformatter
