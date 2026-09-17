@@ -1765,21 +1765,77 @@ resumed one must be left alone.")
     "Non-nil if the session being started continues an existing conversation."
     (seq-intersection my/claude-code--start-switches '("--resume" "--continue")))
 
-  (defun my/claude-code--name-new-session ()
-    "From `claude-code-start-hook', name the session after its instance.
-Only for genuinely new sessions.  A resumed one already has a name worth
-keeping, and -- more pressingly -- `--resume' opens a picker whose border
-satisfies the readiness check, so sending there types into the list and
-selects an entry nobody chose."
-    (when (and my/claude-code-name-new-sessions
-               (not (my/claude-code--resuming-p)))
-      (my/claude-code--name-session-when-ready
-       (current-buffer)
-       (+ (float-time) my/claude-code-session-ready-timeout))))
+  (defcustom my/claude-code-adopt-session-name t
+    "Whether resuming a session renames its buffer to the session's name."
+    :type 'boolean
+    :group 'my/claude-account)
+
+  (defconst my/claude-code--session-name-regexp
+    "─+[ ]\\([^ \n─][^\n]*?\\)[ ]─*\n"
+    "Match the session name Claude prints at the right end of its divider.")
+
+  (defun my/claude-code--scraped-session-name (buffer)
+    "Return the session name Claude is displaying in BUFFER, or nil.
+Read from the tail, so it reflects the current divider rather than an
+older one scrolled above."
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (let ((tail (buffer-substring-no-properties
+                     (max (point-min) (- (point-max) my/claude-code--ready-tail))
+                     (point-max))))
+          (when (string-match my/claude-code--session-name-regexp tail)
+            (string-trim (match-string 1 tail)))))))
+
+  (defun my/claude-code--adopt-session-name (buffer name)
+    "Rename BUFFER's instance to NAME, leaving the session alone.
+The session already carries NAME; only the Emacs side needs to catch up."
+    (condition-case err
+        (let ((new-name (my/claude-code--rename-to (buffer-name buffer) name)))
+          (my/claude-code--check-instance-name name)
+          (if-let* ((clash (get-buffer new-name)))
+              (unless (eq clash buffer)
+                (message "Not adopting session name %s: %s already exists"
+                         name new-name))
+            (with-current-buffer buffer (rename-buffer new-name))
+            (message "Buffer renamed to %s to match the session" new-name)))
+      (error (message "Not adopting session name %s: %s"
+                      name (error-message-string err)))))
+
+  (defun my/claude-code--adopt-name-when-ready (buffer deadline)
+    "Rename BUFFER to the name of the session it resumed, once one appears.
+Waiting for a name also waits past the resume picker, which draws a
+border but displays no session name."
+    (when (buffer-live-p buffer)
+      (let ((name (my/claude-code--scraped-session-name buffer))
+            (instance (claude-code--extract-instance-name-from-buffer-name
+                       (buffer-name buffer))))
+        (cond
+         ((and name (equal name instance)) nil)   ; already agree
+         (name (my/claude-code--adopt-session-name buffer name))
+         ((> (float-time) deadline)
+          (message "No session name appeared in %s; leaving it as %s"
+                   (buffer-name buffer) (or instance "unnamed")))
+         (t (run-at-time 0.5 nil #'my/claude-code--adopt-name-when-ready
+                         buffer deadline))))))
+
+  (defun my/claude-code--sync-names-on-start ()
+    "From `claude-code-start-hook', keep the buffer and session names together.
+Creating an instance gives its name to the session; resuming takes the
+session's name for the buffer.  A resumed session must not be renamed:
+its name is the one that was chosen, and `--resume' opens a picker whose
+border satisfies the readiness check, so sending there types into the
+list and selects an entry nobody chose."
+    (let ((deadline (+ (float-time) my/claude-code-session-ready-timeout)))
+      (cond
+       ((my/claude-code--resuming-p)
+        (when my/claude-code-adopt-session-name
+          (my/claude-code--adopt-name-when-ready (current-buffer) deadline)))
+       (my/claude-code-name-new-sessions
+        (my/claude-code--name-session-when-ready (current-buffer) deadline)))))
 
   (with-eval-after-load 'claude-code
     (advice-add 'claude-code--start :around #'my/claude-code--record-start-switches)
-    (add-hook 'claude-code-start-hook #'my/claude-code--name-new-session))
+    (add-hook 'claude-code-start-hook #'my/claude-code--sync-names-on-start))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
 (use-package claude-code-ide
