@@ -821,7 +821,9 @@ they cannot abort the rest of `emacs-startup-hook'."
   (vterm-toggle-reset-window-configration-after-exit t))
 
 ;; Follow URLs printed in terminal output.
-  (require 'goto-addr)
+  ;; `goto-address-mode' is autoloaded, so declaring it keeps the byte-compiler
+  ;; quiet without loading goto-addr in sessions that never open a terminal.
+  (declare-function goto-address-mode "goto-addr" (&optional arg))
   (defvar vterm-mode-map)
   (defvar vterm-copy-mode-map)
 
@@ -844,10 +846,19 @@ on the way out removes the overlays it added."
     ;; Outside copy mode, claude-code.el parents its keymap to `vterm-mode-map',
     ;; so Claude buffers inherit it.
     (dolist (map (list vterm-mode-map vterm-copy-mode-map))
-      (if (lookup-key map (kbd "C-c C-o"))
-          (warn "Not binding C-c C-o; already bound to %s"
-                (lookup-key map (kbd "C-c C-o")))
-        (define-key map (kbd "C-c C-o") #'browse-url-at-point))))
+      (let ((existing (lookup-key map (kbd "C-c C-o"))))
+        (cond
+         ;; nil, or our own binding from an earlier evaluation. `with-eval-after-load'
+         ;; runs immediately once vterm is loaded, so re-evaluating init.el would
+         ;; otherwise report this binding as a conflict with itself.
+         ((memq existing '(nil browse-url-at-point))
+          (define-key map (kbd "C-c C-o") #'browse-url-at-point))
+         ;; `lookup-key' answers with a number when a prefix of the sequence is
+         ;; bound to a command -- reachable by removing "C-c" from
+         ;; `vterm-keymap-exceptions'. `define-key' would signal here.
+         ((numberp existing)
+          (warn "Not binding C-c C-o: C-c is not a prefix key in this map"))
+         (t (warn "Not binding C-c C-o; already bound to %S" existing))))))
 
 ;; org mode
 (defun efs/org-font-setup ()

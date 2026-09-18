@@ -1251,12 +1251,12 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
 Terminal output is plain text, so a URL in it is not a link. Two things make it
 one:
 
-| Key       | Action                                                     |
-|-----------+------------------------------------------------------------|
-| ~C-c C-o~ | Open the URL at point, in a live terminal or in copy mode  |
-| ~C-c C-t~ | Enter copy mode, which also highlights every URL on screen |
-| ~C-c RET~ | Open a highlighted URL (from ~goto-address-mode~)          |
-| ~mouse-2~ | Open a highlighted URL by clicking                         |
+| Key       | Action                                                      |
+|-----------+-------------------------------------------------------------|
+| ~C-c C-o~ | Open the URL at point, in a live terminal or in copy mode   |
+| ~C-c C-t~ | Toggle copy mode, which also highlights every URL on screen |
+| ~C-c RET~ | Open a highlighted URL (from ~goto-address-mode~)           |
+| ~mouse-2~ | Open a highlighted URL by clicking                          |
 
 ~C-c C-o~ needs nothing highlighted — it reads the URL out of the raw text at
 point — so it works in a live, scrolling terminal. The highlighting is for
@@ -1291,16 +1291,30 @@ Where the split came from decides whether it can be repaired:
 - *Wrapped by the terminal.* vterm marks the break with a ~vterm-line-wrap~
   property — a "fake" newline, inserted only for rendering.
   ~vterm-copy-mode-remove-fake-newlines~ strips those on entering copy mode and
-  puts them back on leaving, so the URL is whole while you are looking at it.
-  Enabled below; vterm's own documentation recommends it for ~isearch~ too.
+  puts them back on leaving, so the URL is whole while you are looking at it and
+  the scrollback is unchanged afterwards. The direction matters, so it is worth
+  naming where it was checked: ~vterm--enter-copy-mode~ calls
+  ~vterm--remove-fake-newlines~, and ~vterm--exit-copy-mode~ calls
+  ~vterm--reinsert-fake-newlines~, in emacs-libvterm as vendored here. vterm's
+  own documentation recommends the option for ~isearch~ too.
 - *Wrapped by the program.* If Claude emits its own newline mid-URL, that
   character is real and nothing can distinguish it from intended text. Widening
   the window before the output arrives is the only workaround.
 
+*** Notes
+- Disabling ~goto-address-mode~ unfontifies the whole buffer, and
+  ~vterm-max-scrollback~ is large here, so leaving copy mode scans a long buffer
+  for overlays. Cheap in practice — there are only ever a handful — but worth
+  knowing, since avoiding wasted overlay work is why the mode is limited to copy
+  mode in the first place.
+- The tests behind this section are not committed; see issue #36.
+
 *** Code
 #+begin_src emacs-lisp
   ;; Follow URLs printed in terminal output.
-  (require 'goto-addr)
+  ;; `goto-address-mode' is autoloaded, so declaring it keeps the byte-compiler
+  ;; quiet without loading goto-addr in sessions that never open a terminal.
+  (declare-function goto-address-mode "goto-addr" (&optional arg))
   (defvar vterm-mode-map)
   (defvar vterm-copy-mode-map)
 
@@ -1323,10 +1337,19 @@ on the way out removes the overlays it added."
     ;; Outside copy mode, claude-code.el parents its keymap to `vterm-mode-map',
     ;; so Claude buffers inherit it.
     (dolist (map (list vterm-mode-map vterm-copy-mode-map))
-      (if (lookup-key map (kbd "C-c C-o"))
-          (warn "Not binding C-c C-o; already bound to %s"
-                (lookup-key map (kbd "C-c C-o")))
-        (define-key map (kbd "C-c C-o") #'browse-url-at-point))))
+      (let ((existing (lookup-key map (kbd "C-c C-o"))))
+        (cond
+         ;; nil, or our own binding from an earlier evaluation. `with-eval-after-load'
+         ;; runs immediately once vterm is loaded, so re-evaluating init.el would
+         ;; otherwise report this binding as a conflict with itself.
+         ((memq existing '(nil browse-url-at-point))
+          (define-key map (kbd "C-c C-o") #'browse-url-at-point))
+         ;; `lookup-key' answers with a number when a prefix of the sequence is
+         ;; bound to a command -- reachable by removing "C-c" from
+         ;; `vterm-keymap-exceptions'. `define-key' would signal here.
+         ((numberp existing)
+          (warn "Not binding C-c C-o: C-c is not a prefix key in this map"))
+         (t (warn "Not binding C-c C-o; already bound to %S" existing))))))
 #+end_src
 
 * Org Mode
