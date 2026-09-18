@@ -1709,28 +1709,55 @@ is one and otherwise prompts, defaulting to the current instance name."
 
 ;; Give a newly created instance's name to the Claude session as well, so the
   ;; buffer and the resume picker agree from the start.
+  (defgroup my/claude-code-naming nil
+    "Keeping Claude buffer names and session names together."
+    :group 'claude-code)
+
+  (defconst my/claude-code--unnamed-instance "default"
+    "Instance name `claude-code.el' uses when it does not prompt.
+A session called this was never deliberately named, so it is left alone.")
+
   (defcustom my/claude-code-name-new-sessions t
     "Whether creating a named instance also renames the Claude session."
     :type 'boolean
-    :group 'my/claude-account)
+    :group 'my/claude-code-naming)
 
   (defcustom my/claude-code-session-ready-timeout 20
     "Seconds to wait for a new Claude session to become ready before giving up."
     :type 'number
-    :group 'my/claude-account)
+    :group 'my/claude-code-naming)
 
   (defconst my/claude-code--ready-tail 2000
-    "How far back from `point-max' to look for Claude's input box.")
+    "How far back from `point-max' to look for evidence the interface is up.")
+
+  (defconst my/claude-code--scrape-tail 2500
+    "How far back from `point-max' to read the session name.
+Only a reach limit: searching backward already guarantees the newest
+divider wins, so the window does not need to be tight to avoid stale
+ones -- it needs to be wide enough to contain the current one, which
+sits above whatever status lines Claude draws beneath it.")
+
+  (defcustom my/claude-code-ready-regexp "❯"
+    "Match something only Claude's input box shows.
+A run of `─' alone is not enough: the resume picker, the folder-trust
+prompt and other startup dialogs are bordered too, and typing into one
+of those selects an entry nobody chose.  Scraped from rendered output,
+so it is adjustable here if the interface changes."
+    :type 'regexp
+    :group 'my/claude-code-naming)
 
   (defun my/claude-code--session-ready-p (buffer)
-    "Non-nil once BUFFER shows Claude's input box.
-The box border is a run of `─' redrawn at the bottom of the buffer, so
-finding one near `point-max' means typed text will land somewhere."
+    "Non-nil once BUFFER shows Claude's input box, ready for typed text.
+Requires both a box border and `my/claude-code-ready-regexp', because a
+border alone is shown by dialogs that must not be typed into."
     (and (buffer-live-p buffer)
          (with-current-buffer buffer
-           (save-excursion
-             (goto-char (point-max))
-             (search-backward "─" (max (point-min) (- (point-max) my/claude-code--ready-tail)) t)))))
+           (let ((beg (max (point-min) (- (point-max) my/claude-code--ready-tail))))
+             (save-excursion
+               (and (progn (goto-char (point-max)) (search-backward "─" beg t))
+                    (progn (goto-char (point-max))
+                           (re-search-backward my/claude-code-ready-regexp beg t))
+                    t))))))
 
   (defun my/claude-code--name-session-when-ready (buffer deadline)
     "Rename the Claude session in BUFFER to its instance name once it is ready.
@@ -1741,9 +1768,15 @@ came up."
       (let ((name (claude-code--extract-instance-name-from-buffer-name
                    (buffer-name buffer))))
         (cond
-         ((or (null name) (equal name "default")) nil)
+         ((or (null name) (equal name my/claude-code--unnamed-instance)) nil)
          ((my/claude-code--session-ready-p buffer)
-          (my/claude-code-rename name buffer))
+          ;; Reported, not signalled: this runs from a timer, and can run
+          ;; synchronously inside `claude-code-start-hook', where an error
+          ;; would abort the rest of session startup.
+          (condition-case err
+              (my/claude-code-rename name buffer)
+            (error (message "Not naming the session %s: %s"
+                            name (error-message-string err)))))
          ((> (float-time) deadline)
           (message "Claude session in %s never became ready; not renaming to %s"
                    (buffer-name buffer) name))
@@ -1751,47 +1784,53 @@ came up."
           (run-at-time 0.5 nil
                        #'my/claude-code--name-session-when-ready buffer deadline))))))
 
-  (defvar my/claude-code--start-switches nil
-    "Extra switches of the `claude-code--start' call in progress.
-`claude-code-start-hook' is not told how the session was started, and a
-resumed one must be left alone.")
-
-  (defun my/claude-code--record-start-switches (orig arg extra-switches &rest rest)
-    "Make EXTRA-SWITCHES visible to `claude-code-start-hook'."
-    (let ((my/claude-code--start-switches extra-switches))
-      (apply orig arg extra-switches rest)))
-
-  (defun my/claude-code--resuming-p ()
-    "Non-nil if the session being started continues an existing conversation."
-    (seq-intersection my/claude-code--start-switches '("--resume" "--continue")))
+  (defun my/claude-code--resuming-p (&optional buffer)
+    "Non-nil if the session in BUFFER continues an existing conversation.
+Read from the command line of the process actually spawned, rather than
+from the arguments `claude-code--start' was called with.  That needs no
+advice, so it cannot be broken by a change to that function's signature
+or by the start hook moving out of its dynamic extent -- and when it
+cannot tell, it says nothing rather than guessing \"new\", which is the
+direction that types into the resume picker."
+    (when-let* ((proc (get-buffer-process (or buffer (current-buffer)))))
+      (let ((command (mapconcat #'identity (process-command proc) " ")))
+        (string-match-p "\\(?:^\\| \\)--\\(?:resume\\|continue\\)\\(?: \\|$\\)" command))))
 
   (defcustom my/claude-code-adopt-session-name t
     "Whether resuming a session renames its buffer to the session's name."
     :type 'boolean
-    :group 'my/claude-account)
+    :group 'my/claude-code-naming)
 
   (defconst my/claude-code--session-name-regexp
-    "─+[ ]\\([^ \n─][^\n]*?\\)[ ]─*\n"
-    "Match the session name Claude prints at the right end of its divider.")
+    "─+ \\([^ \n─][^\n]*?\\) ─+$"
+    "Match the session name Claude prints at the right end of its divider.
+Dashes are required on both sides, so a line of prose ending in a space
+is not mistaken for a rule.")
 
   (defun my/claude-code--scraped-session-name (buffer)
     "Return the session name Claude is displaying in BUFFER, or nil.
-Read from the tail, so it reflects the current divider rather than an
-older one scrolled above."
+Searches backward from `point-max', so the newest divider wins.  A
+forward `string-match' would return the leftmost -- that is, the oldest
+-- which is the wrong one whenever a resumed transcript has replayed
+several into view."
     (when (buffer-live-p buffer)
       (with-current-buffer buffer
-        (let ((tail (buffer-substring-no-properties
-                     (max (point-min) (- (point-max) my/claude-code--ready-tail))
-                     (point-max))))
-          (when (string-match my/claude-code--session-name-regexp tail)
-            (string-trim (match-string 1 tail)))))))
+        (save-excursion
+          (goto-char (point-max))
+          (when (re-search-backward
+                 my/claude-code--session-name-regexp
+                 (max (point-min) (- (point-max) my/claude-code--scrape-tail)) t)
+            (string-trim (match-string-no-properties 1)))))))
 
   (defun my/claude-code--adopt-session-name (buffer name)
     "Rename BUFFER's instance to NAME, leaving the session alone.
 The session already carries NAME; only the Emacs side needs to catch up."
     (condition-case err
-        (let ((new-name (my/claude-code--rename-to (buffer-name buffer) name)))
+        (let (new-name)
+          ;; Validate before deriving, as `my/claude-code-rename' does, so a bad
+          ;; name reports itself rather than as a complaint about the buffer.
           (my/claude-code--check-instance-name name)
+          (setq new-name (my/claude-code--rename-to (buffer-name buffer) name))
           (if-let* ((clash (get-buffer new-name)))
               (unless (eq clash buffer)
                 (message "Not adopting session name %s: %s already exists"
@@ -1825,16 +1864,20 @@ session's name for the buffer.  A resumed session must not be renamed:
 its name is the one that was chosen, and `--resume' opens a picker whose
 border satisfies the readiness check, so sending there types into the
 list and selects an entry nobody chose."
-    (let ((deadline (+ (float-time) my/claude-code-session-ready-timeout)))
+    (let ((deadline (+ (float-time) my/claude-code-session-ready-timeout))
+          (proc (get-buffer-process (current-buffer))))
       (cond
-       ((my/claude-code--resuming-p)
+       ;; No process to read the command line from, so there is no way to tell a
+       ;; new session from a resumed one. Do nothing: guessing "new" is the
+       ;; direction that types into the resume picker.
+       ((null proc) nil)
+       ((my/claude-code--resuming-p (current-buffer))
         (when my/claude-code-adopt-session-name
           (my/claude-code--adopt-name-when-ready (current-buffer) deadline)))
        (my/claude-code-name-new-sessions
         (my/claude-code--name-session-when-ready (current-buffer) deadline)))))
 
   (with-eval-after-load 'claude-code
-    (advice-add 'claude-code--start :around #'my/claude-code--record-start-switches)
     (add-hook 'claude-code-start-hook #'my/claude-code--sync-names-on-start))
 
 ;; Claude Code IDE - Enhanced IDE features for Claude Code
