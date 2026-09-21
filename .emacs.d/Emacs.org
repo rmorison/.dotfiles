@@ -1263,6 +1263,112 @@ The configuration includes ~efs/vterm-project~ function that opens vterm in the 
     (vterm-toggle-reset-window-configration-after-exit t))
 #+end_src
 
+** Following URLs
+*** Reference
+Terminal output is plain text, so a URL in it is not a link. Two things make it
+one:
+
+| Key       | Action                                                      |
+|-----------+-------------------------------------------------------------|
+| ~C-c C-o~ | Open the URL at point, in a live terminal or in copy mode   |
+| ~C-c C-t~ | Toggle copy mode, which also highlights every URL on screen |
+| ~C-c RET~ | Open a highlighted URL (from ~goto-address-mode~)           |
+| ~mouse-2~ | Open a highlighted URL by clicking                          |
+
+~C-c C-o~ needs nothing highlighted — it reads the URL out of the raw text at
+point — so it works in a live, scrolling terminal. The highlighting is for
+finding links you have not already put point on.
+
+*** Why highlighting is limited to copy mode
+~goto-address-mode~ attaches overlays through ~jit-lock~, which works in vterm.
+The problem is that vterm rewrites the buffer on every redraw, destroying those
+overlays and making continuous refontification wasted work on a busy terminal.
+Copy mode freezes the buffer, so the overlays survive — and that is where you
+are when hunting for a link anyway. Leaving copy mode turns the mode back off,
+which removes the overlays it added.
+
+*** Why the key is bound in two maps
+~vterm--enter-copy-mode~ calls ~(use-local-map nil)~, deliberately, so the
+buffer behaves like ~fundamental-mode~ while you copy from it. That means the
+local map — and with it ~vterm-mode-map~ — is out of the picture entirely while
+copy mode is active, and only ~vterm-copy-mode-map~ remains. A binding in
+~vterm-mode-map~ alone therefore works in a live terminal and is *undefined* in
+copy mode, which is the wrong way round for a link-following command.
+
+Outside copy mode the binding reaches Claude Code buffers through inheritance:
+~claude-code.el~ builds its vterm keymap with ~vterm-mode-map~ as the parent.
+
+*** Wrapped URLs
+A URL wider than the window is split, and neither ~C-c C-o~ nor the highlighting
+crosses a line break — point on the first half yields a truncated link that
+looks like it worked, which is worse than no link at all.
+
+Where the split came from decides whether it can be repaired:
+
+- *Wrapped by the terminal.* vterm marks the break with a ~vterm-line-wrap~
+  property — a "fake" newline, inserted only for rendering.
+  ~vterm-copy-mode-remove-fake-newlines~ strips those on entering copy mode and
+  puts them back on leaving, so the URL is whole while you are looking at it and
+  the scrollback is unchanged afterwards. The direction matters, so it is worth
+  naming where it was checked: ~vterm--enter-copy-mode~ calls
+  ~vterm--remove-fake-newlines~, and ~vterm--exit-copy-mode~ calls
+  ~vterm--reinsert-fake-newlines~, in emacs-libvterm as vendored here. vterm's
+  own documentation recommends the option for ~isearch~ too.
+- *Wrapped by the program.* If Claude emits its own newline mid-URL, that
+  character is real and nothing can distinguish it from intended text. Widening
+  the window before the output arrives is the only workaround.
+
+*** Notes
+- Disabling ~goto-address-mode~ unfontifies the whole buffer, and
+  ~vterm-max-scrollback~ is large here, so leaving copy mode scans a long buffer
+  for overlays. Cheap in practice — there are only ever a handful — but worth
+  knowing, since avoiding wasted overlay work is why the mode is limited to copy
+  mode in the first place.
+- The tests behind this section are not committed; see issue #36.
+
+*** Code
+#+begin_src emacs-lisp
+  ;; Follow URLs printed in terminal output.
+  ;; `goto-address-mode' is autoloaded, so declaring it keeps the byte-compiler
+  ;; quiet without loading goto-addr in sessions that never open a terminal.
+  (declare-function goto-address-mode "goto-addr" (&optional arg))
+  (defvar vterm-mode-map)
+  (defvar vterm-copy-mode-map)
+
+  (defun my/vterm-copy-mode-goto-address ()
+    "Highlight URLs while `vterm-copy-mode' is active, and only then.
+vterm rewrites its buffer on every redraw, which destroys the overlays
+`goto-address-mode' adds and makes refontifying a busy terminal wasted
+work.  Copy mode freezes the buffer, so they survive.  Disabling the mode
+on the way out removes the overlays it added."
+    (goto-address-mode (if (bound-and-true-p vterm-copy-mode) 1 -1)))
+
+  (with-eval-after-load 'vterm
+    (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
+    ;; Rejoin lines the terminal wrapped, so a split URL is whole while copy
+    ;; mode is active. Symmetric: the breaks are restored on the way out.
+    (setopt vterm-copy-mode-remove-fake-newlines t)
+    ;; Bound in both maps. `vterm--enter-copy-mode' does `(use-local-map nil)',
+    ;; so while copy mode is active `vterm-mode-map' is not consulted at all and
+    ;; a binding there alone would be undefined exactly where it is most wanted.
+    ;; Outside copy mode, claude-code.el parents its keymap to `vterm-mode-map',
+    ;; so Claude buffers inherit it.
+    (dolist (map (list vterm-mode-map vterm-copy-mode-map))
+      (let ((existing (lookup-key map (kbd "C-c C-o"))))
+        (cond
+         ;; nil, or our own binding from an earlier evaluation. `with-eval-after-load'
+         ;; runs immediately once vterm is loaded, so re-evaluating init.el would
+         ;; otherwise report this binding as a conflict with itself.
+         ((memq existing '(nil browse-url-at-point))
+          (define-key map (kbd "C-c C-o") #'browse-url-at-point))
+         ;; `lookup-key' answers with a number when a prefix of the sequence is
+         ;; bound to a command -- reachable by removing "C-c" from
+         ;; `vterm-keymap-exceptions'. `define-key' would signal here.
+         ((numberp existing)
+          (warn "Not binding C-c C-o: C-c is not a prefix key in this map"))
+         (t (warn "Not binding C-c C-o; already bound to %S" existing))))))
+#+end_src
+
 * Org Mode
 #+begin_src emacs-lisp
   ;; org mode

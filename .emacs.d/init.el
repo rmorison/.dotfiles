@@ -831,6 +831,46 @@ they cannot abort the rest of `emacs-startup-hook'."
   (vterm-toggle-fullscreen-p nil)
   (vterm-toggle-reset-window-configration-after-exit t))
 
+;; Follow URLs printed in terminal output.
+  ;; `goto-address-mode' is autoloaded, so declaring it keeps the byte-compiler
+  ;; quiet without loading goto-addr in sessions that never open a terminal.
+  (declare-function goto-address-mode "goto-addr" (&optional arg))
+  (defvar vterm-mode-map)
+  (defvar vterm-copy-mode-map)
+
+  (defun my/vterm-copy-mode-goto-address ()
+    "Highlight URLs while `vterm-copy-mode' is active, and only then.
+vterm rewrites its buffer on every redraw, which destroys the overlays
+`goto-address-mode' adds and makes refontifying a busy terminal wasted
+work.  Copy mode freezes the buffer, so they survive.  Disabling the mode
+on the way out removes the overlays it added."
+    (goto-address-mode (if (bound-and-true-p vterm-copy-mode) 1 -1)))
+
+  (with-eval-after-load 'vterm
+    (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
+    ;; Rejoin lines the terminal wrapped, so a split URL is whole while copy
+    ;; mode is active. Symmetric: the breaks are restored on the way out.
+    (setopt vterm-copy-mode-remove-fake-newlines t)
+    ;; Bound in both maps. `vterm--enter-copy-mode' does `(use-local-map nil)',
+    ;; so while copy mode is active `vterm-mode-map' is not consulted at all and
+    ;; a binding there alone would be undefined exactly where it is most wanted.
+    ;; Outside copy mode, claude-code.el parents its keymap to `vterm-mode-map',
+    ;; so Claude buffers inherit it.
+    (dolist (map (list vterm-mode-map vterm-copy-mode-map))
+      (let ((existing (lookup-key map (kbd "C-c C-o"))))
+        (cond
+         ;; nil, or our own binding from an earlier evaluation. `with-eval-after-load'
+         ;; runs immediately once vterm is loaded, so re-evaluating init.el would
+         ;; otherwise report this binding as a conflict with itself.
+         ((memq existing '(nil browse-url-at-point))
+          (define-key map (kbd "C-c C-o") #'browse-url-at-point))
+         ;; `lookup-key' answers with a number when a prefix of the sequence is
+         ;; bound to a command -- reachable by removing "C-c" from
+         ;; `vterm-keymap-exceptions'. `define-key' would signal here.
+         ((numberp existing)
+          (warn "Not binding C-c C-o: C-c is not a prefix key in this map"))
+         (t (warn "Not binding C-c C-o; already bound to %S" existing))))))
+
 ;; org mode
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
