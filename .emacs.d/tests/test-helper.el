@@ -116,5 +116,24 @@ next, which reads as a failure of the code rather than of the fixture."
        ,@body)
      (nreverse sends)))
 
+(defun cfg-test-describe-difference (expected actual)
+  "Summarise where two texts first part, as a readable plist.
+Comparing whole files is right; printing whole files is not, so this
+reports the first differing line with a little context around it."
+  (let* ((exp-lines (split-string expected "\n"))
+         (act-lines (split-string actual "\n"))
+         (a exp-lines) (b act-lines) (n 0))
+    (while (and a b (equal (car a) (car b)))
+      (setq a (cdr a) b (cdr b) n (1+ n)))
+    ;; A string, not a plist: ERT abbreviates nested structures with `...'
+    ;; when printing a failure, which hides the part worth reading.
+    (format (concat "\n  first differs at line %d (committed has %d lines, fresh %d)"
+                    "\n    committed: %S"
+                    "\n    fresh:     %S"
+                    "\n    next committed: %S"
+                    "\n    next fresh:     %S")
+            (1+ n) (length exp-lines) (length act-lines)
+            (car a) (car b) (cadr a) (cadr b))))
+
 (provide 'test-helper)
 ;;; test-helper.el ends here

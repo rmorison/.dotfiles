@@ -33,7 +33,15 @@
           (let ((fresh (with-temp-buffer
                          (insert-file-contents (expand-file-name "init.el" scratch))
                          (buffer-string))))
-            (should (equal committed fresh))))
+            ;; Report where they part rather than dumping two whole files:
+            ;; ERT prints both on failure, which is thousands of lines and
+            ;; gets truncated by CI log viewers exactly when it is needed.
+            (unless (equal committed fresh)
+              (ert-fail (list "init.el does not match a fresh tangle of Emacs.org"
+                              :org-version (org-version)
+                              :emacs-version emacs-version
+                              :first-difference
+                              (cfg-test-describe-difference committed fresh))))))
       (delete-directory scratch t))))
 
 (ert-deftest tangle/init-el-parens-balance ()
