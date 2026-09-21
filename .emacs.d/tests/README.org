@@ -1,0 +1,36 @@
+#+title: Tests
+
+Run them with =make test= from the repository root.
+
+* What these are for
+Every bug this configuration has shipped produced *plausible-looking wrong
+behaviour* rather than an error — a directory resolving to the wrong account, a
+rename typed into a dialog, a buffer named after a line of prose. None of them
+raised anything, and none was caught by reading the diff. Exercising the code is
+what found them, and each has a test here named for what it protects.
+
+* How they are written
+- They load the *tangled* =init.el=, not a copy. A test failing means the
+  configuration is wrong, not that a fixture drifted from it.
+- Each loads only the block it exercises, via =cfg-test-eval-init-region=, so
+  the suite runs under =emacs -Q= in seconds rather than bootstrapping every
+  package.
+- Packages come from straight at runtime and are not in this repository, so a
+  test needing one *skips* when it is absent rather than failing.
+- Fixtures in =test-helper.el= reproduce what Claude actually renders — a
+  composer, and the bordered dialog that must never be mistaken for one.
+
+* Files
+| File                      | Covers                                                    |
+|---------------------------+-----------------------------------------------------------|
+| =tangle-tests.el=         | =init.el= matches =Emacs.org=, parens balance, lexical cookie |
+| =claude-account-tests.el= | Per-directory account selection                           |
+| =claude-rename-tests.el=  | Renaming a session and its buffer together                |
+| =keymap-tests.el=         | Added bindings do not displace upstream ones              |
+| =claude-acct-tests.sh=    | =bin/claude-acct= token precedence and argument handling   |
+
+* What they cannot reach
+Worth stating, because it is most of the risk: there is no real terminal, no
+real Claude and no real =op=. The Claude tests assert what *would be sent*, with
+the terminal stubbed. Whether the CLI honours a =/rename=, and whether =op=
+prompts correctly from a GUI Emacs, are checked by hand.

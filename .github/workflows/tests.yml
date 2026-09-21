@@ -1,0 +1,29 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Emacs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends emacs-nox
+
+      - name: Show versions
+        run: |
+          emacs --version | head -1
+          bash --version | head -1
+
+      # Packages are installed by straight at runtime and are not part of this
+      # repository, so suites needing one skip here rather than fail. The
+      # tangle and shell checks need none, and they are the ones that catch a
+      # stale init.el or a wrapper that would pick the wrong account.
+      - name: make test
+        run: make test
