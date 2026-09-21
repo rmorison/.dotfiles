@@ -1764,8 +1764,8 @@ A session called this was never deliberately named, so it is left alone.")
 
   (defcustom my/claude-code-resume-ready-timeout 300
     "Seconds to wait for a resumed session's name to appear.
-Generous on purpose: the resume picker waits for a person to choose, and
-the clock starts when the process is spawned."
+Generous on purpose: the clock starts when the session is created, but
+the resume picker then waits for a person to choose from it."
     :type 'number
     :group 'my/claude-code-naming)
 
@@ -1813,18 +1813,23 @@ dialogs that must not be typed into."
                 (string-match-p my/claude-code-ready-regexp tail)
                 t))))
 
-  (defun my/claude-code--reconcile-after-rename (buffer requested deadline)
+  (defun my/claude-code--reconcile-after-rename (buffer requested before deadline)
     "Bring BUFFER's name back into line with whatever the session is called.
 REQUESTED is the name that was asked for; the CLI yields a different one
-when that name is already held by another live session on this machine."
+when that name is already held by another live session on this machine.
+BEFORE is what the divider showed prior to the send, so a read that lands
+ahead of the redraw is waited out rather than taken for the answer."
     (when (buffer-live-p buffer)
       (let ((actual (my/claude-code--scraped-session-name buffer)))
         (cond
-         ((null actual)
-          (when (< (float-time) deadline)
-            (run-at-time 0.5 nil #'my/claude-code--reconcile-after-rename
-                         buffer requested deadline)))
-         ((equal actual requested) nil)
+         ((equal actual requested) nil)          ; the name took
+         ((or (null actual) (equal actual before))
+          ;; Nothing drawn yet, or still the pre-send name.
+          (if (< (float-time) deadline)
+              (run-at-time 0.5 nil #'my/claude-code--reconcile-after-rename
+                           buffer requested before deadline)
+            (message "Session name for %s never settled; leaving it as %s"
+                     (buffer-name buffer) requested)))
          (t
           (message "Session is called %s, not %s; following it" actual requested)
           (my/claude-code--adopt-session-name buffer actual))))))
@@ -1841,12 +1846,20 @@ interrupt a turn deliberately started and discard what was typed."
       (setq my/claude-code--naming-timer nil))
     (remove-hook 'pre-command-hook #'my/claude-code--cancel-naming t))
 
-  (defun my/claude-code--poll-again (fn buffer deadline)
-    "Schedule FN for BUFFER, remembering the timer so typing can cancel it."
+  (defun my/claude-code--poll-again (fn buffer deadline &optional cancel-on-input)
+    "Schedule FN for BUFFER, optionally cancelling it on the next command.
+
+CANCEL-ON-INPUT belongs only to the create path, where the poll ends by
+typing into the session and a stray escape would interrupt a turn.  The
+resume path must not use it: `claude-code-resume' opens a picker in this
+same buffer, so the arrow keys and return used to choose a session are
+commands, and cancelling on them would abandon the adoption of the very
+name just chosen."
     (with-current-buffer buffer
       (setq my/claude-code--naming-timer
             (run-at-time 0.5 nil fn buffer deadline))
-      (add-hook 'pre-command-hook #'my/claude-code--cancel-naming nil t)))
+      (when cancel-on-input
+        (add-hook 'pre-command-hook #'my/claude-code--cancel-naming nil t))))
 
   (defun my/claude-code--name-session-when-ready (buffer deadline)
     "Rename the Claude session in BUFFER to its instance name once it is ready.
@@ -1863,15 +1876,18 @@ came up."
           ;; synchronously inside `claude-code-start-hook', where an error
           ;; would abort the rest of session startup.
           (condition-case err
-              (progn
+              (let ((before (my/claude-code--scraped-session-name buffer)))
                 (my/claude-code-rename name buffer)
                 ;; Session names are unique per machine, so the CLI may answer
                 ;; with a different one than it was asked for. The buffer was
                 ;; renamed before the send, so without reading back it would
                 ;; hold a name no session has -- the divergence this exists to
-                ;; remove.
+                ;; remove. `before' is what the divider showed beforehand, so a
+                ;; read that lands before the redraw is not mistaken for the
+                ;; answer and followed back to the old name.
                 (my/claude-code--reconcile-after-rename
-                 buffer name (+ (float-time) my/claude-code-session-ready-timeout)))
+                 buffer name before
+                 (+ (float-time) my/claude-code-session-ready-timeout)))
             (error (message "Not naming the session %s: %s"
                             name (error-message-string err)))))
          ((> (float-time) deadline)
@@ -1879,7 +1895,7 @@ came up."
                    (buffer-name buffer) name))
          (t
           (my/claude-code--poll-again
-           #'my/claude-code--name-session-when-ready buffer deadline))))))
+           #'my/claude-code--name-session-when-ready buffer deadline t))))))
 
   (defun my/claude-code--resuming-p (&optional buffer)
     "Non-nil if the session in BUFFER continues an existing conversation.
