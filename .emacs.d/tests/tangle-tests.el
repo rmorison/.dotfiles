@@ -15,11 +15,16 @@
                         (file-name-directory (or load-file-name buffer-file-name))))
 
 (ert-deftest tangle/init-el-is-current ()
-  "Re-tangling Emacs.org must reproduce the committed init.el byte for byte."
+  "Re-tangling Emacs.org must reproduce the committed init.el.
+Compared ignoring trailing whitespace: org versions disagree about
+whether a blank line inside an indented block keeps its indentation, so
+a byte-exact check asserts which org tangled the file rather than
+whether the file still corresponds to its source."
   (let* ((org (cfg-test-file "Emacs.org"))
-         (committed (with-temp-buffer
-                      (insert-file-contents (cfg-test-file "init.el"))
-                      (buffer-string)))
+         (committed (cfg-test-normalise-tangle
+                     (with-temp-buffer
+                       (insert-file-contents (cfg-test-file "init.el"))
+                       (buffer-string))))
          (scratch (make-temp-file "tangle-test" t))
          (org-copy (expand-file-name "Emacs.org" scratch)))
     (unwind-protect
@@ -30,9 +35,10 @@
                  (cons '(:tangle . "./init.el") org-babel-default-header-args))
                 (org-confirm-babel-evaluate nil))
             (org-babel-tangle-file org-copy))
-          (let ((fresh (with-temp-buffer
-                         (insert-file-contents (expand-file-name "init.el" scratch))
-                         (buffer-string))))
+          (let ((fresh (cfg-test-normalise-tangle
+                        (with-temp-buffer
+                          (insert-file-contents (expand-file-name "init.el" scratch))
+                          (buffer-string)))))
             ;; Report where they part rather than dumping two whole files:
             ;; ERT prints both on failure, which is thousands of lines and
             ;; gets truncated by CI log viewers exactly when it is needed.

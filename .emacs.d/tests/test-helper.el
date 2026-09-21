@@ -116,6 +116,14 @@ next, which reads as a failure of the code rather than of the fixture."
        ,@body)
      (nreverse sends)))
 
+(defun cfg-test-normalise-tangle (text)
+  "Strip trailing whitespace from each line of TEXT.
+org 9.6 and 9.7 disagree about whether a blank line inside an indented
+source block keeps that indentation when tangled.  Nothing downstream
+can tell the difference, so comparing raw bytes would assert which org
+produced the file rather than whether it matches its source."
+  (replace-regexp-in-string "[ \t]+$" "" text))
+
 (defun cfg-test-describe-difference (expected actual)
   "Summarise where two texts first part, as a readable plist.
 Comparing whole files is right; printing whole files is not, so this
