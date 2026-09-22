@@ -22,7 +22,7 @@ trap 'rm -rf "$work"' EXIT
 # clean slate so the only values in play are the ones each case sets.
 while read -r var; do
   case "$var" in
-    CLAUDE_ACCT_*|ANTHROPIC_*) unset "$var" ;;
+    CLAUDE_ACCT_*|ANTHROPIC_*|CLAUDE_CODE_OAUTH_TOKEN) unset "$var" ;;
   esac
 done < <(compgen -v)
 
@@ -35,7 +35,9 @@ contains(){ case "$3" in *"$2"*) ok "$1";; *) bad "$1" "contains: $2" "$3";; esa
 mkdir -p "$work/bin"
 cat > "$work/bin/claude" <<'STUB'
 #!/usr/bin/env bash
-printf 'argv=%s token=%s apikey=%s authtoken=%s\n' "$*" "${CLAUDE_CODE_OAUTH_TOKEN:-<unset>}" "${ANTHROPIC_API_KEY:-<unset>}" "${ANTHROPIC_AUTH_TOKEN:-<unset>}"
+# Field names are deliberately non-overlapping: `token=' would match inside
+# `authtoken=', so an assertion meant for one would silently accept the other.
+printf 'argv=%s oauth=%s apikey=%s authtoken=%s\n' "$*" "${CLAUDE_CODE_OAUTH_TOKEN:-<unset>}" "${ANTHROPIC_API_KEY:-<unset>}" "${ANTHROPIC_AUTH_TOKEN:-<unset>}"
 STUB
 cat > "$work/bin/op" <<'STUB'
 #!/usr/bin/env bash
@@ -61,23 +63,34 @@ out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak ANTHROPIC_AUTH_TOKEN=sk-l
 contains "clears ANTHROPIC_API_KEY on an ambient account"    "apikey=<unset>"    "$out"
 contains "clears ANTHROPIC_AUTH_TOKEN on an ambient account" "authtoken=<unset>" "$out"
 
+# The one that decides the account, as opposed to how it is billed. An ambient
+# account is documented as the login `claude /login' established, so a token
+# inherited from the surrounding shell must not survive into the session --
+# otherwise `claude-acct me' silently runs as somebody else.
+out=$(CLAUDE_CODE_OAUTH_TOKEN=INHERITED-FROM-SHELL CLAUDE_ACCT_AMBIENT_ME=1 "$script" me 2>&1)
+contains "an ambient account ignores an inherited OAuth token" "oauth=<unset>" "$out"
+
+# ...and an inherited token must not be mistaken for the account's own.
+out=$(CLAUDE_CODE_OAUTH_TOKEN=INHERITED-FROM-SHELL "$script" typo 2>&1)
+contains "an unconfigured account ignores an inherited OAuth token" "oauth=<unset>" "$out"
+
 out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak ANTHROPIC_AUTH_TOKEN=sk-leak2 \
       CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
 contains "clears ANTHROPIC_API_KEY on a token account"       "apikey=<unset>"    "$out"
 contains "clears ANTHROPIC_AUTH_TOKEN on a token account"    "authtoken=<unset>" "$out"
-contains "direct token is used"                              "token=DIRECT"      "$out"
+contains "direct token is used"                              "oauth=DIRECT"      "$out"
 
 # op is only for the _REF form, so a machine without it still works. Proven by
 # pointing CLAUDE_ACCT_OP_BIN at nothing: if the direct token path consulted op
 # at all, this would report it missing instead of running.
 out=$(CLAUDE_ACCT_OP_BIN="$absent_op" CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
-contains "direct token needs no op at all" "token=DIRECT" "$out"
+contains "direct token needs no op at all" "oauth=DIRECT" "$out"
 
 out=$(CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
-contains "falls back to the 1Password reference" "token=TOKEN-FROM-1PASSWORD" "$out"
+contains "falls back to the 1Password reference" "oauth=TOKEN-FROM-1PASSWORD" "$out"
 
 out=$(CLAUDE_ACCT_TOKEN_WORK=DIRECT CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
-contains "direct token wins over the reference" "token=DIRECT" "$out"
+contains "direct token wins over the reference" "oauth=DIRECT" "$out"
 
 out=$(CLAUDE_ACCT_OP_BIN="$absent_op" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
 contains "missing op is reported, not ignored" "1Password CLI not found" "$out"
@@ -124,8 +137,11 @@ contains "arguments after the account pass through" "argv=--resume -p hello" "$o
 out=$(PATH="$work/bin:$PATH" "$script" 'evil;name' 2>&1)
 contains "invalid account name is rejected" "invalid account name" "$out"
 
-out=$(PATH="$work/bin:$PATH" "$script" < /dev/null 2>&1)
-contains "no account and no terminal is an error" "no account given" "$out"
+# Asserted on "not a terminal", not on "no account given": the latter is a
+# prefix of the interactive branch's message too, so it cannot tell which path
+# ran.
+out=$("$script" < /dev/null 2>&1)
+contains "no account and no terminal is an error" "not a terminal" "$out"
 
 out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_CLAUDE_BIN="$script" "$script" work 2>&1)
 contains "self-reference is caught" "points back at this script" "$out"
@@ -137,7 +153,7 @@ contains "a missing claude binary names the path" "$work/bin/absent" "$out"
 
 # dashes fold to underscores in the variable name
 out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_TOKEN_MY_ORG=DASHED "$script" my-org 2>&1)
-contains "dashes map to underscores in the lookup" "token=DASHED" "$out"
+contains "dashes map to underscores in the lookup" "oauth=DASHED" "$out"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

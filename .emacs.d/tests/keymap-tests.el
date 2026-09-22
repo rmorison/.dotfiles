@@ -47,12 +47,16 @@
 `with-eval-after-load' runs immediately once the feature is loaded, so a
 reload takes this path every time."
   (cfg-test-require-package "vterm" 'vterm)
-  ;; All three entry points, not just `warn'. `warn' is a wrapper around
-  ;; `display-warning' in source, but it is preloaded and the call does not go
-  ;; through the symbol, so stubbing `display-warning' alone captures nothing
-  ;; from `warn' -- the test would pass without looking at anything. Stubbing
-  ;; only `warn' is correct for what init.el writes today and silently stops
-  ;; looking the day one of these becomes an `lwarn'.
+  ;; All three entry points, not just `warn'. init.el only calls `warn' today,
+  ;; so the other two are future-proofing -- but they also make this robust to
+  ;; a trap worth naming, because the obvious simplification is broken:
+  ;;
+  ;; `warn' and `lwarn' do call `display-warning' through its symbol, so
+  ;; stubbing `display-warning' alone looks sufficient. Under `emacs -Q' it
+  ;; captures nothing. All three are autoloads from warnings.el at startup, so
+  ;; the first `warn' call loads that file, which redefines `display-warning'
+  ;; and discards the stub -- the test then passes having watched nothing.
+  ;; Stubbing the function actually called avoids the load entirely.
   (let (warnings)
     (cl-letf (((symbol-function 'warn)
                (lambda (&rest args) (push args warnings)))

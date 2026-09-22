@@ -29,13 +29,17 @@ test-elisp:
 	done; \
 	exit $$status
 
-## The same suites with skipping disabled. Tests needing a package skip when it
-## is absent, and a skip is indistinguishable from a pass in the exit status --
-## so a skip predicate that quietly broke would report green while checking
-## nothing. Run this where the packages are installed, i.e. the machine this
-## configuration actually runs on. It is not what CI runs: a runner has no
+## Everything `test' runs, with skipping disabled. Tests needing a package skip
+## when it is absent, and a skip is indistinguishable from a pass in the exit
+## status -- so a skip predicate that quietly broke would report green while
+## checking nothing. Run this where the packages are installed, i.e. the machine
+## this configuration actually runs on. It is not what CI runs: a runner has no
 ## straight directory, and every package-dependent suite would fail by design.
-test-strict:
+##
+## It must stay a superset of `test'. A target named "strict" that ran fewer
+## checks than the plain one would be precisely the failure this suite exists
+## to catch, so test-shell is a prerequisite rather than an afterthought.
+test-strict: test-shell
 	@CFG_TEST_STRICT=1 $(MAKE) --no-print-directory test-elisp
 
 test-shell:

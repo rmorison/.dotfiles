@@ -72,7 +72,9 @@ CLAUDE_ACCT_TOKEN_<ACCOUNT> if set, else read from the 1Password reference in
 CLAUDE_ACCT_TOKEN_REF_<ACCOUNT>, else the session uses the ambient login. The
 1Password CLI is needed only for the _REF form. ANTHROPIC_API_KEY and
 ANTHROPIC_AUTH_TOKEN are cleared for every account, since either would outrank
-both and silently change how the session is billed.
+both and silently change how the session is billed. An inherited
+CLAUDE_CODE_OAUTH_TOKEN is cleared for the same reason, so that an ambient
+account really is the ambient login.
 
 With no account argument, prompts when stdin is a terminal. Non-interactive
 callers (editors, scripts) must pass the account explicitly, so that they know
@@ -147,7 +149,14 @@ fi
 # An API key outranks BOTH an OAuth token and the Keychain login in Claude
 # Code's auth precedence, silently changing how the session is billed. Clear it
 # for every account, not just token-authenticated ones.
-unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+#
+# CLAUDE_CODE_OAUTH_TOKEN goes with them, and it is the one that matters most
+# here: an ambient account is defined above as "whatever `claude /login' last
+# established", and an inherited token quietly makes that untrue -- the session
+# runs as the token's account while reporting itself as ambient. Clearing all
+# three means this script, and nothing it inherited, decides the identity; the
+# token path re-exports its own value below.
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
 
 # Account name upper-cased, dashes as underscores, for the env lookups.
 suffix="$(printf '%s' "$account" | tr '[:lower:]-' '[:upper:]_')"

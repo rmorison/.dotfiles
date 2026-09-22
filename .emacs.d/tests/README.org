@@ -42,10 +42,11 @@ always in this position: a runner has no straight directory, so the only checks
 that actually execute there are =tangle-tests.el= and the shell tests. The
 other 19 skip, and the run is still green.
 
-=make test-strict= sets =CFG_TEST_STRICT=1=, which turns every skip into an
-error naming the package it could not find. Run it on the machine this
-configuration runs on, where the packages exist and nothing has any business
-skipping. It is deliberately not what CI runs.
+=make test-strict= runs everything =make test= runs -- the shell suite
+included -- with =CFG_TEST_STRICT=1=, which turns every skip into an error
+naming the package it could not find. Run it on the machine this configuration
+runs on, where the packages exist and nothing has any business skipping. It is
+deliberately not what CI runs.
 
 * What they cannot reach
 Worth stating, because it is most of the risk: there is no real terminal, no

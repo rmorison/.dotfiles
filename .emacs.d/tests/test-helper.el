@@ -24,7 +24,12 @@
   "Return NAME inside the configuration directory."
   (expand-file-name name cfg-emacs-dir))
 
-(defconst cfg-test-strict (and (getenv "CFG_TEST_STRICT") t)
+(defconst cfg-test-strict
+  (let ((v (getenv "CFG_TEST_STRICT")))
+    ;; `getenv' returns "" for a variable that is set but empty, and "" is
+    ;; non-nil, so `CFG_TEST_STRICT= make test' would otherwise turn strict
+    ;; mode on while reading as turning it off.
+    (and v (not (string-empty-p v))))
   "When non-nil, a missing package fails the test instead of skipping it.
 
 A skip is indistinguishable from a pass in the exit status, so a suite
@@ -41,7 +46,17 @@ error naming the package it could not find.")
       ;; own; fall back to the running configuration's, which is where a
       ;; second clone or a git worktree will find them.
       (expand-file-name "straight/build" (expand-file-name "~/.emacs.d"))))
-  "Directory holding straight's package builds.")
+  "Directory holding straight's package builds.
+
+Note that `cfg-test-require-package' puts *every* subdirectory of this on
+`load-path', not just the requested package and its dependencies, so a
+straight-built `org' or `seq' shadows the bundled one for the rest of the
+process.  That is deliberate -- it is what a real session looks like -- and
+it is why each suite runs in its own process: `tangle-tests.el' requires
+`org' at load time and never calls `cfg-test-require-package', so the
+tangle comparison always runs against the same `org' that `make tangle'
+uses.  Putting a package-dependent test in that file would quietly change
+which `org' tangles the file being compared.")
 
 (defun cfg-test--straight-dir (package)
   "Return PACKAGE's straight build directory, or nil when absent."
@@ -61,9 +76,10 @@ declare, and it goes stale silently.
 They are *prepended*, as `straight--add-package-to-load-path' itself
 prepends, so a package straight has built shadows the copy Emacs ships
 exactly as it does in a real session.  Appending instead would be a
-quieter kind of wrong: `claude-code' needs `transient--set-layout',
-absent from the transient bundled with Emacs 30, so the suite would test
-against a library the configuration never actually loads."
+quieter kind of wrong: `claude-code' needs a newer `transient' than the
+one Emacs bundles, so the suite would test against a library the
+configuration never actually loads -- or, as happened, fail to load
+`claude-code' at all."
   (unless (cfg-test--straight-dir package)
     (if cfg-test-strict
         (error "%s is not installed under %s, and CFG_TEST_STRICT is set"
