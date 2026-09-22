@@ -2,6 +2,9 @@
 
 Run them with =make test= from the repository root.
 
+Use =make test-strict= on a machine where the packages are installed -- see
+[[*A green run does not mean every test ran][A green run does not mean every test ran]].
+
 * What these are for
 Every bug this configuration has shipped produced *plausible-looking wrong
 behaviour* rather than an error — a directory resolving to the wrong account, a
@@ -17,6 +20,9 @@ what found them, and each has a test here named for what it protects.
   package.
 - Packages come from straight at runtime and are not in this repository, so a
   test needing one *skips* when it is absent rather than failing.
+- Straight's build directories are *prepended* to =load-path=, as straight
+  itself prepends them, so a package it has built shadows the copy Emacs ships
+  exactly as it does in a real session.
 - Fixtures in =test-helper.el= reproduce what Claude actually renders — a
   composer, and the bordered dialog that must never be mistaken for one.
 
@@ -29,8 +35,23 @@ what found them, and each has a test here named for what it protects.
 | =keymap-tests.el=         | Added bindings do not displace upstream ones              |
 | =claude-acct-tests.sh=    | =bin/claude-acct= token precedence and argument handling   |
 
+* A green run does not mean every test ran
+A skipped test and a passing test are the same exit status, so a suite whose
+skip predicate has quietly broken reports green while checking nothing. CI is
+always in this position: a runner has no straight directory, so only the tangle,
+keymap-free and shell checks actually execute there.
+
+=make test-strict= sets =CFG_TEST_STRICT=1=, which turns every skip into an
+error naming the package it could not find. Run it on the machine this
+configuration runs on, where the packages exist and nothing has any business
+skipping. It is deliberately not what CI runs.
+
 * What they cannot reach
 Worth stating, because it is most of the risk: there is no real terminal, no
 real Claude and no real =op=. The Claude tests assert what *would be sent*, with
 the terminal stubbed. Whether the CLI honours a =/rename=, and whether =op=
 prompts correctly from a GUI Emacs, are checked by hand.
+
+=claude-acct='s interactive prompt is also unreached: it runs only when both
+stdin and stderr are terminals, which a test harness is not. The tests cover the
+non-interactive refusal on that path, not the =read= itself.

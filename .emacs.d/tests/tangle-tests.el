@@ -31,9 +31,10 @@ whether the file still corresponds to its source."
         (progn
           (copy-file org org-copy t)
           ;; Tangle the copy so a stale or dirty init.el is never written over.
-          (let ((org-babel-default-header-args
-                 (cons '(:tangle . "./init.el") org-babel-default-header-args))
-                (org-confirm-babel-evaluate nil))
+          ;; Where the blocks go is Emacs.org's own business -- its
+          ;; `#+PROPERTY' line, asserted by the test below -- and the relative
+          ;; path in it lands beside whichever copy is being tangled.
+          (let ((org-confirm-babel-evaluate nil))
             (org-babel-tangle-file org-copy))
           (let ((fresh (cfg-test-normalise-tangle
                         (with-temp-buffer
@@ -49,6 +50,20 @@ whether the file still corresponds to its source."
                               :first-difference
                               (cfg-test-describe-difference committed fresh))))))
       (delete-directory scratch t))))
+
+(ert-deftest tangle/org-file-directs-tangling ()
+  "Emacs.org must name init.el as the tangle target for its elisp blocks.
+Lose that header and tangling produces nothing: `make tangle' reports
+success, init.el is left untouched at whatever it already was, and the
+configuration silently stops tracking its source.  Only `emacs-lisp'
+blocks are directed there -- the shell blocks are documentation, and a
+header broad enough to catch them would tangle them into init.el too."
+  (with-temp-buffer
+    (insert-file-contents (cfg-test-file "Emacs.org"))
+    (goto-char (point-min))
+    (should (re-search-forward
+             "^#\\+PROPERTY: +header-args:emacs-lisp +:tangle +\\./init\\.el *$"
+             nil t))))
 
 (ert-deftest tangle/init-el-parens-balance ()
   "An unbalanced init.el fails at startup, after some of it has run."

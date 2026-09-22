@@ -24,25 +24,53 @@
   "Return NAME inside the configuration directory."
   (expand-file-name name cfg-emacs-dir))
 
+(defconst cfg-test-strict (and (getenv "CFG_TEST_STRICT") t)
+  "When non-nil, a missing package fails the test instead of skipping it.
+
+A skip is indistinguishable from a pass in the exit status, so a suite
+whose skip predicate has quietly broken reports green while checking
+nothing.  Set CFG_TEST_STRICT on a machine where the packages *are*
+installed -- `make test-strict' does this -- and every skip becomes an
+error naming the package it could not find.")
+
+(defconst cfg-test-straight-build
+  (let ((local (expand-file-name "straight/build" cfg-emacs-dir)))
+    (if (file-directory-p local)
+        local
+      ;; A checkout that is not the live ~/.emacs.d has no packages of its
+      ;; own; fall back to the running configuration's, which is where a
+      ;; second clone or a git worktree will find them.
+      (expand-file-name "straight/build" (expand-file-name "~/.emacs.d"))))
+  "Directory holding straight's package builds.")
+
 (defun cfg-test--straight-dir (package)
   "Return PACKAGE's straight build directory, or nil when absent."
-  (let ((dir (expand-file-name (concat "straight/build/" package)
-                               (expand-file-name "~/.emacs.d"))))
+  (let ((dir (expand-file-name package cfg-test-straight-build)))
     (and (file-directory-p dir) dir)))
 
 (defun cfg-test-require-package (package feature)
   "Put PACKAGE on `load-path' and require FEATURE, or skip the test.
 Packages are installed by straight at runtime and are not part of this
-repository, so their absence skips rather than fails.
+repository, so their absence skips rather than fails -- unless
+`cfg-test-strict' is set, which turns the skip into an error.
 
 Every build directory goes on `load-path' rather than a curated list of
 dependencies: that list is a second copy of what the packages already
-declare, and it goes stale silently."
+declare, and it goes stale silently.
+
+They are *prepended*, as `straight--add-package-to-load-path' itself
+prepends, so a package straight has built shadows the copy Emacs ships
+exactly as it does in a real session.  Appending instead would be a
+quieter kind of wrong: `claude-code' needs `transient--set-layout',
+absent from the transient bundled with Emacs 30, so the suite would test
+against a library the configuration never actually loads."
   (unless (cfg-test--straight-dir package)
-    (ert-skip (format "%s is not installed" package)))
-  (let ((build (expand-file-name "straight/build" (expand-file-name "~/.emacs.d"))))
-    (dolist (dir (directory-files build t "\\`[^.]"))
-      (when (file-directory-p dir) (add-to-list 'load-path dir))))
+    (if cfg-test-strict
+        (error "%s is not installed under %s, and CFG_TEST_STRICT is set"
+               package cfg-test-straight-build)
+      (ert-skip (format "%s is not installed" package))))
+  (dolist (dir (directory-files cfg-test-straight-build t "\\`[^.]"))
+    (when (file-directory-p dir) (add-to-list 'load-path dir)))
   (require feature))
 
 (defun cfg-test-eval-init-region (start-marker end-marker)
@@ -53,13 +81,23 @@ block under test, from the artifact that actually runs.
 END-MARKER need only appear somewhere inside the last form wanted: the
 region is extended to that form\='s end by reading complete expressions.
 Requiring the marker to land exactly on a closing paren would make these
-tests break on reindentation rather than on behaviour."
+tests break on reindentation rather than on behaviour.
+
+START-MARKER must identify one place in the file.  `search-forward\=' would
+otherwise take the first of several matches, so a marker that stops being
+unique -- because the config grew a second, similar block -- would quietly
+move the test onto the wrong code and still pass."
   (with-temp-buffer
     (insert-file-contents (cfg-test-file "init.el"))
     (emacs-lisp-mode)
     (goto-char (point-min))
     (unless (search-forward start-marker nil t)
       (error "Start marker not found in init.el: %s" start-marker))
+    (let ((first (point)))
+      (when (search-forward start-marker nil t)
+        (error "Start marker is not unique in init.el (lines %d and %d): %s"
+               (line-number-at-pos first) (line-number-at-pos) start-marker))
+      (goto-char first))
     (beginning-of-line)
     (let ((beg (point)) (target nil) (stop nil))
       (unless (search-forward end-marker nil t)

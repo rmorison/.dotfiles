@@ -14,6 +14,18 @@ script="$here/../../bin/claude-acct"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
+# The wrapper is configured entirely by environment, so the developer running
+# these tests is very likely to have exactly the variables under test already
+# exported -- that setup is what bin/claude-acct documents. An inherited
+# CLAUDE_ACCT_TOKEN_WORK satisfies the direct-token branch before the 1Password
+# cases can reach it, and two assertions pass for the wrong reason. Start from a
+# clean slate so the only values in play are the ones each case sets.
+while read -r var; do
+  case "$var" in
+    CLAUDE_ACCT_*|ANTHROPIC_*) unset "$var" ;;
+  esac
+done < <(compgen -v)
+
 pass=0; fail=0
 ok()   { pass=$((pass+1)); printf '  ok     %s\n' "$1"; }
 bad()  { fail=$((fail+1)); printf '  FAIL   %s\n     expected: %s\n     actual:   %s\n' "$1" "$2" "$3"; }
@@ -23,7 +35,7 @@ contains(){ case "$3" in *"$2"*) ok "$1";; *) bad "$1" "contains: $2" "$3";; esa
 mkdir -p "$work/bin"
 cat > "$work/bin/claude" <<'STUB'
 #!/usr/bin/env bash
-printf 'argv=%s token=%s apikey=%s\n' "$*" "${CLAUDE_CODE_OAUTH_TOKEN:-<unset>}" "${ANTHROPIC_API_KEY:-<unset>}"
+printf 'argv=%s token=%s apikey=%s authtoken=%s\n' "$*" "${CLAUDE_CODE_OAUTH_TOKEN:-<unset>}" "${ANTHROPIC_API_KEY:-<unset>}" "${ANTHROPIC_AUTH_TOKEN:-<unset>}"
 STUB
 cat > "$work/bin/op" <<'STUB'
 #!/usr/bin/env bash
@@ -36,12 +48,16 @@ echo "claude-acct"
 
 # A stray API key outranks both the token and the Keychain login, silently
 # changing how the session is billed — so it must be cleared for every account.
-out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak CLAUDE_ACCT_AMBIENT_ME=1 "$script" me 2>&1)
-contains "clears ANTHROPIC_API_KEY on an ambient account" "apikey=<unset>" "$out"
+out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak ANTHROPIC_AUTH_TOKEN=sk-leak2 \
+      CLAUDE_ACCT_AMBIENT_ME=1 "$script" me 2>&1)
+contains "clears ANTHROPIC_API_KEY on an ambient account"    "apikey=<unset>"    "$out"
+contains "clears ANTHROPIC_AUTH_TOKEN on an ambient account" "authtoken=<unset>" "$out"
 
-out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
-contains "clears ANTHROPIC_API_KEY on a token account"    "apikey=<unset>" "$out"
-contains "direct token is used"                           "token=DIRECT"   "$out"
+out=$(PATH="$work/bin:$PATH" ANTHROPIC_API_KEY=sk-leak ANTHROPIC_AUTH_TOKEN=sk-leak2 \
+      CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
+contains "clears ANTHROPIC_API_KEY on a token account"       "apikey=<unset>"    "$out"
+contains "clears ANTHROPIC_AUTH_TOKEN on a token account"    "authtoken=<unset>" "$out"
+contains "direct token is used"                              "token=DIRECT"      "$out"
 
 # op is only for the _REF form, so a machine without it still works.
 out=$(PATH="/usr/bin:/bin" CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
@@ -81,6 +97,11 @@ contains "no account and no terminal is an error" "no account given" "$out"
 
 out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_CLAUDE_BIN="$script" "$script" work 2>&1)
 contains "self-reference is caught" "points back at this script" "$out"
+
+# A CLAUDE_ACCT_CLAUDE_BIN pointing at nothing must name the path it tried,
+# since the usual cause is a claude installed somewhere other than the default.
+out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_CLAUDE_BIN="$work/bin/absent" "$script" work 2>&1)
+contains "a missing claude binary names the path" "$work/bin/absent" "$out"
 
 # dashes fold to underscores in the variable name
 out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_TOKEN_MY_ORG=DASHED "$script" my-org 2>&1)
