@@ -53,6 +53,14 @@ real Claude and no real =op=. The Claude tests assert what *would be sent*, with
 the terminal stubbed. Whether the CLI honours a =/rename=, and whether =op=
 prompts correctly from a GUI Emacs, are checked by hand.
 
+No real =op= is not a description of how the tests happen to run, it is a
+requirement: the suite must never reach the developer's signed-in 1Password.
+Both binaries are injected by name -- =CLAUDE_ACCT_CLAUDE_BIN= and
+=CLAUDE_ACCT_OP_BIN= -- and never looked up on =PATH=. Hiding =op= by narrowing
+=PATH= instead is not portable and was the bug: Homebrew installs it outside
+=/usr/bin:/bin= and apt installs it inside, so the test passed on macOS while on
+Linux it failed *and* ran =op read= for real.
+
 =claude-acct='s interactive prompt is also unreached: it runs only when both
 stdin and stderr are terminals, which a test harness is not. The tests cover the
 non-interactive refusal on that path, not the =read= itself.

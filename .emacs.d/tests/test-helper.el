@@ -107,7 +107,10 @@ move the test onto the wrong code and still pass."
       (while (< stop target)
         (forward-sexp)
         (setq stop (point)))
-      (eval-region beg stop t))))
+      ;; PRINTFLAG nil: with it set, every top-level form's value is printed
+      ;; to stdout, which is the run of bare symbols between suites in the
+      ;; test output. Nothing reads it.
+      (eval-region beg stop nil))))
 
 ;;; Fixtures reproducing what Claude actually renders.
 

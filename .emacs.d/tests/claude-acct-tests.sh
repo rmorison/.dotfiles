@@ -44,6 +44,14 @@ STUB
 chmod +x "$work/bin/claude" "$work/bin/op"
 export CLAUDE_ACCT_CLAUDE_BIN="$work/bin/claude"
 
+# Both binaries are named explicitly, never found on PATH. Narrowing PATH to
+# hide `op' does not work portably -- Homebrew puts it outside /usr/bin:/bin
+# and apt puts it inside -- so a PATH-based test passes on macOS, fails on
+# Linux, and on the way there runs `op read' against the developer's real,
+# signed-in 1Password account. No test here may reach a real secret store.
+export CLAUDE_ACCT_OP_BIN="$work/bin/op"
+absent_op="$work/bin/no-such-op"
+
 echo "claude-acct"
 
 # A stray API key outranks both the token and the Keychain login, silently
@@ -59,18 +67,42 @@ contains "clears ANTHROPIC_API_KEY on a token account"       "apikey=<unset>"   
 contains "clears ANTHROPIC_AUTH_TOKEN on a token account"    "authtoken=<unset>" "$out"
 contains "direct token is used"                              "token=DIRECT"      "$out"
 
-# op is only for the _REF form, so a machine without it still works.
-out=$(PATH="/usr/bin:/bin" CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
-contains "direct token needs no op on PATH" "token=DIRECT" "$out"
+# op is only for the _REF form, so a machine without it still works. Proven by
+# pointing CLAUDE_ACCT_OP_BIN at nothing: if the direct token path consulted op
+# at all, this would report it missing instead of running.
+out=$(CLAUDE_ACCT_OP_BIN="$absent_op" CLAUDE_ACCT_TOKEN_WORK=DIRECT "$script" work 2>&1)
+contains "direct token needs no op at all" "token=DIRECT" "$out"
 
-out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
+out=$(CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
 contains "falls back to the 1Password reference" "token=TOKEN-FROM-1PASSWORD" "$out"
 
-out=$(PATH="$work/bin:$PATH" CLAUDE_ACCT_TOKEN_WORK=DIRECT CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
+out=$(CLAUDE_ACCT_TOKEN_WORK=DIRECT CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
 contains "direct token wins over the reference" "token=DIRECT" "$out"
 
-out=$(PATH="/usr/bin:/bin" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
-contains "missing op is reported, not ignored" "not found on PATH" "$out"
+out=$(CLAUDE_ACCT_OP_BIN="$absent_op" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
+contains "missing op is reported, not ignored" "1Password CLI not found" "$out"
+contains "missing op names the path it tried" "$absent_op"                "$out"
+
+# A failing op must stop the session rather than fall through to some other
+# identity: an expired or locked 1Password is the common case.
+cat > "$work/bin/op-fails" <<'STUB'
+#!/usr/bin/env bash
+echo "[ERROR] could not read secret" >&2
+exit 1
+STUB
+chmod +x "$work/bin/op-fails"
+out=$(CLAUDE_ACCT_OP_BIN="$work/bin/op-fails" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
+contains "a failing op is fatal, not a fallback" "could not read the token" "$out"
+case "$out" in *"argv="*) bad "a failing op never reaches claude" "no claude run" "$out";; *) ok "a failing op never reaches claude";; esac
+
+# An empty token is a silent wrong-account start if it slips through.
+cat > "$work/bin/op-empty" <<'STUB'
+#!/usr/bin/env bash
+printf ''
+STUB
+chmod +x "$work/bin/op-empty"
+out=$(CLAUDE_ACCT_OP_BIN="$work/bin/op-empty" CLAUDE_ACCT_TOKEN_REF_WORK="op://V/i/c" "$script" work 2>&1)
+contains "an empty token from op is rejected" "empty token" "$out"
 
 # An account with nothing configured is legitimate, but so is a typo, and they
 # look identical — so it says so rather than quietly using the wrong identity.
