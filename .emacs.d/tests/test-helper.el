@@ -138,14 +138,21 @@ The mode line beneath the box is what distinguishes it from a dialog."
           "  user@host ~/p (main)\n"
           "  ⏵⏵ auto mode on (shift+tab to cycle) · ← for agents\n"))
 
-(defun cfg-test-dialog (&optional focused)
-  "A bordered Claude dialog whose focused row carries the pointer glyph.
-This is what must never be mistaken for a composer: the folder-trust
-prompt focuses its exit option, so a stray return quits Claude."
+(defun cfg-test-dialog (title &optional rows focused)
+  "A bordered Claude dialog showing TITLE above ROWS.
+FOCUSED is the row carrying the pointer glyph, defaulting to the first;
+with no ROWS this is a bare bordered banner.
+
+Every picker Claude draws has this shape, which is why the pointer can
+never be the thing that says a session is ready: the folder-trust prompt
+focuses its *exit* option, so a return injected on the strength of a
+pointer would quit Claude rather than name a session."
   (concat (make-string 60 ?─) "\n"
-          " Do you trust the files in this folder?\n"
-          "   Yes, I trust this folder\n"
-          " ❯ " (or focused "No, exit") "\n"
+          " " title "\n"
+          (mapconcat (lambda (row)
+                       (concat (if (equal row (or focused (car rows))) " ❯ " "   ")
+                               row "\n"))
+                     rows "")
           (make-string 60 ?─) "\n"))
 
 (defun cfg-test-rule (&optional label)
