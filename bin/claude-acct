@@ -19,6 +19,8 @@
 #   CLAUDE_ACCT_AMBIENT_<ACCOUNT>     set to declare that this account
 #                                     deliberately uses the ambient login
 #   CLAUDE_ACCT_CLAUDE_BIN            path to the real claude binary
+#   CLAUDE_ACCT_OP_BIN                path to the 1Password CLI, if it is not
+#                                     simply `op' on PATH
 #
 # An account with no token runs under the ambient login, whatever
 # `claude /login' last established, and says so on stderr -- because that is
@@ -53,6 +55,12 @@ set -euo pipefail
 
 CLAUDE_BIN="${CLAUDE_ACCT_CLAUDE_BIN:-$HOME/.local/bin/claude}"
 
+# Which `op' to use, for a 1Password CLI installed somewhere other than PATH --
+# and so that the tests can point this at nothing, and exercise the
+# missing-op path without depending on where a given platform installs it or
+# ever reaching a real secret store.
+OP_BIN="${CLAUDE_ACCT_OP_BIN:-op}"
+
 die() { printf 'claude-acct: %s\n' "$*" >&2; exit 1; }
 
 usage() {
@@ -64,7 +72,9 @@ CLAUDE_ACCT_TOKEN_<ACCOUNT> if set, else read from the 1Password reference in
 CLAUDE_ACCT_TOKEN_REF_<ACCOUNT>, else the session uses the ambient login. The
 1Password CLI is needed only for the _REF form. ANTHROPIC_API_KEY and
 ANTHROPIC_AUTH_TOKEN are cleared for every account, since either would outrank
-both and silently change how the session is billed.
+both and silently change how the session is billed. An inherited
+CLAUDE_CODE_OAUTH_TOKEN is cleared for the same reason, so that an ambient
+account really is the ambient login.
 
 With no account argument, prompts when stdin is a terminal. Non-interactive
 callers (editors, scripts) must pass the account explicitly, so that they know
@@ -76,6 +86,7 @@ env:
   CLAUDE_ACCT_AMBIENT_<ACCOUNT>     declare that this account uses the
                                     ambient login, silencing the notice
   CLAUDE_ACCT_CLAUDE_BIN            path to the real claude binary
+  CLAUDE_ACCT_OP_BIN                path to the 1Password CLI, if not `op'
 EOF
   exit 2
 }
@@ -138,7 +149,14 @@ fi
 # An API key outranks BOTH an OAuth token and the Keychain login in Claude
 # Code's auth precedence, silently changing how the session is billed. Clear it
 # for every account, not just token-authenticated ones.
-unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+#
+# CLAUDE_CODE_OAUTH_TOKEN goes with them, and it is the one that matters most
+# here: an ambient account is defined above as "whatever `claude /login' last
+# established", and an inherited token quietly makes that untrue -- the session
+# runs as the token's account while reporting itself as ambient. Clearing all
+# three means this script, and nothing it inherited, decides the identity; the
+# token path re-exports its own value below.
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
 
 # Account name upper-cased, dashes as underscores, for the env lookups.
 suffix="$(printf '%s' "$account" | tr '[:lower:]-' '[:upper:]_')"
@@ -150,11 +168,12 @@ token="${!tok_var:-}"
 if [ -n "$token" ]; then
   : # Token supplied directly; no secret manager needed.
 elif [ -n "${!ref_var:-}" ]; then
-  command -v op >/dev/null 2>&1 || die "1Password CLI 'op' not found on PATH (needed for '$account')"
+  command -v "$OP_BIN" >/dev/null 2>&1 || \
+    die "1Password CLI not found: '$OP_BIN' (needed for '$account'; set CLAUDE_ACCT_OP_BIN to its path)"
   # Read per invocation: the 1Password prompt is the authorization step that
   # makes each token-authenticated start visible. Set $tok_var instead when
   # that prompt is not wanted (see the header note on the trade-off).
-  if ! token="$(op read "${!ref_var}")"; then
+  if ! token="$("$OP_BIN" read "${!ref_var}")"; then
     die "could not read the token for '$account' from 1Password ($ref_var)"
   fi
   [ -n "$token" ] || die "1Password returned an empty token for '$account'"
