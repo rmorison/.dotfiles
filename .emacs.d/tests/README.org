@@ -38,8 +38,9 @@ what found them, and each has a test here named for what it protects.
 * A green run does not mean every test ran
 A skipped test and a passing test are the same exit status, so a suite whose
 skip predicate has quietly broken reports green while checking nothing. CI is
-always in this position: a runner has no straight directory, so only the tangle,
-keymap-free and shell checks actually execute there.
+always in this position: a runner has no straight directory, so the only checks
+that actually execute there are =tangle-tests.el= and the shell tests. The
+other 19 skip, and the run is still green.
 
 =make test-strict= sets =CFG_TEST_STRICT=1=, which turns every skip into an
 error naming the package it could not find. Run it on the machine this
