@@ -1,0 +1,45 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nothing here needs to write anything back.
+permissions:
+  contents: read
+
+# A push that supersedes an in-flight run makes that run's answer irrelevant;
+# cancel it rather than queue behind it. `main' is excluded: its history is
+# what the badge reports, so each commit on it gets its own result.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Emacs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends emacs-nox
+
+      - name: Show versions
+        run: |
+          emacs --version | head -1
+          bash --version | head -1
+
+      # Packages are installed by straight at runtime and are not part of this
+      # repository, so suites needing one skip here rather than fail. The
+      # tangle and shell checks need none, and they are the ones that catch a
+      # stale init.el or a wrapper that would pick the wrong account.
+      #
+      # So a green run here does NOT mean every test ran -- ERT's per-file
+      # summary line below names the skip count. `make test-strict' turns those
+      # skips into errors and belongs on a machine with the packages installed;
+      # see .emacs.d/tests/README.org.
+      - name: make test
+        run: make test
