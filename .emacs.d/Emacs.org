@@ -2371,6 +2371,13 @@ variables explicitly. It derives their names from ~my/claude-account-choices~,
 so adding an account needs no change there, at the cost of one subshell at
 startup.
 
+*Export these variables from a login-shell file* (~~/.zprofile~ or ~~/.zshenv~
+for zsh, ~~/.bash_profile~ for bash), not from ~~/.zshrc~ or ~~/.bashrc~. The
+subshell runs with ~exec-path-from-shell-arguments~, which is ~("-l")~ — a
+non-interactive login shell, chosen for startup speed — and a non-interactive
+shell never reads the interactive rc. A variable exported only there is visible
+in every terminal and yet never reaches Emacs.
+
 If a variable does not arrive, the wrapper says so on stderr and falls back to
 the ambient login — it cannot tell "this account has no token" from "the
 variable never reached me", so it reports rather than guessing. That notice
