@@ -744,7 +744,7 @@ they cannot abort the rest of `emacs-startup-hook'."
                 ;; Force cursor visible when switching to a vterm buffer
                 (setq-local cursor-type t)
                 (internal-show-cursor window t)
-                (when-let ((proc (get-buffer-process (current-buffer))))
+                (when-let* ((proc (get-buffer-process (current-buffer))))
                   (when (process-live-p proc)
                     (vterm--invalidate)
                     (when (and (string-match-p "\\*claude:" (buffer-name))
@@ -890,7 +890,7 @@ on the way out removes the overlays it added."
     (set-face-attribute (car face) nil :font "Cantarell" :weight 'regular :height (cdr face)))
 
   ;; Ensure that anything that should be fixed-pitch in Org files appears that way
-  (set-face-attribute 'org-block nil    :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-block nil    :foreground 'unspecified :inherit 'fixed-pitch)
   (set-face-attribute 'org-table nil    :inherit 'fixed-pitch)
   (set-face-attribute 'org-formula nil  :inherit 'fixed-pitch)
   (set-face-attribute 'org-code nil     :inherit '(shadow fixed-pitch))
@@ -2110,7 +2110,7 @@ Claude session naming is inactive")))
 (with-eval-after-load 'project
   (defun project-find-go-module (dir)
     "Find Go module root by locating go.mod file."
-    (when-let ((root (locate-dominating-file dir "go.mod")))
+    (when-let* ((root (locate-dominating-file dir "go.mod")))
       (cons 'go-module root)))
 
   (cl-defmethod project-root ((project (head go-module)))
