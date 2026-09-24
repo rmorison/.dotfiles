@@ -139,11 +139,17 @@
 (defvar my/setup-frames-done nil
   "Non-nil if `my/setup-frames' has already run.")
 
+(defvar my/ultrawide-aspect-ratio 2.2
+  "Width/height ratio at or above which a single display gets three frames.
+21:9 panels (e.g. 3440x1440, ~2.39) qualify; 16:9 and 16:10 do not.")
+
 (defun my/setup-frames ()
   "Setup frames intelligently based on display configuration.
 For 2+ monitors: create one frame per monitor — maximize on the smaller
 display, and size the frame on the larger display to match the smaller
 display's dimensions.
+For 1 ultrawide display (aspect >= `my/ultrawide-aspect-ratio'): create
+three side-by-side frames.
 For 1 wide display (>1920px): create two side-by-side frames.
 For 1 standard display (<=1920px): maximize single frame."
   (when (and (display-graphic-p) (not my/setup-frames-done))
@@ -191,7 +197,8 @@ For 1 standard display (<=1920px): maximize single frame."
                             (- target-w chrome-w)
                             (- target-h chrome-h) t))))
 
-       ;; Single wide display: two side-by-side frames
+       ;; Single wide display: side-by-side frames — thirds on an
+       ;; ultrawide (21:9 or wider), halves otherwise
        ((> (nth 3 (assoc 'geometry (car monitors))) 1920)
         (let* ((work (or (assoc 'workarea (car monitors))
                          (assoc 'geometry (car monitors))))
@@ -199,19 +206,25 @@ For 1 standard display (<=1920px): maximize single frame."
                (monitor-y (nth 2 work))
                (monitor-width (nth 3 work))
                (monitor-height (nth 4 work))
-               (left-frame (selected-frame))
-               (right-frame (make-frame))
-               (chrome-w (- (frame-outer-width left-frame)
-                            (frame-text-width left-frame)))
-               (chrome-h (- (frame-outer-height left-frame)
-                            (frame-text-height left-frame)))
-               (frame-width (- (/ monitor-width 2) chrome-w))
+               (geom (assoc 'geometry (car monitors)))
+               (columns (if (>= (/ (float (nth 3 geom)) (nth 4 geom))
+                                my/ultrawide-aspect-ratio)
+                            3 2))
+               (first-frame (selected-frame))
+               (chrome-w (- (frame-outer-width first-frame)
+                            (frame-text-width first-frame)))
+               (chrome-h (- (frame-outer-height first-frame)
+                            (frame-text-height first-frame)))
                (frame-height (- monitor-height chrome-h)))
-          (set-frame-parameter left-frame 'fullscreen nil)
-          (set-frame-position left-frame monitor-x monitor-y)
-          (set-frame-size left-frame frame-width frame-height t)
-          (set-frame-position right-frame (+ monitor-x (/ monitor-width 2)) monitor-y)
-          (set-frame-size right-frame frame-width frame-height t)))
+          (set-frame-parameter first-frame 'fullscreen nil)
+          (dotimes (i columns)
+            ;; Compute each column's edges from the total width so the
+            ;; rounding remainder is spread out rather than left as a gap.
+            (let ((frame (if (= i 0) first-frame (make-frame)))
+                  (left (/ (* i monitor-width) columns))
+                  (right (/ (* (1+ i) monitor-width) columns)))
+              (set-frame-position frame (+ monitor-x left) monitor-y)
+              (set-frame-size frame (- right left chrome-w) frame-height t)))))
 
        ;; Single standard display: maximize
        (t (set-frame-parameter nil 'fullscreen 'maximized))))))
