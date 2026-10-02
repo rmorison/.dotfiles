@@ -27,20 +27,22 @@ what found them, and each has a test here named for what it protects.
   composer, and the bordered dialog that must never be mistaken for one.
 
 * Files
-| File                      | Covers                                                    |
-|---------------------------+-----------------------------------------------------------|
+| File                      | Covers                                                        |
+|---------------------------+---------------------------------------------------------------|
 | =tangle-tests.el=         | =init.el= matches =Emacs.org=, parens balance, lexical cookie |
-| =claude-account-tests.el= | Per-directory account selection                           |
-| =claude-rename-tests.el=  | Renaming a session and its buffer together                |
-| =keymap-tests.el=         | Added bindings do not displace upstream ones              |
-| =claude-acct-tests.sh=    | =bin/claude-acct= token precedence and argument handling   |
+| =claude-account-tests.el= | Per-directory account selection                               |
+| =claude-rename-tests.el=  | Renaming a session and its buffer together                    |
+| =keymap-tests.el=         | Added bindings do not displace upstream ones                  |
+| =vterm-url-tests.el=      | Wrapped URLs rejoined; copy mode never strips fake newlines   |
+| =claude-acct-tests.sh=    | =bin/claude-acct= token precedence and argument handling      |
 
 * A green run does not mean every test ran
 A skipped test and a passing test are the same exit status, so a suite whose
 skip predicate has quietly broken reports green while checking nothing. CI is
 always in this position: a runner has no straight directory, so the only checks
-that actually execute there are =tangle-tests.el= and the shell tests. The
-other 19 skip, and the run is still green.
+that actually execute there are =tangle-tests.el=, the shell tests and the one
+=vterm-url-tests.el= check that reads =init.el= alone. The other 45 skip, and
+the run is still green.
 
 =make test-strict= runs everything =make test= runs -- the shell suite
 included -- with =CFG_TEST_STRICT=1=, which turns every skip into an error
