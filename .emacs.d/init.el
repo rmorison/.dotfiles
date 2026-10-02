@@ -842,15 +842,12 @@ they cannot abort the rest of `emacs-startup-hook'."
     "Highlight URLs while `vterm-copy-mode' is active, and only then.
 vterm rewrites its buffer on every redraw, which destroys the overlays
 `goto-address-mode' adds and makes refontifying a busy terminal wasted
-work.  Copy mode freezes the buffer, so they survive.  Disabling the mode
-on the way out removes the overlays it added."
+work.  Copy mode asks the program to pause, so they mostly survive.
+Disabling the mode on the way out removes the overlays it added."
     (goto-address-mode (if (bound-and-true-p vterm-copy-mode) 1 -1)))
 
   (with-eval-after-load 'vterm
     (add-hook 'vterm-copy-mode-hook #'my/vterm-copy-mode-goto-address)
-    ;; Rejoin lines the terminal wrapped, so a split URL is whole while copy
-    ;; mode is active. Symmetric: the breaks are restored on the way out.
-    (setopt vterm-copy-mode-remove-fake-newlines t)
     ;; Bound in both maps. `vterm--enter-copy-mode' does `(use-local-map nil)',
     ;; so while copy mode is active `vterm-mode-map' is not consulted at all and
     ;; a binding there alone would be undefined exactly where it is most wanted.
@@ -870,6 +867,115 @@ on the way out removes the overlays it added."
          ((numberp existing)
           (warn "Not binding C-c C-o: C-c is not a prefix key in this map"))
          (t (warn "Not binding C-c C-o; already bound to %S" existing))))))
+
+  ;; Rejoin URLs that Claude split across rows. Its renderer lets the terminal
+  ;; wrap a full row, then writes a hanging indent as real text, so the URL is
+  ;; broken by a fake newline and the spaces after it.
+  (defvar thing-at-point-provider-alist)
+
+  (defun my/vterm--wrap-continuation (end)
+    "Bounds of the text continuing, on the next row, a run ending at END.
+Nil unless END is a fake newline -- one carrying `vterm-line-wrap' --
+with no blank before it.  The continuation is the next row's first word
+after any indent, and it must share the face of the text before the
+wrap: Claude colours a URL across the break, but not prose that follows
+a URL that happens to fill its row."
+    (when (and (eq (char-after end) ?\n)
+               (get-text-property end 'vterm-line-wrap)
+               (> end (point-min))
+               (not (memq (char-before end) '(?\s ?\t ?\n))))
+      (save-excursion
+        (goto-char (1+ end))
+        (skip-chars-forward " ")
+        (let ((start (point)))
+          (skip-chars-forward "^ \t\n")
+          (when (and (> (point) start)
+                     (equal (get-text-property (1- end) 'font-lock-face)
+                            (get-text-property start 'font-lock-face)))
+            (cons start (point)))))))
+
+  (defun my/vterm--wrap-predecessor (start)
+    "Bounds of the run that the run beginning at START continues, or nil."
+    (save-excursion
+      (goto-char start)
+      (skip-chars-backward " ")
+      (when (and (eq (char-before) ?\n)
+                 (get-text-property (1- (point)) 'vterm-line-wrap))
+        (let ((end (1- (point))))
+          (goto-char end)
+          (skip-chars-backward "^ \t\n")
+          (and (< (point) end)
+               (eq (car (my/vterm--wrap-continuation end)) start)
+               (cons (point) end))))))
+
+  (defun my/vterm-url-at-point ()
+    "Return the URL at point, rejoined across rows the terminal wrapped.
+A `thing-at-point' provider, so it serves `browse-url-at-point' and
+goto-address's buttons alike.  Nil when the word at point does not cross
+a wrap, which leaves the URL to the default lookup."
+    (let* ((pt (point))
+           (bounds (save-excursion
+                     (cons (progn (skip-chars-backward "^ \t\n") (point))
+                           (progn (skip-chars-forward "^ \t\n") (point)))))
+           (len 0)
+           prev parts offset)
+      ;; Back to the row the URL starts on, then forward through its rows.
+      (while (setq prev (my/vterm--wrap-predecessor (car bounds)))
+        (setq bounds prev))
+      (while bounds
+        (when (and (not offset) (<= (car bounds) pt (cdr bounds)))
+          (setq offset (+ len (- pt (car bounds)))))
+        (push (buffer-substring-no-properties (car bounds) (cdr bounds)) parts)
+        (setq len (+ len (length (car parts)))
+              bounds (my/vterm--wrap-continuation (cdr bounds))))
+      (when (and (cdr parts) offset)
+        (with-temp-buffer
+          (insert (apply #'concat (nreverse parts)))
+          (goto-char (1+ offset))
+          (thing-at-point 'url t)))))
+
+  (defun my/vterm-wrapped-url-setup ()
+    "Let `thing-at-point' find URLs that cross a terminal wrap."
+    (require 'thingatpt)
+    (unless (rassq 'my/vterm-url-at-point thing-at-point-provider-alist)
+      (setq-local thing-at-point-provider-alist
+                  (cons '(url . my/vterm-url-at-point)
+                        thing-at-point-provider-alist))))
+
+  (defun my/vterm--url-overlay-at (pos)
+    "The goto-address URL overlay starting at POS, if there is one."
+    (seq-find (lambda (ov) (and (eq (overlay-get ov 'category) 'goto-address)
+                                (= (overlay-start ov) pos)))
+              (overlays-at pos)))
+
+  (defun my/vterm-goto-address-wrapped (&optional start end)
+    "Carry goto-address highlighting onto the rows a URL wraps onto.
+Runs after `goto-address-fontify', whose overlays stop at the wrap.
+Each continuation gets a copy of the URL's overlay, so it is highlighted
+and clickable, and following it rejoins the whole URL through
+`my/vterm-url-at-point'.
+
+`jit-lock' can fontify the two rows separately, and each pass first
+deletes the overlays in its region -- a continuation included.  So the
+search starts two characters early, reaching a URL that ends at the fake
+newline just before the region, and an existing continuation is reused
+rather than stacked."
+    (when (derived-mode-p 'vterm-mode)
+      (let ((from (max (point-min) (- (or start (point-min)) 2))))
+        (dolist (ov (overlays-in from (or end (point-max))))
+          ;; Only URL overlays carry this category; e-mail ones do not.
+          (when (eq (overlay-get ov 'category) 'goto-address)
+            (let ((link ov) next)
+              (while (setq next (my/vterm--wrap-continuation (overlay-end link)))
+                (setq link (or (my/vterm--url-overlay-at (car next))
+                               (let ((copy (copy-overlay ov)))
+                                 (move-overlay copy (car next) (cdr next))
+                                 (overlay-put copy 'button copy)
+                                 copy))))))))))
+
+  (add-hook 'vterm-mode-hook #'my/vterm-wrapped-url-setup)
+  (with-eval-after-load 'goto-addr
+    (advice-add 'goto-address-fontify :after #'my/vterm-goto-address-wrapped))
 
 ;; org mode
 (defun efs/org-font-setup ()
