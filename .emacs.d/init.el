@@ -219,6 +219,26 @@ For 1 standard display (<=1920px): maximize single frame."
 ;; Apply frame setup after initialization
 (add-hook 'after-init-hook #'my/setup-frames)
 
+(defun my/frame-title-sync (&optional frame)
+    "Set FRAME's title to the buffer of its selected window.
+FRAME defaults to the selected frame.  A minibuffer stands in for
+nothing, so the frame keeps the buffer of its most recent window."
+    (let ((frame (if (framep frame) frame (selected-frame))))
+      (when (and (frame-live-p frame) (display-graphic-p frame))
+        (let* ((win (frame-selected-window frame))
+               (win (if (window-minibuffer-p win) (get-mru-window frame) win))
+               (name (and (window-live-p win) (buffer-name (window-buffer win)))))
+          (when (and name (not (equal name (frame-parameter frame 'title))))
+            (set-frame-parameter frame 'title name))))))
+
+  (defun my/frame-title-sync-all (&rest _)
+    "Resynchronize every frame's title."
+    (mapc #'my/frame-title-sync (frame-list)))
+
+  (add-hook 'window-buffer-change-functions #'my/frame-title-sync)
+  (add-hook 'window-selection-change-functions #'my/frame-title-sync)
+  (advice-add 'rename-buffer :after #'my/frame-title-sync-all)
+
 ;; line and column numbers
 (column-number-mode)
 (global-display-line-numbers-mode t)

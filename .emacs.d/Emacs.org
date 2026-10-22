@@ -254,6 +254,39 @@ cookie only counts on the first line, so this block must stay first.
   (add-hook 'after-init-hook #'my/setup-frames)
 #+end_src
 
+** Frame Titles Follow the Buffer
+The window-system title comes from ~frame-title-format~ (~"%b"~), but Emacs only
+recomputes it during some redisplays, and a frame's OS title can sit on a buffer
+it stopped showing long ago. With several frames of Claude sessions that makes
+the window switcher list the wrong session.
+
+So set each frame's ~title~ parameter directly whenever what it shows changes:
+a new buffer in a window, a new selected window, or a buffer renamed (a Claude
+session rename does that). Setting ~title~ reaches the window system at once,
+and takes precedence over ~frame-title-format~.
+
+#+begin_src emacs-lisp
+  (defun my/frame-title-sync (&optional frame)
+    "Set FRAME's title to the buffer of its selected window.
+FRAME defaults to the selected frame.  A minibuffer stands in for
+nothing, so the frame keeps the buffer of its most recent window."
+    (let ((frame (if (framep frame) frame (selected-frame))))
+      (when (and (frame-live-p frame) (display-graphic-p frame))
+        (let* ((win (frame-selected-window frame))
+               (win (if (window-minibuffer-p win) (get-mru-window frame) win))
+               (name (and (window-live-p win) (buffer-name (window-buffer win)))))
+          (when (and name (not (equal name (frame-parameter frame 'title))))
+            (set-frame-parameter frame 'title name))))))
+
+  (defun my/frame-title-sync-all (&rest _)
+    "Resynchronize every frame's title."
+    (mapc #'my/frame-title-sync (frame-list)))
+
+  (add-hook 'window-buffer-change-functions #'my/frame-title-sync)
+  (add-hook 'window-selection-change-functions #'my/frame-title-sync)
+  (advice-add 'rename-buffer :after #'my/frame-title-sync-all)
+#+end_src
+
 ** Line and Column Numbers
 #+begin_src emacs-lisp
   ;; line and column numbers
