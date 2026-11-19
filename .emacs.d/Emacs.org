@@ -1360,8 +1360,15 @@ copy mode toggled: with the option on, leaving copy mode signalled
 ~end-of-buffer~ and the buffer stayed broken; with it off, the same run settled
 cleanly. Leaving the newlines in costs only ~isearch~ matches across a wrap.
 
+Keeping the option off is not a complete fix, though. A Claude buffer has since
+reached the same state with it off: leaving copy mode failed with
+~vterm-reset-cursor-point: End of buffer~. That route is not understood. Claude
+redrawing into the buffer while copy mode is on is the likely one, since nothing
+pauses it. [[*Leaving copy mode safely][Leaving copy mode safely]] limits what
+that failure does to the buffer.
+
 A buffer already in this state does not recover — a resize fails the same way.
-Kill it and resume the conversation in a new one with ~C-c C r~.
+Kill it and resume the conversation in a new one with ~C-c C R~.
 
 *** Notes
 - Disabling ~goto-address-mode~ unfontifies the whole buffer, and
@@ -1519,6 +1526,70 @@ rather than stacked."
   (add-hook 'vterm-mode-hook #'my/vterm-wrapped-url-setup)
   (with-eval-after-load 'goto-addr
     (advice-add 'goto-address-fontify :after #'my/vterm-goto-address-wrapped))
+#+end_src
+
+** Leaving copy mode safely
+*** Why
+~vterm--exit-copy-mode~ first moves point to the terminal cursor with
+~vterm-reset-cursor-point~, and only then puts back the keymap. If the buffer has
+fallen out of step with libvterm (see [[*Why fake newlines stay in copy mode][Why
+fake newlines stay in copy mode]]), that first step fails with ~end-of-buffer~
+and the rest never runs.
+
+Copy mode is already off by then, because ~define-minor-mode~ sets the variable
+before it runs the body. So the buffer ends up in neither mode. It has no local
+keymap, and the mode line shows no ~VTermCopy~. Every key falls through to the
+global map, and ~self-insert-command~ on a vterm buffer gives "Buffer is
+read-only". claude-code.el restores its keymap from ~vterm-copy-mode-hook~, but
+that never runs either: the error aborts the mode before its hooks.
+
+The advice below catches the error, puts back ~vterm-mode-map~ and lets the mode
+finish. The hooks then run, and claude-code.el rebuilds its keymap on top, so
+typing and RET work again. The buffer is still broken: the arrow keys,
+~vterm-yank~ and the next exit from copy mode all need the cursor. So the advice
+shows a warning instead of hiding the failure.
+
+*** Recovering by hand
+To fix a buffer that was wedged before this advice loaded, run this in it with
+~M-:~:
+
+#+begin_example
+(progn (use-local-map vterm-mode-map)
+       (claude-code--term-setup-keymap 'vterm))
+#+end_example
+
+Run both lines. claude-code.el builds its keymap on top of whatever keymap the
+buffer has. If the second line runs on its own, the keymap has nothing under it,
+so RET works but letters still don't reach the terminal.
+
+*** Code
+#+begin_src emacs-lisp
+  ;; Restore the terminal keymap when leaving copy mode fails.
+  (declare-function vterm-send-start "vterm")
+
+  (defun my/vterm--exit-copy-mode-keep-keymap (orig-fn &rest args)
+    "Call ORIG-FN with ARGS, restoring `vterm-mode-map' if it fails.
+`vterm--exit-copy-mode' finds the terminal cursor before it restores
+the keymap.  When the cursor is out of reach that signals, and the
+buffer would be left with no local keymap -- every key then reports
+\"Buffer is read-only\".  Catching the error also lets
+`vterm-copy-mode' run its hooks, where claude-code.el rebuilds its
+keymap on top of this one."
+    (condition-case err
+        (apply orig-fn args)
+      (error
+       (use-local-map vterm-mode-map)
+       (ignore-errors (vterm-send-start))
+       (display-warning
+        'vterm
+        (format "Left copy mode in %s, but vterm has lost the terminal cursor (%s). \
+Typing works; arrow keys, vterm-yank and copy mode will not.  \
+Kill the buffer and resume the conversation in a new one."
+                (buffer-name) (error-message-string err))))))
+
+  (with-eval-after-load 'vterm
+    (advice-add 'vterm--exit-copy-mode :around
+                #'my/vterm--exit-copy-mode-keep-keymap))
 #+end_src
 
 * Org Mode

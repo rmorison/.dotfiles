@@ -977,6 +977,33 @@ rather than stacked."
   (with-eval-after-load 'goto-addr
     (advice-add 'goto-address-fontify :after #'my/vterm-goto-address-wrapped))
 
+;; Restore the terminal keymap when leaving copy mode fails.
+  (declare-function vterm-send-start "vterm")
+
+  (defun my/vterm--exit-copy-mode-keep-keymap (orig-fn &rest args)
+    "Call ORIG-FN with ARGS, restoring `vterm-mode-map' if it fails.
+`vterm--exit-copy-mode' finds the terminal cursor before it restores
+the keymap.  When the cursor is out of reach that signals, and the
+buffer would be left with no local keymap -- every key then reports
+\"Buffer is read-only\".  Catching the error also lets
+`vterm-copy-mode' run its hooks, where claude-code.el rebuilds its
+keymap on top of this one."
+    (condition-case err
+        (apply orig-fn args)
+      (error
+       (use-local-map vterm-mode-map)
+       (ignore-errors (vterm-send-start))
+       (display-warning
+        'vterm
+        (format "Left copy mode in %s, but vterm has lost the terminal cursor (%s). \
+Typing works; arrow keys, vterm-yank and copy mode will not.  \
+Kill the buffer and resume the conversation in a new one."
+                (buffer-name) (error-message-string err))))))
+
+  (with-eval-after-load 'vterm
+    (advice-add 'vterm--exit-copy-mode :around
+                #'my/vterm--exit-copy-mode-keep-keymap))
+
 ;; org mode
 (defun efs/org-font-setup ()
   ;; Replace list hyphen with dot
